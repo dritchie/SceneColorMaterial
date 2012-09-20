@@ -8,10 +8,12 @@
 
 import cc.factorie._
 
+// Mix this in to any variable to identify it as 'observed'
+trait ObservedVariable extends Variable
+
 class MaterialVariable(val ownerObject:FurnitureObject) extends CategoricalVariable[String]
 {
-    var observed = false
-    def this(ownerObject:FurnitureObject, initialVal:String) = { this(ownerObject); _set(domain.index(initialVal)); observed = true }
+    def this(ownerObject:FurnitureObject, initialVal:String) = { this(ownerObject); _set(domain.index(initialVal)); }
     def domain = MaterialVariable.domain
 }
 

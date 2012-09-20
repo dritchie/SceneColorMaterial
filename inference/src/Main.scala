@@ -13,7 +13,7 @@ object Main
     def main(args: Array[String])
     {
         val items = Data.loadCSVData("../data/livingRoomItems.csv")
-        
+
         val materials = Data.getPossibleMaterials(items)
         MaterialVariable.initDomain(materials)
         println(materials)

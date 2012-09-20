@@ -12,8 +12,8 @@ class Scene(var objects: Seq[FurnitureObject])
 
     def objectsWithCategory(category:String) = objects.filter(obj => obj.category == category)
 
-    def observedMaterials = objects.map(obj => obj.material).filter(mat => mat.observed)
-    def unobservedMaterials = objects.map(obj => obj.material).filter(mat => !mat.observed)
+    def observedMaterials = objects.map(obj => obj.material).filter(mat => mat.isInstanceOf[ObservedVariable])
+    def unobservedMaterials = objects.map(obj => obj.material).filter(mat => !mat.isInstanceOf[ObservedVariable])
     def allMaterials = objects.map(obj => obj.material)
 
     def print() { objects.foreach(obj => obj.print()) }
@@ -24,7 +24,7 @@ class FurnitureObject(val category: String, mat:String = null)
     var scene:Scene = null
     var material: MaterialVariable = null
     if (mat != null)
-        material = new MaterialVariable(this, mat)
+        material = new MaterialVariable(this, mat) with ObservedVariable
     else
         material = new MaterialVariable(this)
 
