@@ -9,7 +9,9 @@
 import collection.mutable.ArrayBuffer
 import cc.factorie._
 
-class PairwiseMaterialTemplate(val cat1: String, val cat2: String, private val materials:Seq[String], val probTable: ArrayBuffer[ArrayBuffer[Double]]) extends Template2[MaterialVariable, MaterialVariable] with Statistics2[String, String] {
+abstract class PairwiseMaterialTemplate(val cat1:String, val cat2:String) extends Template2[MaterialVariable, MaterialVariable]
+
+class PairwiseMultinomialMaterialTemplate(cat1: String, cat2: String, private val materials:Seq[String], val probTable: ArrayBuffer[ArrayBuffer[Double]]) extends PairwiseMaterialTemplate(cat1,cat2) with Statistics2[String, String] {
     def score(s: Stat) = probTable(materials.indexOf(s._1))(materials.indexOf(s._2))
 
     def statistics(values: ValuesType) = Stat(values._1.category, values._2.category)
@@ -36,7 +38,7 @@ class PairwiseMaterialTemplate(val cat1: String, val cat2: String, private val m
     def printTable() {
         println("Nonzero entries for (%s,%s) template:".format(cat1, cat2))
         for (i <- 0 until materials.length; j <- 0 until materials.length) {
-            if (probTable(i)(j) > PairwiseMaterialTemplate.logZero) {
+            if (probTable(i)(j) > PairwiseMultinomialMaterialTemplate.logZero) {
                 println("(%s,%s) = %g".format(materials(i), materials(j), math.exp(probTable(i)(j))))
             }
         }
@@ -44,7 +46,7 @@ class PairwiseMaterialTemplate(val cat1: String, val cat2: String, private val m
     }
 }
 
-object PairwiseMaterialTemplate
+object PairwiseMultinomialMaterialTemplate
 {
     /* Constants */
     private val laplaceAlpha = 0.01         // For Laplace smoothing
@@ -80,6 +82,6 @@ object PairwiseMaterialTemplate
         // Inference operates in log space, so we need to log every table entry
         probTable = probTable.map(subtable => subtable.map(entry => if (entry != 0.0) math.log(entry) else logZero))
 
-        new PairwiseMaterialTemplate(cat1, cat2, materials, probTable)
+        new PairwiseMultinomialMaterialTemplate(cat1, cat2, materials, probTable)
     }
 }

@@ -26,13 +26,12 @@ object Main
                                     new FurnitureObject("Rug"),
                                     new FurnitureObject("Lamp")))
 
-        val templates = PairwiseMaterialTemplate.constructAllFromCSVData(items, scene)
+        val templates = PairwiseMultinomialMaterialTemplate.constructAllFromCSVData(items, scene)
 
 //        templates.foreach(t => if (t.cat2 == "Lamp") t.printTable())
 //        templates.foreach(t => if (t.cat1 == "Chair" && t.cat2 == "Couch") t.printTable())
 
         val model = new TemplateModel(templates:_*)
-        val summary = new DiscreteSummary1[MaterialVariable](scene.unobservedMaterials)
         val sampler = new VariableSettingsSampler[MaterialVariable](model)
         {
 //            override def postProcessHook(mv:MaterialVariable, d:DiffList): Unit =
@@ -59,6 +58,7 @@ object Main
         }
 
 //        sampler.temperature = 5.0
+//        val summary = new DiscreteSummary1[MaterialVariable](scene.unobservedMaterials)
 //        val inferencer = new SamplingInferencer(sampler, summary)
 //        inferencer.process(scene.unobservedMaterials)
 //        scene.unobservedMaterials.foreach(mat => {
