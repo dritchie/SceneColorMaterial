@@ -11,8 +11,8 @@ import cc.factorie._
 
 abstract class PairwiseMaterialTemplate(val cat1:String, val cat2:String) extends Template2[MaterialVariable, MaterialVariable]
 
-class PairwiseMultinomialMaterialTemplate(cat1: String, cat2: String, private val materials:Seq[String], val probTable: ArrayBuffer[ArrayBuffer[Double]]) extends PairwiseMaterialTemplate(cat1,cat2) with Statistics2[String, String] {
-    def score(s: Stat) = probTable(materials.indexOf(s._1))(materials.indexOf(s._2))
+class PairwiseMultinomialMaterialTemplate(cat1: String, cat2: String, val probTable: ArrayBuffer[ArrayBuffer[Double]]) extends PairwiseMaterialTemplate(cat1,cat2) with Statistics2[String, String] {
+    def score(s: Stat) = probTable(MaterialVariable.domain.index(s._1))(MaterialVariable.domain.index(s._2))
 
     def statistics(values: ValuesType) = Stat(values._1.category, values._2.category)
 
@@ -37,9 +37,9 @@ class PairwiseMultinomialMaterialTemplate(cat1: String, cat2: String, private va
 
     def printTable() {
         println("Nonzero entries for (%s,%s) template:".format(cat1, cat2))
-        for (i <- 0 until materials.length; j <- 0 until materials.length) {
+        for (i <- 0 until MaterialVariable.domain.length; j <- 0 until MaterialVariable.domain.length) {
             if (probTable(i)(j) > PairwiseMultinomialMaterialTemplate.logZero) {
-                println("(%s,%s) = %g".format(materials(i), materials(j), math.exp(probTable(i)(j))))
+                println("(%s,%s) = %g".format(MaterialVariable.domain.dimensionName(i), MaterialVariable.domain.dimensionName(j), math.exp(probTable(i)(j))))
             }
         }
         println("")
@@ -64,14 +64,12 @@ object PairwiseMultinomialMaterialTemplate
         val cat2items = items.filter(item => item.furnitureType == cat2)
         val occurrencePairs = for (i1 <- cat1items; i2 <- cat2items; if i1 != i2 && i1.collectionId == i2.collectionId) yield (i1, i2)
 
-        val materials = Data.getPossibleMaterials(items)
-
-        val numMaterials = materials.length
+        val numMaterials = MaterialVariable.domain.length
         var probTable = ArrayBuffer.fill(numMaterials, numMaterials)(laplaceAlpha)
 
         occurrencePairs.foreach(pair => {
-            val i1 = materials.indexOf(pair._1.material)
-            val i2 = materials.indexOf(pair._2.material)
+            val i1 = MaterialVariable.domain.index(pair._1.material)
+            val i2 = MaterialVariable.domain.index(pair._2.material)
             probTable(i1)(i2) += 1.0
         })
 
@@ -82,6 +80,6 @@ object PairwiseMultinomialMaterialTemplate
         // Inference operates in log space, so we need to log every table entry
         probTable = probTable.map(subtable => subtable.map(entry => if (entry != 0.0) math.log(entry) else logZero))
 
-        new PairwiseMultinomialMaterialTemplate(cat1, cat2, materials, probTable)
+        new PairwiseMultinomialMaterialTemplate(cat1, cat2, probTable)
     }
 }
