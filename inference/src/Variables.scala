@@ -8,13 +8,16 @@
 
 import cc.factorie._
 
-// Mix this in to any variable to identify it as 'observed'
+// Mix this in to any variable to identify it as 'observed' during inference
 trait ObservedVariable extends Variable
 
 class MaterialVariable(val ownerObject:FurnitureObject) extends CategoricalVariable[String]
 {
     def this(ownerObject:FurnitureObject, initialVal:String) = { this(ownerObject); _set(domain.index(initialVal)); }
     def domain = MaterialVariable.domain
+
+    // Set the target value to use this variable for learning
+    var targetValue:String = null
 }
 
 object MaterialVariable

@@ -21,10 +21,10 @@ object Main
         // Build up some scene here
         val scene  = new Scene(List(new FurnitureObject("Couch"),
                                     new FurnitureObject("Couch"),
-                                    new FurnitureObject("Chair"),
-                                    new FurnitureObject("Table"),
-                                    new FurnitureObject("Rug"),
-                                    new FurnitureObject("Lamp")))
+                                    //new FurnitureObject("Chair"),
+                                    //new FurnitureObject("Table"),
+                                    //new FurnitureObject("Rug"),
+                                    new FurnitureObject("Lamp", "wood")))
 
         val templates = PairwiseMultinomialMaterialTemplate.constructAllFromCSVData(items, scene)
 

@@ -10,12 +10,7 @@ import collection.mutable.ArrayBuffer
 import cc.factorie._
 
 abstract class PairwiseMaterialTemplate(val cat1:String, val cat2:String) extends Template2[MaterialVariable, MaterialVariable]
-
-class PairwiseMultinomialMaterialTemplate(cat1: String, cat2: String, val probTable: ArrayBuffer[ArrayBuffer[Double]]) extends PairwiseMaterialTemplate(cat1,cat2) with Statistics2[String, String] {
-    def score(s: Stat) = probTable(MaterialVariable.domain.index(s._1))(MaterialVariable.domain.index(s._2))
-
-    def statistics(values: ValuesType) = Stat(values._1.category, values._2.category)
-
+{
     def unroll1(mv1: MaterialVariable) = {
         if (mv1.ownerObject.category == cat1) {
             val cat2objs = mv1.ownerObject.scene.objectsWithCategory(cat2)
@@ -34,6 +29,13 @@ class PairwiseMultinomialMaterialTemplate(cat1: String, cat2: String, val probTa
         }
         else Nil
     }
+}
+
+class PairwiseMultinomialMaterialTemplate(cat1: String, cat2: String, val probTable: ArrayBuffer[ArrayBuffer[Double]]) extends PairwiseMaterialTemplate(cat1,cat2) with Statistics2[String, String]
+{
+    def score(s: Stat) = probTable(MaterialVariable.domain.index(s._1))(MaterialVariable.domain.index(s._2))
+
+    def statistics(values: ValuesType) = Stat(values._1.category, values._2.category)
 
     def printTable() {
         println("Nonzero entries for (%s,%s) template:".format(cat1, cat2))
@@ -83,3 +85,13 @@ object PairwiseMultinomialMaterialTemplate
         new PairwiseMultinomialMaterialTemplate(cat1, cat2, probTable)
     }
 }
+
+
+//class PairwiseLogLinearMaterialTemplate(cat1:String, cat2:String) extends PairwiseMaterialTemplate(cat1, cat2) with DotFamily with SparseWeights
+//{
+//    def statistics(values: ValuesType) =
+//    {
+//        val stat:StatisticsType  = null
+//        //Stat(values._1.category, values._2.category)
+//    }
+//}
