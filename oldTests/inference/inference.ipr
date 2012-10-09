@@ -185,11 +185,11 @@
   <component name="libraryTable">
     <library name="factorie-0.10.2">
       <CLASSES>
-        <root url="jar://$FACTORIE_HOME$/target/factorie-0.10.2.jar!/" />
+        <root url="jar://$FACTORIE_0.10.2_HOME$/target/factorie-0.10.2.jar!/" />
       </CLASSES>
       <JAVADOC />
       <SOURCES>
-        <root url="file://$FACTORIE_HOME$/src/main/scala/cc/factorie" />
+        <root url="file://$FACTORIE_0.10.2_HOME$/src/main/scala/cc/factorie" />
       </SOURCES>
     </library>
     <library name="scala-compiler">
