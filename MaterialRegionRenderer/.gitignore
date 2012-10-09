@@ -1,0 +1,8 @@
+*.user
+*.sdf
+*.suo
+shader_tmp
+Release
+Debug
+ipch
+*.opensdf

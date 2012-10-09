@@ -1,0 +1,41 @@
+##############################################################################
+##			             GraphicsApp Parameters File                        ##
+##############################################################################
+
+
+## File format supports int, float, bool, and string params (and comments, duh)
+# anIntParam			42
+# aFloatParam			3.14
+# aBoolParam			true
+# aStringParam			herpderp
+
+
+## Perspective settings
+fovy		40.0
+znear		0.1
+zfar		100.0
+
+## Shader path: semi-colon separated list of places to look for files
+## when loading shaders
+shaderPath	GLSL/
+
+## Window Size
+windowWidth		500
+windowHeight	500
+
+## App Name
+appName			MaterialRegionRenderer
+
+
+
+### Other application-specific parameters go here! ###
+
+inputModel				C:/Git/WebSceneStudio/public/data/model/b6816f34f7fc81c66666a748bda83f67.json
+utf8Dir					C:/Git/WebSceneStudio/public/data/geometry
+inputImage				chair_img.jpg
+gaussianWidthFactor		0.03
+threshold				0.1
+
+phiStrata				10
+thetaStrata				4
+samplesPerStratum		4
