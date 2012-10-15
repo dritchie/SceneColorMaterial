@@ -1,2 +1,15 @@
 *.iws
 *.class
+/AverageScene/sceneImages
+/AverageScene/sceneImages_orig
+/AverageScene/Debug
+/AverageScene/ipch
+/AverageScene/Release
+*.user
+*.opensdf
+*.sdf
+*.suo
+/color_coord
+/MaterialRegionRenderer/output_good
+/MaterialRegionRenderer/output
+/MaterialRegionRenderer/output_bad
