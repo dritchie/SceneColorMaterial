@@ -19,6 +19,7 @@ namespace ColorVis
     {
         String dir = "C:\\Users\\sharon\\Documents\\SunDatabase\\Segments\\users\\antonio\\static_sun_database\\l\\living_room";
         String json = "C:\\Users\\sharon\\Documents\\Color\\c3\\data\\xkcd\\c3_data.json";
+        String weightsDir = "C:\\Users\\sharon\\Documents\\ColorTransfer\\SceneColorMaterial\\weights";
  
         public ColorVis()
         {
@@ -57,7 +58,7 @@ namespace ColorVis
         private void extractTheme_Click(object sender, EventArgs e)
         {
             //Use the Palette Extractor to extract the theme
-            PaletteExtractor extractor = new PaletteExtractor(dir,json);
+            PaletteExtractor extractor = new PaletteExtractor(dir,weightsDir,json);
 
             String[] files = Directory.GetFiles(dir, "*.png");
             String outfile = dir+"\\palettes.tsv";

@@ -340,16 +340,17 @@ namespace Engine
     {
         double[,] cnCache;
         ColorNames colorNames;
-        String dir;
+        String dir; //image directory
         FeatureName featureName;
+        String weightsDir; //weights directory
 
         //Set the base directory (where all the images are), and pass in the filepath
         //for the color names data
-        public PaletteExtractor(String directory, String json)
+        public PaletteExtractor(String directory, String wDir, String json)
         {
             dir = directory;
+            weightsDir = wDir;
 
-            //String json = "C:\\Users\\sharon\\Documents\\Color\\c3\\data\\xkcd\\c3_data.json";
             colorNames = new ColorNames(json);
 
             int numBins = colorNames.map.Keys.Count();
@@ -365,7 +366,6 @@ namespace Engine
             //create base subdirectories
             Directory.CreateDirectory(dir + "\\swatches\\");
             Directory.CreateDirectory(dir + "\\out\\");
-            Directory.CreateDirectory(dir + "\\matlab\\");
             Directory.CreateDirectory(dir + "\\saliency\\");
             Directory.CreateDirectory(dir + "\\segments\\");
             
@@ -1717,7 +1717,7 @@ namespace Engine
             //weights
             Dictionary<Features, double> weights = new Dictionary<Features, double>();
 
-            weights = LoadWeights(dir + "/matlab/weights-final-no.csv", dir + "/matlab/featurenames-all.txt");
+            weights = LoadWeights(weightsDir+"/weights-final-no.csv", weightsDir+"/featurenames-all.txt");
 
 
             PaletteData best = new PaletteData();
