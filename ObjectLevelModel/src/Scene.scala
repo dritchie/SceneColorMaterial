@@ -8,9 +8,10 @@ import collection.mutable.ArrayBuffer
  * To change this template use File | Settings | File Templates.
  */
 
-class SceneObject(val category:String)
+class SceneObject(categoryName:String)
 {
-    var color:DiscreteColorVariable = new DiscreteColorVariable
+    val category:ObjectCategory = new ObjectCategory(categoryName)
+    var color:DiscreteColorVariable = new DiscreteColorVariable(this)
     var scene:Scene = null
 }
 
@@ -29,5 +30,15 @@ class Scene
     {
         obj.scene = null
         objects -= obj
+    }
+
+    def objectsOfCategory(catIndex:Int) =
+    {
+        objects.filter(obj => obj.category.intValue == catIndex)
+    }
+
+    def objectsOfCategory(catName:String) =
+    {
+        objects.filter(obj => obj.category.categoryValue == catName)
     }
 }
