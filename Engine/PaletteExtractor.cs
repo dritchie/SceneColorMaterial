@@ -371,13 +371,21 @@ namespace Engine
             
         }
 
+        private String ConvertFileName(String basename, String label, String toExt=null)
+        {
+            FileInfo info = new FileInfo(basename);
+            String extension = info.Extension;
+            String result = (toExt==null)? basename.Replace(extension, label + extension): basename.Replace(extension, label+toExt);
+            return result;
+        }
+
         //Load or create the candidate swatches
         private PaletteData GetPaletteSwatches(string key)
         {
             PaletteData global = new PaletteData();
 
             //load all the candidate colors (the json file)
-            String jsonFile = dir + "/swatches/" + key.Replace(".png", ".json");
+            String jsonFile = dir + "/swatches/" + ConvertFileName(key,"",".json");
 
             //check if it exists, if not, create the swatches
             if (!File.Exists(jsonFile))
@@ -562,7 +570,7 @@ namespace Engine
 
 
             //read the saliency map, and calculate saliency for each swatch
-            String mapPath = key.Replace(".png", saliencyPattern + ".png");//"gbvs_" + key;
+            String mapPath = ConvertFileName(key, saliencyPattern);//"gbvs_" + key;
             Bitmap map = new Bitmap(Image.FromFile(dir + "/saliency/" + mapPath), image.Width, image.Height);
 
 
@@ -1863,7 +1871,7 @@ namespace Engine
             //generate candidate colors for this image
             //open image
             Bitmap image = new Bitmap(dir + "\\" + key);
-            String filename = dir + "\\swatches\\" + key.Replace(".png", "") + ".json";
+            String filename = dir + "\\swatches\\" + ConvertFileName(key,"",".json");
 
             int numSeeds = 40;
 
