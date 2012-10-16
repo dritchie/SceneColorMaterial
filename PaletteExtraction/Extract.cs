@@ -17,13 +17,37 @@ namespace ColorVis
 {
     public partial class ColorVis : Form
     {
-        String dir = "C:\\Users\\sharon\\Documents\\SunDatabase\\Segments\\users\\antonio\\static_sun_database\\l\\living_room";
-        String json = "C:\\Users\\sharon\\Documents\\Color\\c3\\data\\xkcd\\c3_data.json";
-        String weightsDir = "C:\\Users\\sharon\\Documents\\ColorTransfer\\SceneColorMaterial\\weights";
+        String config = "../../localconfig.txt";
+        String dir;
+        String json;
+        String weightsDir;
  
         public ColorVis()
         {
             InitializeComponent();
+
+            //load the config file
+            String[] lines = File.ReadAllLines(config);
+            foreach (String l in lines)
+            {
+                String[] fields = l.Split('>');
+                String param = fields.First().Trim();
+                switch (param)
+                {
+                    case "dir":
+                        dir = fields.Last().Trim();
+                        break;
+                    case "json":
+                        json = fields.Last().Trim();
+                        break;
+                    case "weightsDir":
+                        weightsDir = fields.Last().Trim();
+                        break;
+                    default:
+                        break;
+                }
+            }
+
         }
 
         private void ResaveImages(String imageDir)
@@ -73,7 +97,7 @@ namespace ColorVis
 
                 //The saliency pattern "_Judd" is just an additional annotation after the image filename if it exists
                 //i.e. if the image filename is A.png, the saliency map filename is A_Judd.png
-                PaletteData data = extractor.HillClimbPalette(basename, "_Judd");
+                PaletteData data = extractor.HillClimbPalette(basename, "_Judd", true);
 
                 //save to file
                 String colorString = data.ToString();
