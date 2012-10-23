@@ -17,9 +17,9 @@ namespace ColorVis
 {
     public partial class ColorVis : Form
     {
-        String dir = "C:\\Users\\sharon\\Documents\\SunDatabase\\Segments\\users\\antonio\\static_sun_database\\l\\living_room";
-        String json = "C:\\Users\\sharon\\Documents\\Color\\c3\\data\\xkcd\\c3_data.json";
-        String weightsDir = "C:\\Users\\sharon\\Documents\\ColorTransfer\\SceneColorMaterial\\weights";
+        String dir = "C:/Git/SceneColorMaterial/paletteExtractionWorkspace";
+        String json = "C:/Git/SceneColorMaterial/c3_data.json";
+        String weightsDir = "C:/Git/SceneColorMaterial/weights";
  
         public ColorVis()
         {
@@ -73,7 +73,7 @@ namespace ColorVis
 
                 //The saliency pattern "_Judd" is just an additional annotation after the image filename if it exists
                 //i.e. if the image filename is A.png, the saliency map filename is A_Judd.png
-                PaletteData data = extractor.HillClimbPalette(basename, "_Judd");
+                PaletteData data = extractor.HillClimbPalette(basename, "_Judd", true);
 
                 //save to file
                 String colorString = data.ToString();

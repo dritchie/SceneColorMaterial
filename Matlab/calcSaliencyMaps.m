@@ -1,10 +1,9 @@
-toolsdir = 'C:/Users/sharon/Documents/Color/JuddSaliency/';
+%toolsdir = 'C:/Users/sharon/Documents/Color/JuddSaliency/';
+%addpath(genpath(toolsdir))
 
-addpath(genpath(toolsdir))
 
-
-indir = 'C:/Users/sharon/Documents/SunDatabase/Segments/users/antonio/static_sun_database/l/living_room/';
-outdir = 'C:/Users/sharon/Documents/SunDatabase/Segments/users/antonio/static_sun_database/l/living_room/saliency/';
+indir = 'C:/Git/SceneColorMaterial/paletteExtractionWorkspace/';
+outdir = 'C:/Git/SceneColorMaterial/paletteExtractionWorkspace/saliency/';
 
 %Now run the saliency function
 imagefiles = dir([indir, '*.png']);
