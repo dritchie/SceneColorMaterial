@@ -255,7 +255,8 @@ void UTF8Model::Render()
 	{
 		const UTF8ModelComponent& comp = components[i];
 		int colloc = ShaderProgram::CurrentProgram()->GetUniformLocation("Color");
-		glUniform3fv(colloc, 1, &(comp.material->color[0]));
+		if (colloc >= 0)
+			glUniform3fv(colloc, 1, &(comp.material->color[0]));
 		components[i].mesh->Render();
 	}
 

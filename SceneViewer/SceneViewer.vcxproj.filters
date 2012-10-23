@@ -61,10 +61,16 @@
     <None Include="Parameters.txt">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="GLSL\Model.vert">
+    <None Include="GLSL\Shaded.frag">
       <Filter>Resource Files\GLSL</Filter>
     </None>
-    <None Include="GLSL\Model.frag">
+    <None Include="GLSL\Shaded.vert">
+      <Filter>Resource Files\GLSL</Filter>
+    </None>
+    <None Include="GLSL\Flat.frag">
+      <Filter>Resource Files\GLSL</Filter>
+    </None>
+    <None Include="GLSL\Flat.vert">
       <Filter>Resource Files\GLSL</Filter>
     </None>
   </ItemGroup>

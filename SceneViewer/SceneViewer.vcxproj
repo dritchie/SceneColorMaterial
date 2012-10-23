@@ -82,8 +82,10 @@
     <ClInclude Include="UTF8Model.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="GLSL\Model.frag" />
-    <None Include="GLSL\Model.vert" />
+    <None Include="GLSL\Flat.frag" />
+    <None Include="GLSL\Flat.vert" />
+    <None Include="GLSL\Shaded.frag" />
+    <None Include="GLSL\Shaded.vert" />
     <None Include="Parameters.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
