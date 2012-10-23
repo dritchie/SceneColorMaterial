@@ -1,0 +1,36 @@
+##############################################################################
+##			             GraphicsApp Parameters File                        ##
+##############################################################################
+
+
+## File format supports int, float, bool, and string params (and comments, duh)
+# anIntParam			42
+# aFloatParam			3.14
+# aBoolParam			true
+# aStringParam			herpderp
+
+
+## Perspective settings
+fovy		60.0
+znear		2.0
+zfar		750.0
+
+## Shader path: semi-colon separated list of places to look for files
+## when loading shaders
+shaderPath	GLSL
+
+## Window Size
+windowWidth		800
+windowHeight	600
+
+## App Name
+appName			SceneViewer
+
+
+
+### Other application-specific parameters go here! ###
+
+dataRoot					C:/Git/WebSceneStudio/public/data
+orbitSpeed					0.005
+dollySpeed					0.15
+zoomSpeed					4.0
