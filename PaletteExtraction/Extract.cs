@@ -17,13 +17,37 @@ namespace ColorVis
 {
     public partial class ColorVis : Form
     {
-        String dir = "C:/Git/SceneColorMaterial/paletteExtractionWorkspace";
-        String json = "C:/Git/SceneColorMaterial/c3_data.json";
-        String weightsDir = "C:/Git/SceneColorMaterial/weights";
+        String config = "../../localconfig.txt";
+        String dir;
+        String json;
+        String weightsDir;
  
         public ColorVis()
         {
             InitializeComponent();
+
+            //load the config file
+            String[] lines = File.ReadAllLines(config);
+            foreach (String l in lines)
+            {
+                String[] fields = l.Split('>');
+                String param = fields.First().Trim();
+                switch (param)
+                {
+                    case "dir":
+                        dir = fields.Last().Trim();
+                        break;
+                    case "json":
+                        json = fields.Last().Trim();
+                        break;
+                    case "weightsDir":
+                        weightsDir = fields.Last().Trim();
+                        break;
+                    default:
+                        break;
+                }
+            }
+
         }
 
         private void ResaveImages(String imageDir)
