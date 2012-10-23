@@ -36,6 +36,8 @@ void WSSScene::Load(const string& sceneFilename, const string& dataDir)
 		vector<float> transformData;
 		JsonUtils::ParseFloatArrayProp(JsonUtils::GetRequiredJsonProp(m, "transform"), transformData);
 		model.transform = GraphicsEngine::Transform(Eigen::Matrix4f(&transformData[0]));
+
+		model.index = i;
 	}
 }
 
@@ -51,7 +53,6 @@ void WSSScene::Pick()
 {
 	for (UINT i = 0; i < models.size(); i++)
 	{
-		// +1, so that id 0 is reserved for the 'background' of the scene
-		models[i].Pick(i+1);
+		models[i].Pick();
 	}
 }

@@ -19,23 +19,25 @@ struct UTF8ModelComponent
 {
 	GraphicsEngine::CommonMesh* mesh;
 	UTF8Material* material;
+	int index;
 
-	UTF8ModelComponent() : mesh(NULL) {}
+	UTF8ModelComponent() : mesh(NULL), index(-1) {}
 };
 
 class UTF8Model
 {
 public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-	UTF8Model() : transform(GraphicsEngine::Transform::Identity()) {}
+	UTF8Model() : transform(GraphicsEngine::Transform::Identity()), index(-1) {}
 	void Load(const std::string& jsonfilename, const std::string& utf8Dir, const std::string& texDir);
 	Eigen::AlignedBox3f Bounds() const;
 	void Render();
-	void Pick(UINT myIndex);
+	void Pick();
 
 	std::vector<UTF8ModelComponent> components;
 	std::map<std::string, UTF8Material> materials;
 	GraphicsEngine::Transform transform;
+	int index;
 
 private:
 	void FreeMemory();

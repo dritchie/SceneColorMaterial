@@ -21,7 +21,6 @@ App::App()
 App::~App()
 {
 	SAFEDELETE(camera);
-	SAFEDELETE(scene);
 	SAFEDELETE(shaded_prog);
 	SAFEDELETE(shaded_vs);
 	SAFEDELETE(shaded_fs);
@@ -31,6 +30,7 @@ App::~App()
 	SAFEDELETE(picking_prog);
 	SAFEDELETE(picking_vs);
 	SAFEDELETE(picking_fs);
+	SAFEDELETE(colorPanel);
 }
 
 /** UI Callbacks **/
@@ -68,6 +68,10 @@ GraphicsContext* App::InitAndShowUI(int argc, char** argv)
 	FLTKGraphicsWindow* gwind = new FLTKGraphicsWindow(this, 0, params.IntParam("menuBarHeight"), params.IntParam("windowWidth") - params.IntParam("sidePanelWidth"),
 		params.IntParam("windowHeight") - params.IntParam("menuBarHeight"), params.StringParam("appName").c_str());
 	gwind->end();
+
+	// Component color detail panel
+	colorPanel = new ComponentColorPanel(gwind->w(), params.IntParam("menuBarHeight"), params.IntParam("sidePanelWidth"), params.IntParam("windowHeight") - params.IntParam("menuBarHeight"));
+	colorPanel->end();
 
 	window->end();
 	window->resizable(gwind);
@@ -113,7 +117,7 @@ void App::InitGraphics(GraphicsContext* ctx)
 	lightDir = Vector3f(-0.35f, -0.45f, 1.0f);
 
 	// Load scene
-	scene = new WSSScene; scene->Load("Scenes/helloWorld.json", params.StringParam("dataRoot"));
+	scene.Load("Scenes/helloWorld.json", params.StringParam("dataRoot"));
 }
 
 void App::InitCamera()
@@ -151,7 +155,7 @@ void App::DrawingRenderPass()
 		glUniform3fv(lightloc, 1, &xformedLight[0]);
 	}
 
-	scene->Render();
+	scene.Render();
 }
 
 void App::PickingRenderPass()
@@ -170,7 +174,7 @@ void App::PickingRenderPass()
 	TransformStack::Projection().Bind();
 	TransformStack::Modelview().Load(camera->GetLookAtTransform());
 
-	scene->Pick();
+	scene.Pick();
 
 	picker.pickBuffer.Unbind();
 }
@@ -193,7 +197,16 @@ void App::MouseDown(int button, int x, int y, const GraphicsEngine::ModifierKeys
 	{
 		y = ((FLTKGraphicsWindow*)context)->h() - y;
 		auto ids = picker.Pick(x, y);
-		printf("Picked model %d, component %d\n", ids.first, ids.second);
+		if (ids.first == -1)
+		{
+			printf("Picked background\n");
+			colorPanel->SetActiveComponent(NULL);
+		}
+		else
+		{
+			printf("Picked model %d, component %d\n", ids.first, ids.second);
+			colorPanel->SetActiveComponent(&scene.models[ids.first].components[ids.second]);
+		}
 	}
 	else if (camera->MouseDown(button, x, y, mods))
 		context->Redraw();

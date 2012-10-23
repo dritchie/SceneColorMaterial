@@ -11,6 +11,7 @@
 #include "Assets/Shader/ShaderProgram.h"
 #include "Picker.h"
 #include "FL/Fl_Widget.H"
+#include "ComponentColorPanel.h"
 
 
 /**
@@ -57,7 +58,7 @@ private:
 
 	GraphicsEngine::InteractiveCamera* camera;
 
-	WSSScene* scene;
+	WSSScene scene;
 
 	GraphicsEngine::Shader *shaded_vs, *shaded_fs;
 	GraphicsEngine::ShaderProgram* shaded_prog;
@@ -76,6 +77,8 @@ private:
 	DisplayType displayType;
 
 	Picker picker;
+
+	ComponentColorPanel* colorPanel;
 };
 
 

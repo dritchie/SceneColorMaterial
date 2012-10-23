@@ -229,6 +229,10 @@ void UTF8Model::Load(const string& jsonfilename, const string& utf8Dir, const st
 
 	// Parse the list of components
 	ParseComponents(this, root, utf8Dir, decodeOffsets, decodeScales);
+
+	// Assign indices
+	for (UINT i = 0; i < components.size(); i++)
+		components[i].index = i;
 }
 
 AlignedBox3f UTF8Model::Bounds() const
@@ -264,11 +268,14 @@ void UTF8Model::Render()
 	TransformStack::Modelview().Pop();
 }
 
-void UTF8Model::Pick(UINT myIndex)
+void UTF8Model::Pick()
 {
 	TransformStack::Modelview().Push();
 	TransformStack::Modelview().Multiply(transform);
 	TransformStack::Modelview().Bind();
+
+	// +1, so that id 0 is reserved for the 'background' of the scene
+	UINT myIndex = (UINT)(index + 1);
 
 	for (UINT i = 0; i < components.size(); i++)
 	{
