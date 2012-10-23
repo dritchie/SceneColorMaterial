@@ -31,6 +31,7 @@ public:
 	void Load(const std::string& jsonfilename, const std::string& utf8Dir, const std::string& texDir);
 	Eigen::AlignedBox3f Bounds() const;
 	void Render();
+	void Pick(UINT myIndex);
 
 	std::vector<UTF8ModelComponent> components;
 	std::map<std::string, UTF8Material> materials;

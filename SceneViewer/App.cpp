@@ -28,6 +28,9 @@ App::~App()
 	SAFEDELETE(flat_prog);
 	SAFEDELETE(flat_vs);
 	SAFEDELETE(flat_fs);
+	SAFEDELETE(picking_prog);
+	SAFEDELETE(picking_vs);
+	SAFEDELETE(picking_fs);
 }
 
 /** UI Callbacks **/
@@ -100,6 +103,11 @@ void App::InitGraphics(GraphicsContext* ctx)
 	shaders.clear(); shaders.push_back(flat_vs); shaders.push_back(flat_fs);
 	flat_prog = new ShaderProgram(shaders);
 	///
+	picking_vs = new Shader(Shader::VertexShader); picking_vs->FromFile("Picking.vert");
+	picking_fs = new Shader(Shader::FragmentShader); picking_fs->FromFile("Picking.frag");
+	shaders.clear(); shaders.push_back(picking_vs); shaders.push_back(picking_fs);
+	picking_prog = new ShaderProgram(shaders);
+	///
 
 	// Init lighting
 	lightDir = Vector3f(-0.35f, -0.45f, 1.0f);
@@ -118,6 +126,12 @@ void App::InitCamera()
 }
 
 void App::Render()
+{
+	DrawingRenderPass();
+	PickingRenderPass();
+}
+
+void App::DrawingRenderPass()
 {
 	glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -140,6 +154,27 @@ void App::Render()
 	scene->Render();
 }
 
+void App::PickingRenderPass()
+{
+	int w = ((FLTKGraphicsWindow*)context)->w();
+	int h = ((FLTKGraphicsWindow*)context)->h();
+	picker.pickBuffer.BindForDrawing(w, h);
+
+	// IMPORTANT: Clear color must be set to 0 so the 'background' of the
+	// scene gets the correct picking id.
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	picking_prog->Bind();
+
+	TransformStack::Projection().Bind();
+	TransformStack::Modelview().Load(camera->GetLookAtTransform());
+
+	scene->Pick();
+
+	picker.pickBuffer.Unbind();
+}
+
 void App::KeyDown(int key, const ModifierKeys& mods)
 {
 	if (camera->KeyDown(key, mods))
@@ -154,7 +189,13 @@ void App::KeyUp(int key, const ModifierKeys& mods)
 
 void App::MouseDown(int button, int x, int y, const GraphicsEngine::ModifierKeys& mods)
 {
-	if (camera->MouseDown(button, x, y, mods))
+	if (button == MOUSE_LEFT_BUTTON)
+	{
+		y = ((FLTKGraphicsWindow*)context)->h() - y;
+		auto ids = picker.Pick(x, y);
+		printf("Picked model %d, component %d\n", ids.first, ids.second);
+	}
+	else if (camera->MouseDown(button, x, y, mods))
 		context->Redraw();
 }
 

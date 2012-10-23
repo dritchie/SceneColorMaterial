@@ -5,6 +5,7 @@
 #include "Assets/Shader/ShaderProgram.h"
 #include "Common/GL.h"
 #include "Math/TransformStack.h"
+#include "Picker.h"
 #include <fstream>
 #include <codecvt>
 
@@ -257,6 +258,24 @@ void UTF8Model::Render()
 		int colloc = ShaderProgram::CurrentProgram()->GetUniformLocation("Color");
 		if (colloc >= 0)
 			glUniform3fv(colloc, 1, &(comp.material->color[0]));
+		components[i].mesh->Render();
+	}
+
+	TransformStack::Modelview().Pop();
+}
+
+void UTF8Model::Pick(UINT myIndex)
+{
+	TransformStack::Modelview().Push();
+	TransformStack::Modelview().Multiply(transform);
+	TransformStack::Modelview().Bind();
+
+	for (UINT i = 0; i < components.size(); i++)
+	{
+		Eigen::Vector4f floats = Picker::PackIDs((unsigned short)myIndex, (unsigned short)i);
+		int bytesloc = ShaderProgram::CurrentProgram()->GetUniformLocation("IdBytes");
+		if (bytesloc >= 0)
+			glUniform4fv(bytesloc, 1, &floats[0]);
 		components[i].mesh->Render();
 	}
 

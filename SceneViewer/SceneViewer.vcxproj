@@ -67,23 +67,29 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="App.cpp" />
+    <ClCompile Include="Framebuffer.cpp" />
     <ClCompile Include="jsoncpp\json_reader.cpp" />
     <ClCompile Include="jsoncpp\json_value.cpp" />
     <ClCompile Include="jsoncpp\json_writer.cpp" />
     <ClCompile Include="JsonUtils.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Picker.cpp" />
     <ClCompile Include="WSSScene.cpp" />
     <ClCompile Include="UTF8Model.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="App.h" />
+    <ClInclude Include="Framebuffer.h" />
     <ClInclude Include="JsonUtils.h" />
+    <ClInclude Include="Picker.h" />
     <ClInclude Include="WSSScene.h" />
     <ClInclude Include="UTF8Model.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="GLSL\Flat.frag" />
     <None Include="GLSL\Flat.vert" />
+    <None Include="GLSL\Picking.frag" />
+    <None Include="GLSL\Picking.vert" />
     <None Include="GLSL\Shaded.frag" />
     <None Include="GLSL\Shaded.vert" />
     <None Include="Parameters.txt" />

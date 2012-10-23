@@ -17,6 +17,7 @@ class WSSScene
 public:
 	void Load(const std::string& sceneFilename, const std::string& dataDir);
 	void Render();
+	void Pick();
 
 	std::vector<UTF8Model, Eigen::aligned_allocator<UTF8Model> > models;
 };

@@ -25,6 +25,12 @@
     <ClCompile Include="WSSScene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Framebuffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Picker.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
@@ -56,6 +62,12 @@
     <ClInclude Include="WSSScene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Framebuffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Picker.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Parameters.txt">
@@ -71,6 +83,12 @@
       <Filter>Resource Files\GLSL</Filter>
     </None>
     <None Include="GLSL\Flat.vert">
+      <Filter>Resource Files\GLSL</Filter>
+    </None>
+    <None Include="GLSL\Picking.vert">
+      <Filter>Resource Files\GLSL</Filter>
+    </None>
+    <None Include="GLSL\Picking.frag">
       <Filter>Resource Files\GLSL</Filter>
     </None>
   </ItemGroup>

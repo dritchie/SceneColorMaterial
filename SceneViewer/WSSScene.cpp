@@ -46,3 +46,12 @@ void WSSScene::Render()
 		models[i].Render();
 	}
 }
+
+void WSSScene::Pick()
+{
+	for (UINT i = 0; i < models.size(); i++)
+	{
+		// +1, so that id 0 is reserved for the 'background' of the scene
+		models[i].Pick(i+1);
+	}
+}

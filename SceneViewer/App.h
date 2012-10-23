@@ -9,8 +9,7 @@
 #include "WSSScene.h"
 #include "Assets/Shader/Shader.h"
 #include "Assets/Shader/ShaderProgram.h"
-
-//class Fl_Widget;
+#include "Picker.h"
 #include "FL/Fl_Widget.H"
 
 
@@ -45,6 +44,10 @@ private:
 
 	void InitCamera();
 
+	// Render passes
+	void DrawingRenderPass();
+	void PickingRenderPass();
+
 	// UI callbacks
 	static Fl_Callback DisplayShadedCallback;
 	static Fl_Callback DisplayFlatCallback;
@@ -60,6 +63,8 @@ private:
 	GraphicsEngine::ShaderProgram* shaded_prog;
 	GraphicsEngine::Shader *flat_vs, *flat_fs;
 	GraphicsEngine::ShaderProgram* flat_prog;
+	GraphicsEngine::Shader *picking_vs, *picking_fs;
+	GraphicsEngine::ShaderProgram* picking_prog;
 
 	Eigen::Vector3f lightDir;
 
@@ -69,6 +74,8 @@ private:
 		SHADED
 	};
 	DisplayType displayType;
+
+	Picker picker;
 };
 
 
