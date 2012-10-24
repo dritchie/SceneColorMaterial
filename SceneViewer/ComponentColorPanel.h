@@ -19,15 +19,20 @@ public:
 
 private:
 
+	void SetActiveColor(float r, float g, float b);
+
 	// Callbacks
 	static Fl_Callback ColorChooserCallback;
+	static Fl_Callback ResetButtonCallback;
 
 	GraphicsEngine::GraphicsContext* context;
 	UTF8ModelComponent* activeComponent;
 	char labelText[1024];
 	Fl_Box* label;
-	Fl_Button* colorChip;
+	Fl_Button* activeColorChip;
+	Fl_Button* resetColorChip;
 	Fl_Color_Chooser* colorChooser;
+	Fl_Button* resetButton;
 };
 
 #endif
