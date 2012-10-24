@@ -7,6 +7,8 @@ using namespace std;
 
 void WSSScene::Load(const string& sceneFilename, const string& dataDir)
 {
+	FreeMemory();
+
 	ifstream jsonstream(sceneFilename.c_str());
 	Json::Value root;
 	Json::Reader reader;
@@ -28,31 +30,27 @@ void WSSScene::Load(const string& sceneFilename, const string& dataDir)
 	for (UINT i = 0; i < root.size(); i++)
 	{
 		const Json::Value m = root[i];
-		UTF8Model& model = models[i];
+		UTF8Model* model = new UTF8Model;
 		string mid = JsonUtils::GetRequiredJsonProp(m, "modelID").asString();
 		string modelfilename = jsonDir + "/" + mid + ".json";
-		model.Load(modelfilename, utf8Dir, texDir);
+		model->Load(modelfilename, utf8Dir, texDir);
 
 		vector<float> transformData;
 		JsonUtils::ParseFloatArrayProp(JsonUtils::GetRequiredJsonProp(m, "transform"), transformData);
-		model.transform = GraphicsEngine::Transform(Eigen::Matrix4f(&transformData[0]));
+		model->transform = GraphicsEngine::Transform(Eigen::Matrix4f(&transformData[0]));
 
-		model.index = i;
+		models[i] = model;
 	}
 }
 
-void WSSScene::Render()
+WSSScene::~WSSScene()
 {
-	for (UINT i = 0; i < models.size(); i++)
-	{
-		models[i].Render();
-	}
+	FreeMemory();
 }
 
-void WSSScene::Pick()
+void WSSScene::FreeMemory()
 {
 	for (UINT i = 0; i < models.size(); i++)
-	{
-		models[i].Pick();
-	}
+		delete models[i];
+	models.clear();
 }

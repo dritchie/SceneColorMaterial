@@ -1,11 +1,6 @@
-#include "ImageStack.h"
 #include "UTF8Model.h"
 #include "json/reader.h"
 #include "JsonUtils.h"
-#include "Assets/Shader/ShaderProgram.h"
-#include "Common/GL.h"
-#include "Math/TransformStack.h"
-#include "Picker.h"
 #include <fstream>
 #include <codecvt>
 
@@ -13,7 +8,6 @@ using namespace std;
 using namespace GraphicsEngine;
 using Eigen::Vector3f;
 using Eigen::Vector2f;
-using Eigen::AlignedBox3f;
 
 void ParseMaterials(UTF8Model* model, const Json::Value& root, const string& texDir)
 {
@@ -30,20 +24,13 @@ void ParseMaterials(UTF8Model* model, const Json::Value& root, const string& tex
 
 		if (!kd.isNull())
 		{
-			material.color = Eigen::Vector3f((float)kd[(UINT)0].asDouble(), (float)kd[1].asDouble(), (float)kd[2].asDouble());
+			material.color[0] = (float)kd[(UINT)0].asDouble();
+			material.color[1] = (float)kd[1].asDouble();
+			material.color[2] = (float)kd[2].asDouble();
 		}
 		if (!map_kd.isNull())
 		{
-			// Use the average color from the texture???
-			string texfilename = RStrip(texDir, '/') + "/" + map_kd.asString();
-			ImageStack::Image teximg = ImageStack::Load::apply(texfilename);
-			material.color = Vector3f(0, 0, 0);
-			for (int y = 0; y < teximg.height; y++) for (int x = 0; x < teximg.width; x++)
-			{
-				float* pixel = teximg(x,y);
-				material.color += Vector3f(pixel);
-			}
-			material.color /= (float)(teximg.width*teximg.height);
+			material.texFilename = RStrip(texDir, '/') + "/" + map_kd.asString();
 		}
 	}
 }
@@ -179,9 +166,9 @@ void ParseComponents(UTF8Model* model, const Json::Value& root, const string& ut
 			DecompressMesh(data, meshparams, decodeOffsets, decodeScales, attribData, indexData);
 
 			// Create and append a new UTF8ModelComponent
-			UTF8ModelComponent comp;
-			comp.material = &(model->materials[meshparams["material"].asString()]);
-			comp.mesh = CreateMeshFromDataArrays(attribData, indexData);
+			UTF8ModelComponent* comp = new UTF8ModelComponent;
+			comp->material = &(model->materials[meshparams["material"].asString()]);
+			comp->mesh = CreateMeshFromDataArrays(attribData, indexData);
 			model->components.push_back(comp);
 		}
 
@@ -189,11 +176,16 @@ void ParseComponents(UTF8Model* model, const Json::Value& root, const string& ut
 	}
 }
 
+UTF8Model::~UTF8Model()
+{
+	FreeMemory();
+}
+
 void UTF8Model::FreeMemory()
 {
 	for (UINT i = 0; i < components.size(); i++)
 	{
-		delete components[i].mesh;
+		delete components[i];
 	}
 
 	components.clear();
@@ -229,62 +221,4 @@ void UTF8Model::Load(const string& jsonfilename, const string& utf8Dir, const st
 
 	// Parse the list of components
 	ParseComponents(this, root, utf8Dir, decodeOffsets, decodeScales);
-
-	// Assign indices
-	for (UINT i = 0; i < components.size(); i++)
-		components[i].index = i;
-}
-
-AlignedBox3f UTF8Model::Bounds() const
-{
-	// Accumulate bbox for all transformed vertices
-	AlignedBox3f box;
-	for (UINT i = 0; i < components.size(); i++)
-	{
-		const Vec3List& verts = components[i].mesh->Vertices();
-		for (UINT j = 0; j < verts.size(); j++)
-		{
-			box.extend(transform.TransformPoint(verts[i]));
-		}
-	}
-	return box;
-}
-
-void UTF8Model::Render()
-{
-	TransformStack::Modelview().Push();
-	TransformStack::Modelview().Multiply(transform);
-	TransformStack::Modelview().Bind();
-
-	for (UINT i = 0; i < components.size(); i++)
-	{
-		const UTF8ModelComponent& comp = components[i];
-		int colloc = ShaderProgram::CurrentProgram()->GetUniformLocation("Color");
-		if (colloc >= 0)
-			glUniform3fv(colloc, 1, &(comp.material->color[0]));
-		components[i].mesh->Render();
-	}
-
-	TransformStack::Modelview().Pop();
-}
-
-void UTF8Model::Pick()
-{
-	TransformStack::Modelview().Push();
-	TransformStack::Modelview().Multiply(transform);
-	TransformStack::Modelview().Bind();
-
-	// +1, so that id 0 is reserved for the 'background' of the scene
-	UINT myIndex = (UINT)(index + 1);
-
-	for (UINT i = 0; i < components.size(); i++)
-	{
-		Eigen::Vector4f floats = Picker::PackIDs((unsigned short)myIndex, (unsigned short)i);
-		int bytesloc = ShaderProgram::CurrentProgram()->GetUniformLocation("IdBytes");
-		if (bytesloc >= 0)
-			glUniform4fv(bytesloc, 1, &floats[0]);
-		components[i].mesh->Render();
-	}
-
-	TransformStack::Modelview().Pop();
 }

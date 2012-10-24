@@ -6,7 +6,7 @@
 #include "GraphicsApp.h"
 #include "Eigen/Core"
 #include "Viewing/Camera.h"
-#include "WSSScene.h"
+#include "Scene.h"
 #include "Assets/Shader/Shader.h"
 #include "Assets/Shader/ShaderProgram.h"
 #include "Picker.h"
@@ -58,7 +58,7 @@ private:
 
 	GraphicsEngine::InteractiveCamera* camera;
 
-	WSSScene scene;
+	Scene scene;
 
 	GraphicsEngine::Shader *shaded_vs, *shaded_fs;
 	GraphicsEngine::ShaderProgram* shaded_prog;

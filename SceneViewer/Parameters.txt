@@ -30,6 +30,7 @@ appName			SceneViewer
 
 ### Other application-specific parameters go here! ###
 
+sceneToLoad					Scenes/LivingRoom1.json
 dataRoot					C:/Git/WebSceneStudio/public/data
 
 orbitSpeed					0.005
@@ -37,5 +38,5 @@ dollySpeed					0.15
 zoomSpeed					4.0
 
 # Main UI stuff
-sidePanelWidth				300
+sidePanelWidth				220
 menuBarHeight				30

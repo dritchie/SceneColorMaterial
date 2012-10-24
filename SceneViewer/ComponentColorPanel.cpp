@@ -2,7 +2,6 @@
 #include "FL/Fl_Color_Chooser.H"
 #include "FL/Fl.H"
 #include "FLTKUtils.h"
-#include "Eigen/Core"
 
 void ComponentColorPanel::SetActiveColor(float r, float g, float b)
 {
@@ -15,9 +14,9 @@ void ComponentColorPanel::SetActiveColor(float r, float g, float b)
 	this->redraw();
 
 	// Update the actual material color
-	activeComponent->material->color[0] = r;
-	activeComponent->material->color[1] = g;
-	activeComponent->material->color[2] = b;
+	activeComponent->color[0] = r;
+	activeComponent->color[1] = g;
+	activeComponent->color[2] = b;
 
 	// Tell the GL window to redraw
 	context->Redraw();
@@ -39,9 +38,13 @@ void ComponentColorPanel::ResetButtonCallback(Fl_Widget* w, void* v)
 	ComponentColorPanel* panel = (ComponentColorPanel*)v;
 	
 	// Reset the color of the active chip
-	uchar r, g, b;
-	Fl::get_color(panel->resetColorChip->color(), r, g, b);
-	panel->SetActiveColor(r/255.0f, g/255.0f, b/255.0f);
+	panel->SetActiveColor(panel->resetColor[0], panel->resetColor[1], panel->resetColor[2]);
+}
+
+void ComponentColorPanel::FixedToggleCallback(Fl_Widget* w, void* v)
+{
+	ComponentColorPanel* panel = (ComponentColorPanel*)v;
+	// TODO: DO STUFF HERE
 }
 
 ComponentColorPanel::ComponentColorPanel(GraphicsEngine::GraphicsContext* gContext, int x, int y, int w, int h)
@@ -56,36 +59,43 @@ ComponentColorPanel::ComponentColorPanel(GraphicsEngine::GraphicsContext* gConte
 	label->align(FL_ALIGN_INSIDE | FL_ALIGN_LEFT);
 
 	// Color chips
-	activeColorChip = new Fl_Button(xx, label->y() + label->h() + 10, 95, 40);
-	resetColorChip = new Fl_Button(xx + activeColorChip->w() + 10, label->y() + label->h() + 10, 95, 40);
+	activeColorChip = new Fl_Button(xx, fl_below(label, 10), 95, 40);
+	resetColorChip = new Fl_Button(fl_right_of(activeColorChip, 10), fl_below(label, 10), 95, 40);
 
 	// Color chooser
-	colorChooser = new Fl_Color_Chooser(xx, activeColorChip->y() + activeColorChip->h() + 10, 200, 95);		// Recommended dimensions
+	colorChooser = new Fl_Color_Chooser(xx, fl_below(activeColorChip, 10), 200, 95);		// Recommended dimensions
 	colorChooser->callback(ColorChooserCallback, this);
 
 	// Reset button
-	resetButton = new Fl_Button(xx, colorChooser->y() + colorChooser->h() + 10, 200, 40);
+	resetButton = new Fl_Button(xx, fl_below(colorChooser, 10), 200, 40);
 	resetButton->label("Reset");
 	resetButton->callback(ResetButtonCallback, this);
 
-	SetActiveComponent(NULL, 0);
+	// Fixed check button
+	fixedToggle = new Fl_Check_Button(xx, fl_below(resetButton, 10), 200, 30);
+	fixedToggle->label("Fix this color");
+
+	SetActiveComponent(NULL);
 }
 
-void ComponentColorPanel::SetActiveComponent(UTF8Model* model, int compIndex)
+void ComponentColorPanel::SetActiveComponent(ModelComponent* comp)
 {
-	if (model)
+	if (comp)
 	{
-		activeComponent = &model->components[compIndex];
+		activeComponent = comp;
 
 		// Update the text label
-		SafePrintf(labelText, "Model %d, Component %d", model->index, compIndex);
+		SafePrintf(labelText, "Model %d, Component %d", comp->owner->index, comp->index);
 		label->label(labelText);
 
-		const Eigen::Vector3f& color = activeComponent->material->color;
+		float* color = activeComponent->color;
 
 		// Update both color chips to be the same color
 		activeColorChip->color(fl_rgb_color((uchar)(color[0]*255), (uchar)(color[1]*255), (uchar)(color[2]*255)));
 		resetColorChip->color(fl_rgb_color((uchar)(color[0]*255), (uchar)(color[1]*255), (uchar)(color[2]*255)));
+		resetColor[0] = color[0];
+		resetColor[1] = color[1];
+		resetColor[2] = color[2];
 
 		// Update the color chooser
 		colorChooser->rgb(color[0], color[1], color[2]);

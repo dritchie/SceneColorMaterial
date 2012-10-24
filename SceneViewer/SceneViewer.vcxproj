@@ -42,6 +42,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(ProjectDir)\jsoncpp;$(ProjectDir)\jsoncpp\json;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -56,6 +57,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <AdditionalIncludeDirectories>$(ProjectDir)\jsoncpp;$(ProjectDir)\jsoncpp\json;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -74,7 +76,9 @@
     <ClCompile Include="jsoncpp\json_writer.cpp" />
     <ClCompile Include="JsonUtils.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Model.cpp" />
     <ClCompile Include="Picker.cpp" />
+    <ClCompile Include="Scene.cpp" />
     <ClCompile Include="WSSScene.cpp" />
     <ClCompile Include="UTF8Model.cpp" />
   </ItemGroup>
@@ -84,7 +88,9 @@
     <ClInclude Include="FLTKUtils.h" />
     <ClInclude Include="Framebuffer.h" />
     <ClInclude Include="JsonUtils.h" />
+    <ClInclude Include="Model.h" />
     <ClInclude Include="Picker.h" />
+    <ClInclude Include="Scene.h" />
     <ClInclude Include="WSSScene.h" />
     <ClInclude Include="UTF8Model.h" />
   </ItemGroup>

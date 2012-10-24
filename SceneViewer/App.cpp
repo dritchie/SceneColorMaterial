@@ -117,7 +117,8 @@ void App::InitGraphics(GraphicsContext* ctx)
 	lightDir = Vector3f(-0.35f, -0.45f, 1.0f);
 
 	// Load scene
-	scene.Load("Scenes/helloWorld.json", params.StringParam("dataRoot"));
+	WSSScene wss; wss.Load(params.StringParam("sceneToLoad"), params.StringParam("dataRoot"));
+	scene.LoadFromWSS(&wss);
 }
 
 void App::InitCamera()
@@ -199,11 +200,11 @@ void App::MouseDown(int button, int x, int y, const GraphicsEngine::ModifierKeys
 		auto ids = picker.Pick(x, y);
 		if (ids.first == -1)
 		{
-			colorPanel->SetActiveComponent(NULL, 0);
+			colorPanel->SetActiveComponent(NULL);
 		}
 		else
 		{
-			colorPanel->SetActiveComponent(&scene.models[ids.first], ids.second);
+			colorPanel->SetActiveComponent(scene.models[ids.first]->components[ids.second]);
 		}
 	}
 	else if (camera->MouseDown(button, x, y, mods))
