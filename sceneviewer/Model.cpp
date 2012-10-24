@@ -4,6 +4,7 @@
 #include "Assets/Shader/ShaderProgram.h"
 #include "Common/GL.h"
 #include "Picker.h"
+#include "Application/GraphicsAppParams.h"
 #include "Eigen/Core"
 
 using namespace GraphicsEngine;
@@ -67,7 +68,7 @@ void Model::FreeMemory()
 	components.clear();
 }
 
-void Model::Render()
+void Model::Render(const RenderOptions& opts)
 {
 	TransformStack::Modelview().Push();
 	TransformStack::Modelview().Multiply(transform);
@@ -78,14 +79,21 @@ void Model::Render()
 		ModelComponent* comp = components[i];
 		int colloc = ShaderProgram::CurrentProgram()->GetUniformLocation("Color");
 		if (colloc >= 0)
-			glUniform3fv(colloc, 1, &(comp->color[0]));
+		{
+			if (comp->isFixed && opts.highlightFixed)
+				glUniform3f(colloc, opts.params->FloatParam("fixedColorR"),
+									opts.params->FloatParam("fixedColorG"), 
+									opts.params->FloatParam("fixedColorB"));
+			else
+				glUniform3fv(colloc, 1, &(comp->color[0]));
+		}
 		components[i]->mesh->Render();
 	}
 
 	TransformStack::Modelview().Pop();
 }
 
-void Model::Pick()
+void Model::Pick(const RenderOptions& opts)
 {
 	TransformStack::Modelview().Push();
 	TransformStack::Modelview().Multiply(transform);

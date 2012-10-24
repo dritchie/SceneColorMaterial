@@ -29,18 +29,22 @@ Scene::~Scene()
 	FreeMemory();
 }
 
-void Scene::Render()
+void Scene::Render(const RenderOptions& opts)
 {
-	for (UINT i = 0; i < models.size(); i++)
+	// Only draw objects if render options say so
+	if (opts.showObjects)
 	{
-		models[i]->Render();
+		for (UINT i = 0; i < models.size(); i++)
+		{
+			models[i]->Render(opts);
+		}
 	}
 }
 
-void Scene::Pick()
+void Scene::Pick(const RenderOptions& opts)
 {
 	for (UINT i = 0; i < models.size(); i++)
 	{
-		models[i]->Pick();
+		models[i]->Pick(opts);
 	}
 }

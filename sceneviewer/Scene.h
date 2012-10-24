@@ -11,8 +11,8 @@ class Scene
 public:
 	~Scene();
 	void LoadFromWSS(WSSScene* wss);
-	void Render();
-	void Pick();
+	void Render(const RenderOptions& opts);
+	void Pick(const RenderOptions& opts);
 
 	std::vector<Model*> models;
 

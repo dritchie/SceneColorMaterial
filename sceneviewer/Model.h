@@ -4,6 +4,7 @@
 #define __MODEL_H
 
 #include "UTF8Model.h"
+#include "RenderOptions.h"
 
 class Model;
 
@@ -26,8 +27,8 @@ public:
 	Model() : transform(GraphicsEngine::Transform::Identity()), index(-1) {}
 	~Model();
 	void LoadFromUTF8(UTF8Model* utf8);
-	void Render();
-	void Pick();
+	void Render(const RenderOptions& opts);
+	void Pick(const RenderOptions& opts);
 
 	GraphicsEngine::Transform transform;
 	std::vector<ModelComponent*> components;
