@@ -36,6 +36,6 @@ orbitSpeed					0.005
 dollySpeed					0.15
 zoomSpeed					4.0
 
-# UI stuff
+# Main UI stuff
 sidePanelWidth				300
 menuBarHeight				30

@@ -70,7 +70,7 @@ GraphicsContext* App::InitAndShowUI(int argc, char** argv)
 	gwind->end();
 
 	// Component color detail panel
-	colorPanel = new ComponentColorPanel(gwind->w(), params.IntParam("menuBarHeight"), params.IntParam("sidePanelWidth"), params.IntParam("windowHeight") - params.IntParam("menuBarHeight"));
+	colorPanel = new ComponentColorPanel(gwind, gwind->w(), params.IntParam("menuBarHeight"), params.IntParam("sidePanelWidth"), params.IntParam("windowHeight") - params.IntParam("menuBarHeight"));
 	colorPanel->end();
 
 	window->end();
@@ -199,13 +199,11 @@ void App::MouseDown(int button, int x, int y, const GraphicsEngine::ModifierKeys
 		auto ids = picker.Pick(x, y);
 		if (ids.first == -1)
 		{
-			printf("Picked background\n");
-			colorPanel->SetActiveComponent(NULL);
+			colorPanel->SetActiveComponent(NULL, 0);
 		}
 		else
 		{
-			printf("Picked model %d, component %d\n", ids.first, ids.second);
-			colorPanel->SetActiveComponent(&scene.models[ids.first].components[ids.second]);
+			colorPanel->SetActiveComponent(&scene.models[ids.first], ids.second);
 		}
 	}
 	else if (camera->MouseDown(button, x, y, mods))

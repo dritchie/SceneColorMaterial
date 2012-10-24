@@ -74,6 +74,9 @@
     <ClInclude Include="ComponentColorPanel.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="FLTKUtils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Parameters.txt">

@@ -81,6 +81,7 @@
   <ItemGroup>
     <ClInclude Include="App.h" />
     <ClInclude Include="ComponentColorPanel.h" />
+    <ClInclude Include="FLTKUtils.h" />
     <ClInclude Include="Framebuffer.h" />
     <ClInclude Include="JsonUtils.h" />
     <ClInclude Include="Picker.h" />
