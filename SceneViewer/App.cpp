@@ -4,7 +4,6 @@
 #include "Math/TransformStack.h"
 #include "Math/Transform.h"
 #include "Assets/Mesh/CommonMesh.h"
-
 #include "FLTKGraphicsWindow.h"
 #include "FL/Fl_Menu_Bar.H"
 
@@ -38,14 +37,38 @@ App::~App()
 void App::DisplayShadedCallback(Fl_Widget* w, void* v)
 {
 	App* app = (App*)v;
-	app->displayType = SHADED;
+	app->renderOptions.displayType = RenderOptions::SHADED;
 	app->context->Redraw();
 }
 
 void App::DisplayFlatCallback(Fl_Widget* w, void* v)
 {
 	App* app = (App*)v;
-	app->displayType = FLAT;
+	app->renderOptions.displayType = RenderOptions::FLAT;
+	app->context->Redraw();
+}
+
+void App::DisplayFixedCallback(Fl_Widget* w, void* v)
+{
+	App* app = (App*)v;
+	Fl_Menu_Bar* menuBar = (Fl_Menu_Bar*)w;
+	app->renderOptions.highlightFixed = (bool)menuBar->find_item("&Display/Highlight Fixed")->value();
+	app->context->Redraw();
+}
+
+void App::DisplayShowObjectsCallback(Fl_Widget* w, void* v)
+{
+	App* app = (App*)v;
+	Fl_Menu_Bar* menuBar = (Fl_Menu_Bar*)w;
+	app->renderOptions.showObjects = (bool)menuBar->find_item("&Display/Show Objects")->value();
+	app->context->Redraw();
+}
+
+void App::DisplayShowConstraintsCallback(Fl_Widget* w, void* v)
+{
+	App* app = (App*)v;
+	Fl_Menu_Bar* menuBar = (Fl_Menu_Bar*)w;
+	app->renderOptions.showConstraints = (bool)menuBar->find_item("&Display/Show Constraints")->value();
 	app->context->Redraw();
 }
 
@@ -54,15 +77,18 @@ GraphicsContext* App::InitAndShowUI(int argc, char** argv)
 	Fl_Window* window = new Fl_Window(params.IntParam("windowWidth"), params.IntParam("windowHeight"), params.StringParam("appName").c_str());
 
 	// Menu bar
-	Fl_Menu_Bar *m = new Fl_Menu_Bar(0, 0, params.IntParam("windowWidth"), params.IntParam("menuBarHeight"));
+	Fl_Menu_Bar* menuBar = new Fl_Menu_Bar(0, 0, params.IntParam("windowWidth"), params.IntParam("menuBarHeight"));
 	Fl_Menu_Item menuitems[] = {
 		{ "&Display",              0, 0, 0, FL_SUBMENU },
 			{ "Shaded",  0, DisplayShadedCallback, this, FL_MENU_RADIO | FL_MENU_VALUE },
-			{ "Flat", 0, DisplayFlatCallback, this, FL_MENU_RADIO},
+			{ "Flat", 0, DisplayFlatCallback, this, FL_MENU_RADIO | FL_MENU_DIVIDER},
+			{ "Highlight Fixed",  0, DisplayFixedCallback, this, FL_MENU_TOGGLE },
+			{ "Show Objects",  0, DisplayShowObjectsCallback, this, FL_MENU_TOGGLE | FL_MENU_VALUE },
+			{ "Show Constraints",  0, DisplayShowConstraintsCallback, this, FL_MENU_TOGGLE | FL_MENU_VALUE },
 		{ 0 },
 	{ 0 }
 	};
-	m->copy(menuitems);
+	menuBar->copy(menuitems);
 
 	// Graphics window
 	FLTKGraphicsWindow* gwind = new FLTKGraphicsWindow(this, 0, params.IntParam("menuBarHeight"), params.IntParam("windowWidth") - params.IntParam("sidePanelWidth"),
@@ -83,8 +109,8 @@ GraphicsContext* App::InitAndShowUI(int argc, char** argv)
 void App::Init(const string& paramfile)
 {
 	GraphicsApp::Init(paramfile);
+	renderOptions.params = &params;
 	InitCamera();
-	displayType = SHADED;
 }
 
 void App::InitGraphics(GraphicsContext* ctx)
@@ -142,9 +168,9 @@ void App::DrawingRenderPass()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	// Bind correct shader given display state
-	if (displayType == SHADED)
+	if (renderOptions.displayType == RenderOptions::SHADED)
 		shaded_prog->Bind();
-	if (displayType == FLAT)
+	if (renderOptions.displayType == RenderOptions::FLAT)
 		flat_prog->Bind();
 
 	TransformStack::Projection().Bind();
@@ -156,7 +182,7 @@ void App::DrawingRenderPass()
 		glUniform3fv(lightloc, 1, &xformedLight[0]);
 	}
 
-	scene.Render();
+	scene.Render(renderOptions);
 }
 
 void App::PickingRenderPass()
@@ -175,7 +201,7 @@ void App::PickingRenderPass()
 	TransformStack::Projection().Bind();
 	TransformStack::Modelview().Load(camera->GetLookAtTransform());
 
-	scene.Pick();
+	scene.Pick(renderOptions);
 
 	picker.pickBuffer.Unbind();
 }

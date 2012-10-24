@@ -44,7 +44,7 @@ void ComponentColorPanel::ResetButtonCallback(Fl_Widget* w, void* v)
 void ComponentColorPanel::FixedToggleCallback(Fl_Widget* w, void* v)
 {
 	ComponentColorPanel* panel = (ComponentColorPanel*)v;
-	// TODO: DO STUFF HERE
+	panel->activeComponent->isFixed = panel->fixedToggle->value();
 }
 
 ComponentColorPanel::ComponentColorPanel(GraphicsEngine::GraphicsContext* gContext, int x, int y, int w, int h)
@@ -74,6 +74,7 @@ ComponentColorPanel::ComponentColorPanel(GraphicsEngine::GraphicsContext* gConte
 	// Fixed check button
 	fixedToggle = new Fl_Check_Button(xx, fl_below(resetButton, 10), 200, 30);
 	fixedToggle->label("Fix this color");
+	fixedToggle->callback(FixedToggleCallback, this);
 
 	SetActiveComponent(NULL);
 }
@@ -99,6 +100,9 @@ void ComponentColorPanel::SetActiveComponent(ModelComponent* comp)
 
 		// Update the color chooser
 		colorChooser->rgb(color[0], color[1], color[2]);
+
+		// Update the fixed toggle
+		fixedToggle->value(comp->isFixed);
 
 		this->redraw();
 		this->show();

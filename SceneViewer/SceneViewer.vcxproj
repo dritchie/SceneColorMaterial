@@ -90,6 +90,7 @@
     <ClInclude Include="JsonUtils.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="Picker.h" />
+    <ClInclude Include="RenderOptions.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="WSSScene.h" />
     <ClInclude Include="UTF8Model.h" />

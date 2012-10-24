@@ -20,8 +20,8 @@ zfar		750.0
 shaderPath	GLSL
 
 ## Window Size
-windowWidth		1024
-windowHeight	768
+windowWidth		1440
+windowHeight	900
 
 ## App Name
 appName			SceneViewer
@@ -30,13 +30,16 @@ appName			SceneViewer
 
 ### Other application-specific parameters go here! ###
 
-sceneToLoad					Scenes/LivingRoom1.json
+sceneToLoad					Scenes/helloWorld.json
 dataRoot					C:/Git/WebSceneStudio/public/data
 
 orbitSpeed					0.005
 dollySpeed					0.15
 zoomSpeed					4.0
 
-# Main UI stuff
 sidePanelWidth				220
 menuBarHeight				30
+
+fixedColorR					1.0
+fixedColorG					0.0
+fixedColorB					1.0

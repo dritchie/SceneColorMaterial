@@ -12,6 +12,7 @@
 #include "Picker.h"
 #include "FL/Fl_Widget.H"
 #include "ComponentColorPanel.h"
+#include "RenderOptions.h"
 
 
 /**
@@ -52,6 +53,9 @@ private:
 	// UI callbacks
 	static Fl_Callback DisplayShadedCallback;
 	static Fl_Callback DisplayFlatCallback;
+	static Fl_Callback DisplayFixedCallback;
+	static Fl_Callback DisplayShowObjectsCallback;
+	static Fl_Callback DisplayShowConstraintsCallback;
 
 
 	/** Various state (May split this out at some point) **/
@@ -69,12 +73,7 @@ private:
 
 	Eigen::Vector3f lightDir;
 
-	enum DisplayType
-	{
-		FLAT = 0,
-		SHADED
-	};
-	DisplayType displayType;
+	RenderOptions renderOptions;
 
 	Picker picker;
 
