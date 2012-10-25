@@ -38,6 +38,7 @@ dollySpeed					0.15
 zoomSpeed					4.0
 
 sidePanelWidth				220
+colorPanelHeight			300
 menuBarHeight				30
 
 fixedColorR					1.0

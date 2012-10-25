@@ -11,7 +11,8 @@
 #include "Assets/Shader/ShaderProgram.h"
 #include "Picker.h"
 #include "FL/Fl_Widget.H"
-#include "ComponentColorPanel.h"
+#include "ColorPanel.h"
+#include "ComponentPanel.h"
 #include "RenderOptions.h"
 
 
@@ -77,7 +78,8 @@ private:
 
 	Picker picker;
 
-	ComponentColorPanel* colorPanel;
+	ColorPanel* colorPanel;
+	ComponentPanel* compPanel;
 };
 
 

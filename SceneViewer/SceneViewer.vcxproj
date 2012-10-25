@@ -69,7 +69,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="App.cpp" />
-    <ClCompile Include="ComponentColorPanel.cpp" />
+    <ClCompile Include="ColorPanel.cpp" />
+    <ClCompile Include="ComponentPanel.cpp" />
     <ClCompile Include="Framebuffer.cpp" />
     <ClCompile Include="jsoncpp\json_reader.cpp" />
     <ClCompile Include="jsoncpp\json_value.cpp" />
@@ -84,7 +85,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="App.h" />
-    <ClInclude Include="ComponentColorPanel.h" />
+    <ClInclude Include="ColorPanel.h" />
+    <ClInclude Include="ComponentPanel.h" />
     <ClInclude Include="FLTKUtils.h" />
     <ClInclude Include="Framebuffer.h" />
     <ClInclude Include="JsonUtils.h" />

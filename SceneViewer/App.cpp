@@ -6,6 +6,7 @@
 #include "Assets/Mesh/CommonMesh.h"
 #include "FLTKGraphicsWindow.h"
 #include "FL/Fl_Menu_Bar.H"
+#include "FLTKUtils.h"
 
 using namespace std;
 using namespace GraphicsEngine;
@@ -95,9 +96,13 @@ GraphicsContext* App::InitAndShowUI(int argc, char** argv)
 		params.IntParam("windowHeight") - params.IntParam("menuBarHeight"), params.StringParam("appName").c_str());
 	gwind->end();
 
-	// Component color detail panel
-	colorPanel = new ComponentColorPanel(gwind, gwind->w(), params.IntParam("menuBarHeight"), params.IntParam("sidePanelWidth"), params.IntParam("windowHeight") - params.IntParam("menuBarHeight"));
+	// Color group panel
+	colorPanel = new ColorPanel(gwind, gwind->w(), params.IntParam("menuBarHeight"), params.IntParam("sidePanelWidth"), params.IntParam("colorPanelHeight"));
 	colorPanel->end();
+
+	// Component Panel
+	compPanel = new ComponentPanel(gwind, gwind->w(), fl_below(colorPanel, 40), colorPanel->w(), 100);
+	compPanel->end();
 
 	window->end();
 	window->resizable(gwind);
@@ -227,10 +232,12 @@ void App::MouseDown(int button, int x, int y, const GraphicsEngine::ModifierKeys
 		if (ids.first == -1)
 		{
 			colorPanel->SetActiveComponent(NULL);
+			compPanel->SetActiveComponent(NULL);
 		}
 		else
 		{
 			colorPanel->SetActiveComponent(scene.models[ids.first]->components[ids.second]);
+			compPanel->SetActiveComponent(scene.models[ids.first]->components[ids.second]);
 		}
 	}
 	else if (camera->MouseDown(button, x, y, mods))
