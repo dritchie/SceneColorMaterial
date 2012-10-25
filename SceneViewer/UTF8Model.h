@@ -10,6 +10,7 @@
 
 struct UTF8Material
 {
+	std::string name;
 	float color[3];
 	std::string texFilename;
 
@@ -31,8 +32,9 @@ public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 	UTF8Model() : transform(GraphicsEngine::Transform::Identity()) {}
 	~UTF8Model();
-	void Load(const std::string& jsonfilename, const std::string& utf8Dir, const std::string& texDir);
+	void Load(const std::string mid, const std::string& jsonDir, const std::string& utf8Dir, const std::string& texDir);
 
+	std::string modelID;
 	std::vector<UTF8ModelComponent*> components;
 	std::map<std::string, UTF8Material> materials;
 	GraphicsEngine::Transform transform;

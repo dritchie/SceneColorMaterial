@@ -40,7 +40,9 @@
     <ClCompile Include="ColorPanel.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ComponentPanel.cpp" />
+    <ClCompile Include="ComponentPanel.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Source Files">
@@ -93,7 +95,12 @@
     <ClInclude Include="ColorPanel.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ComponentPanel.h" />
+    <ClInclude Include="ComponentPanel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ColorGroup.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Parameters.txt">

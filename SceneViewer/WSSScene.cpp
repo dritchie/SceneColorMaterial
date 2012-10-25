@@ -10,6 +10,10 @@ void WSSScene::Load(const string& sceneFilename, const string& dataDir)
 	FreeMemory();
 
 	ifstream jsonstream(sceneFilename.c_str());
+	if (!jsonstream.is_open())
+	{
+		FatalError(string("WSSScene::Load - No such file '") + sceneFilename + "'")
+	}
 	Json::Value root;
 	Json::Reader reader;
 	bool parseSuccess = reader.parse(jsonstream, root);
@@ -32,8 +36,7 @@ void WSSScene::Load(const string& sceneFilename, const string& dataDir)
 		const Json::Value m = root[i];
 		UTF8Model* model = new UTF8Model;
 		string mid = JsonUtils::GetRequiredJsonProp(m, "modelID").asString();
-		string modelfilename = jsonDir + "/" + mid + ".json";
-		model->Load(modelfilename, utf8Dir, texDir);
+		model->Load(mid, jsonDir, utf8Dir, texDir);
 
 		vector<float> transformData;
 		JsonUtils::ParseFloatArrayProp(JsonUtils::GetRequiredJsonProp(m, "transform"), transformData);

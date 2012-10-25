@@ -9,16 +9,20 @@
 #include "FL/Fl_Box.H"
 #include "FL/Fl_Choice.H"
 
+class Scene;
+
 class ComponentPanel : public Fl_Group
 {
 public:
-	ComponentPanel(GraphicsEngine::GraphicsContext* gContext, int x, int y, int w, int h);
+	ComponentPanel(Scene* scene, GraphicsEngine::GraphicsContext* gContext, int x, int y, int w, int h);
 	void SetActiveComponent(ModelComponent* comp);
+	void RefreshColorGroupList();
 
 private:
 
 	ModelComponent* activeComponent;
 	GraphicsEngine::GraphicsContext* context;
+	Scene* scene;
 
 	// Callbacks
 	static Fl_Callback AssignedColorGroupCallback;

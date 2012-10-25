@@ -19,6 +19,8 @@ void ParseMaterials(UTF8Model* model, const Json::Value& root, const string& tex
 		const Json::Value mat = mats[mname];
 		UTF8Material& material = model->materials[mname];
 
+		material.name = mname;
+
 		const Json::Value kd = mat["Kd"];
 		const Json::Value map_kd = mat["map_Kd"];
 
@@ -192,11 +194,19 @@ void UTF8Model::FreeMemory()
 	materials.clear();
 }
 
-void UTF8Model::Load(const string& jsonfilename, const string& utf8Dir, const string& texDir)
+void UTF8Model::Load(const std::string mid, const std::string& jsonDir, const std::string& utf8Dir, const std::string& texDir)
 {
 	FreeMemory();
 
+	modelID = mid;
+
+	string jsonfilename = RStrip(jsonDir, '/') + "/" + mid + ".json";
+
 	ifstream jsonstream(jsonfilename.c_str());
+	if (!jsonstream.is_open())
+	{
+		FatalError(string("UTF8Model::Load - No such file '") + jsonfilename + "'")
+	}
 	Json::Value root;
 	Json::Reader reader;
 	bool parsingSuccessful = reader.parse(jsonstream, root);

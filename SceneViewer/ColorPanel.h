@@ -12,12 +12,14 @@
 #include "FL/Fl_Check_Button.H"
 #include "FL/Fl_Choice.H"
 
+class Scene;
+struct ColorGroup;
 
 class ColorPanel : public Fl_Group
 {
 public:
-	ColorPanel(GraphicsEngine::GraphicsContext* gContext, int x, int y, int w, int h);
-	void SetActiveComponent(ModelComponent* comp);
+	ColorPanel(Scene* scene, GraphicsEngine::GraphicsContext* gContext, int x, int y, int w, int h);
+	void RefreshColorGroupList();
 
 private:
 
@@ -29,9 +31,9 @@ private:
 	static Fl_Callback FixedToggleCallback;
 	static Fl_Callback WhichColorGroupCallback;
 
+	ColorGroup* activeColorGroup;
+	Scene* scene;
 	GraphicsEngine::GraphicsContext* context;
-
-	ModelComponent* activeComponent;
 
 	Fl_Choice* whichColorGroup;
 	Fl_Button* activeColorChip;

@@ -85,6 +85,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="App.h" />
+    <ClInclude Include="ColorGroup.h" />
     <ClInclude Include="ColorPanel.h" />
     <ClInclude Include="ComponentPanel.h" />
     <ClInclude Include="FLTKUtils.h" />

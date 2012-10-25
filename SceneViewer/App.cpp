@@ -97,11 +97,11 @@ GraphicsContext* App::InitAndShowUI(int argc, char** argv)
 	gwind->end();
 
 	// Color group panel
-	colorPanel = new ColorPanel(gwind, gwind->w(), params.IntParam("menuBarHeight"), params.IntParam("sidePanelWidth"), params.IntParam("colorPanelHeight"));
+	colorPanel = new ColorPanel(&scene, gwind, gwind->w(), params.IntParam("menuBarHeight"), params.IntParam("sidePanelWidth"), params.IntParam("colorPanelHeight"));
 	colorPanel->end();
 
 	// Component Panel
-	compPanel = new ComponentPanel(gwind, gwind->w(), fl_below(colorPanel, 40), colorPanel->w(), 100);
+	compPanel = new ComponentPanel(&scene, gwind, gwind->w(), fl_below(colorPanel, 40), colorPanel->w(), 100);
 	compPanel->end();
 
 	window->end();
@@ -150,6 +150,10 @@ void App::InitGraphics(GraphicsContext* ctx)
 	// Load scene
 	WSSScene wss; wss.Load(params.StringParam("sceneToLoad"), params.StringParam("dataRoot"));
 	scene.LoadFromWSS(&wss);
+
+	// Now that the scene is loaded, tell the UI panels to update their lists of available color groups
+	colorPanel->RefreshColorGroupList();
+	compPanel->RefreshColorGroupList();
 }
 
 void App::InitCamera()
@@ -231,12 +235,10 @@ void App::MouseDown(int button, int x, int y, const GraphicsEngine::ModifierKeys
 		auto ids = picker.Pick(x, y);
 		if (ids.first == -1)
 		{
-			colorPanel->SetActiveComponent(NULL);
 			compPanel->SetActiveComponent(NULL);
 		}
 		else
 		{
-			colorPanel->SetActiveComponent(scene.models[ids.first]->components[ids.second]);
 			compPanel->SetActiveComponent(scene.models[ids.first]->components[ids.second]);
 		}
 	}
