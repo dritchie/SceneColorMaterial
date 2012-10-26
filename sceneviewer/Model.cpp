@@ -5,17 +5,27 @@
 #include "Common/GL.h"
 #include "Picker.h"
 #include "Application/GraphicsAppParams.h"
+#include "ColorGroup.h"
 #include "Eigen/Core"
 
+using namespace std;
 using namespace GraphicsEngine;
+
+void ModelComponent::SetColorGroup(ColorGroup* newGroup)
+{
+	if (colorGroup)
+	{
+		auto it = colorGroup->members.find(this);
+		if (it != colorGroup->members.end())
+			colorGroup->members.erase(it);
+	}
+	newGroup->members.insert(this);
+	colorGroup = newGroup;
+}
 
 void Model::LoadFromUTF8(UTF8Model* utf8)
 {
 	FreeMemory();
-
-	// For now, assume we have one component per material and
-	// just copy everything over directly.
-	// Eventually, need to split UTF8 material groups into connected components.
 
 	transform = utf8->transform;
 	components.resize(utf8->components.size());
@@ -24,9 +34,16 @@ void Model::LoadFromUTF8(UTF8Model* utf8)
 		ModelComponent* mycomp = new ModelComponent;
 		UTF8ModelComponent* ucomp = utf8->components[i];
 
-		/** Copy the color **/
+		/** Copy the color group info **/
 
-		memcpy(mycomp->color, ucomp->material->color, 3*sizeof(float));
+		ColorGroup* cg = new ColorGroup;
+		mycomp->SetColorGroup(cg);
+
+		char groupname[1024];
+		SafePrintf(groupname, "%s_%u", utf8->modelID.c_str(), i);
+		cg->name = std::string(groupname);
+
+		memcpy(cg->color, ucomp->material->color, 3*sizeof(float));
 		
 		// For textured things, we just use the average color of the texture
 		if (!ucomp->material->texFilename.empty())
@@ -39,7 +56,7 @@ void Model::LoadFromUTF8(UTF8Model* utf8)
 				color += Eigen::Vector3f(pixel);
 			}
 			color /= (float)(teximg.width*teximg.height);
-			memcpy(mycomp->color, &color[0], 3*sizeof(float));
+			memcpy(cg->color, &color[0], 3*sizeof(float));
 		}
 
 		/** Copy the mesh **/
@@ -51,6 +68,28 @@ void Model::LoadFromUTF8(UTF8Model* utf8)
 
 		components[i] = mycomp;
 	}
+
+	///** Split all components into connected components **/
+	//vector<ModelComponent*> newcomps;
+	//for (UINT i = 0; i < components.size(); i++)
+	//{
+	//	ModelComponent* mc = components[i];
+	//	vector<CommonMesh*> ccs;
+	//	mc->mesh->ConnectedComponents(ccs, true);
+	//	for (UINT j = 0; j < ccs.size(); j++)
+	//	{
+	//		ModelComponent* newmc = new ModelComponent(*mc);
+	//		newmc->mesh = ccs[j];
+	//		newcomps.push_back(newmc);
+	//	}
+	//}
+	//// Update indices
+	//for (UINT i = 0; i < newcomps.size(); i++)
+	//	newcomps[i]->index = (int)i;
+	//// Delete/replace old comps
+	//for (UINT i = 0; i < components.size(); i++)
+	//	delete components[i];
+	//components = newcomps;
 }
 
 Model::~Model()
@@ -80,12 +119,12 @@ void Model::Render(const RenderOptions& opts)
 		int colloc = ShaderProgram::CurrentProgram()->GetUniformLocation("Color");
 		if (colloc >= 0)
 		{
-			if (comp->isFixed && opts.highlightFixed)
-				glUniform3f(colloc, opts.params->FloatParam("fixedColorR"),
-									opts.params->FloatParam("fixedColorG"), 
-									opts.params->FloatParam("fixedColorB"));
+			if (comp->colorGroup->isFixed && opts.highlightFixed)
+				glUniform3f(colloc, (float)opts.params->FloatParam("fixedColorR"),
+									(float)opts.params->FloatParam("fixedColorG"), 
+									(float)opts.params->FloatParam("fixedColorB"));
 			else
-				glUniform3fv(colloc, 1, &(comp->color[0]));
+				glUniform3fv(colloc, 1, &(comp->colorGroup->color[0]));
 		}
 		components[i]->mesh->Render();
 	}

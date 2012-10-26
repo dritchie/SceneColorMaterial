@@ -5,6 +5,7 @@
 
 #include "WSSScene.h"
 #include "Model.h"
+#include "ColorGroup.h"
 
 class Scene
 {
@@ -15,6 +16,7 @@ public:
 	void Pick(const RenderOptions& opts);
 
 	std::vector<Model*> models;
+	std::map<std::string, ColorGroup*> colorGroups;
 
 private:
 	void FreeMemory();

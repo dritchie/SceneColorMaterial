@@ -7,17 +7,19 @@
 #include "RenderOptions.h"
 
 class Model;
+struct ColorGroup;
 
 struct ModelComponent
 {
 	GraphicsEngine::CommonMesh* mesh;
-	float color[3];
+	ColorGroup* colorGroup;
 	int index;
-	bool isFixed;
 	Model* owner;
 
-	ModelComponent() : mesh(NULL), index(-1), isFixed(false), owner(NULL) {}
+	ModelComponent() : mesh(NULL), colorGroup(NULL), index(-1), owner(NULL) {}
 	~ModelComponent() { delete mesh; }
+
+	void SetColorGroup(ColorGroup* newGroup);
 };
 
 class Model
