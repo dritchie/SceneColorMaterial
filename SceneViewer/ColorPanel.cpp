@@ -116,4 +116,6 @@ void ColorPanel::RefreshColorGroupList()
 		whichColorGroup->add(cg->name.c_str(), 0, WhichColorGroupCallback, this);
 	}
 	whichColorGroup->value(0);	// Initially, show the first item
+	if (whichColorGroup->value() == 0)
+		WhichColorGroupCallback(whichColorGroup, this);
 }

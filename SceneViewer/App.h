@@ -55,8 +55,6 @@ private:
 	static Fl_Callback DisplayShadedCallback;
 	static Fl_Callback DisplayFlatCallback;
 	static Fl_Callback DisplayFixedCallback;
-	static Fl_Callback DisplayShowObjectsCallback;
-	static Fl_Callback DisplayShowConstraintsCallback;
 
 
 	/** Various state (May split this out at some point) **/

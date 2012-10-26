@@ -19,15 +19,11 @@ struct RenderOptions
 	};
 	DisplayType displayType;
 
-	bool showObjects;
-	bool showConstraints;
 	bool highlightFixed;
 
 	RenderOptions() :
 			params(NULL),
 			displayType(SHADED),
-			showObjects(true),
-			showConstraints(true),
 			highlightFixed(false)
 	{}
 };

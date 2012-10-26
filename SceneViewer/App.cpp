@@ -57,22 +57,6 @@ void App::DisplayFixedCallback(Fl_Widget* w, void* v)
 	app->context->Redraw();
 }
 
-void App::DisplayShowObjectsCallback(Fl_Widget* w, void* v)
-{
-	App* app = (App*)v;
-	Fl_Menu_Bar* menuBar = (Fl_Menu_Bar*)w;
-	app->renderOptions.showObjects = (bool)menuBar->find_item("&Display/Show Objects")->value();
-	app->context->Redraw();
-}
-
-void App::DisplayShowConstraintsCallback(Fl_Widget* w, void* v)
-{
-	App* app = (App*)v;
-	Fl_Menu_Bar* menuBar = (Fl_Menu_Bar*)w;
-	app->renderOptions.showConstraints = (bool)menuBar->find_item("&Display/Show Constraints")->value();
-	app->context->Redraw();
-}
-
 GraphicsContext* App::InitAndShowUI(int argc, char** argv)
 {
 	Fl_Window* window = new Fl_Window(params.IntParam("windowWidth"), params.IntParam("windowHeight"), params.StringParam("appName").c_str());
@@ -84,8 +68,6 @@ GraphicsContext* App::InitAndShowUI(int argc, char** argv)
 			{ "Shaded",  0, DisplayShadedCallback, this, FL_MENU_RADIO | FL_MENU_VALUE },
 			{ "Flat", 0, DisplayFlatCallback, this, FL_MENU_RADIO | FL_MENU_DIVIDER},
 			{ "Highlight Fixed",  0, DisplayFixedCallback, this, FL_MENU_TOGGLE },
-			{ "Show Objects",  0, DisplayShowObjectsCallback, this, FL_MENU_TOGGLE | FL_MENU_VALUE },
-			{ "Show Constraints",  0, DisplayShowConstraintsCallback, this, FL_MENU_TOGGLE | FL_MENU_VALUE },
 		{ 0 },
 	{ 0 }
 	};
