@@ -80,6 +80,7 @@
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="Picker.cpp" />
     <ClCompile Include="Scene.cpp" />
+    <ClCompile Include="SegmentFeatures.cpp" />
     <ClCompile Include="SegmentMesh.cpp" />
     <ClCompile Include="WSSScene.cpp" />
     <ClCompile Include="UTF8Model.cpp" />
@@ -96,6 +97,7 @@
     <ClInclude Include="Picker.h" />
     <ClInclude Include="RenderOptions.h" />
     <ClInclude Include="Scene.h" />
+    <ClInclude Include="SegmentFeatures.h" />
     <ClInclude Include="SegmentMesh.h" />
     <ClInclude Include="WSSScene.h" />
     <ClInclude Include="UTF8Model.h" />

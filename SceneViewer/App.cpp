@@ -115,6 +115,7 @@ void App::GenerateSegmentationCallback(Fl_Widget* w, void* v)
 	SegmentMesh* segmesh = new SegmentMesh(img, img, true);
 	//segmesh->SaveMasksAndCrops("SegmentationOutput");
 	segmesh->SaveGroupAndSegmentMasks("SegmentationOutput");
+	segmesh->SaveModelDescription("SegmentationOutput/modelDescription.txt");
 
 	delete[] pixels;
 	delete[] fpixels;
