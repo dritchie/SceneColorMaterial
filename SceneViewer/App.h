@@ -55,6 +55,8 @@ private:
 	static Fl_Callback DisplayShadedCallback;
 	static Fl_Callback DisplayFlatCallback;
 	static Fl_Callback DisplayFixedCallback;
+	static Fl_Callback SaveFrameCallback;
+	static Fl_Callback GenerateSegmentationCallback;
 
 
 	/** Various state (May split this out at some point) **/

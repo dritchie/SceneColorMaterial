@@ -1,3 +1,4 @@
+#include "ImageStack.h"
 #include "App.h"
 #include "Common/GL.h"
 #include "Viewing/TinkercadCamera.h"
@@ -7,6 +8,7 @@
 #include "FLTKGraphicsWindow.h"
 #include "FL/Fl_Menu_Bar.H"
 #include "FLTKUtils.h"
+#include "SegmentMesh.h"
 
 using namespace std;
 using namespace GraphicsEngine;
@@ -57,6 +59,44 @@ void App::DisplayFixedCallback(Fl_Widget* w, void* v)
 	app->context->Redraw();
 }
 
+void App::SaveFrameCallback(Fl_Widget* w, void* v)
+{
+	App* app = (App*)v;
+	int width = ((FLTKGraphicsWindow*)(app->context))->w();
+	int height = ((FLTKGraphicsWindow*)(app->context))->h();
+	
+	float* pixels = new float[3*width*height];
+	glReadPixels(0, 0, width, height, GL_RGB, GL_FLOAT, pixels);
+
+	ImageStack::Image img(width, height, 1, 3, pixels);
+	ImageStack::Flip::apply(img, 'y');
+	ImageStack::Save::apply(img, "savedFrame.png");
+
+	delete[] pixels;
+}
+
+void App::GenerateSegmentationCallback(Fl_Widget* w, void* v)
+{
+	App* app = (App*)v;
+	
+	// Note: this assumes that the Display has been set to 'Flat'
+	// (todo(?): make it invoke a flat display, then return to normal state?)
+
+	int width = ((FLTKGraphicsWindow*)(app->context))->w();
+	int height = ((FLTKGraphicsWindow*)(app->context))->h();
+	
+	float* pixels = new float[3*width*height];
+	glReadPixels(0, 0, width, height, GL_RGB, GL_FLOAT, pixels);
+
+	ImageStack::Image img(width, height, 1, 3, pixels);
+	ImageStack::Flip::apply(img, 'y');
+	ImageStack::Save::apply(img, "SegmentationOutput/segmentation.png");
+
+	SegmentMesh* segmesh = new SegmentMesh(img, img, false);
+	segmesh->DebugSaveRawSegments("SegmentationOutput");
+	delete segmesh;
+}
+
 GraphicsContext* App::InitAndShowUI(int argc, char** argv)
 {
 	Fl_Window* window = new Fl_Window(params.IntParam("windowWidth"), params.IntParam("windowHeight"), params.StringParam("appName").c_str());
@@ -64,10 +104,14 @@ GraphicsContext* App::InitAndShowUI(int argc, char** argv)
 	// Menu bar
 	Fl_Menu_Bar* menuBar = new Fl_Menu_Bar(0, 0, params.IntParam("windowWidth"), params.IntParam("menuBarHeight"));
 	Fl_Menu_Item menuitems[] = {
-		{ "&Display",              0, 0, 0, FL_SUBMENU },
+		{ "&Display", 0, 0, 0, FL_SUBMENU },
 			{ "Shaded",  0, DisplayShadedCallback, this, FL_MENU_RADIO | FL_MENU_VALUE },
 			{ "Flat", 0, DisplayFlatCallback, this, FL_MENU_RADIO | FL_MENU_DIVIDER},
 			{ "Highlight Fixed",  0, DisplayFixedCallback, this, FL_MENU_TOGGLE },
+		{ 0 },
+		{ "&Tools", 0, 0, 0, FL_SUBMENU },
+			{ "Save Frame",  0, SaveFrameCallback, this },
+			{ "Generate Segmentation",  0, GenerateSegmentationCallback, this },
 		{ 0 },
 	{ 0 }
 	};
