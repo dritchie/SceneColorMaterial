@@ -30,7 +30,7 @@ appName			SceneViewer
 
 ### Other application-specific parameters go here! ###
 
-sceneToLoad					Scenes/helloWorld.json
+sceneToLoad					Scenes/LivingRoom1.json
 dataRoot					C:/Git/WebSceneStudio/public/data
 
 orbitSpeed					0.005

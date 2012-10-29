@@ -61,12 +61,15 @@ void App::DisplayFixedCallback(Fl_Widget* w, void* v)
 
 void App::SaveFrameCallback(Fl_Widget* w, void* v)
 {
-	App* app = (App*)v;
-	int width = ((FLTKGraphicsWindow*)(app->context))->w();
-	int height = ((FLTKGraphicsWindow*)(app->context))->h();
+	int viewport[4];
+	glGetIntegerv(GL_VIEWPORT, viewport);
+	int xStart = viewport[0];
+	int yStart = viewport[1];
+	int width = viewport[2];
+	int height = viewport[3];
 	
 	float* pixels = new float[3*width*height];
-	glReadPixels(0, 0, width, height, GL_RGB, GL_FLOAT, pixels);
+	glReadPixels(xStart, yStart, width, height, GL_RGB, GL_FLOAT, pixels);
 
 	ImageStack::Image img(width, height, 1, 3, pixels);
 	ImageStack::Flip::apply(img, 'y');
@@ -77,23 +80,44 @@ void App::SaveFrameCallback(Fl_Widget* w, void* v)
 
 void App::GenerateSegmentationCallback(Fl_Widget* w, void* v)
 {
-	App* app = (App*)v;
-	
 	// Note: this assumes that the Display has been set to 'Flat'
 	// (todo(?): make it invoke a flat display, then return to normal state?)
 
-	int width = ((FLTKGraphicsWindow*)(app->context))->w();
-	int height = ((FLTKGraphicsWindow*)(app->context))->h();
+	int viewport[4];
+	glGetIntegerv(GL_VIEWPORT, viewport);
+	int xStart = viewport[0];
+	int yStart = viewport[1];
+	int width = viewport[2];
+	int height = viewport[3];
 	
-	float* pixels = new float[3*width*height];
-	glReadPixels(0, 0, width, height, GL_RGB, GL_FLOAT, pixels);
+	// IMPORTANT(!): glReadPixels pads all rows to a multiple of 4 bytes. That's why we need to read
+	// out GL_RGBA, even though we'll only ever use the RGB data.
+	GLubyte* pixels = new GLubyte[4*width*height];
+	glReadPixels(xStart, yStart, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
-	ImageStack::Image img(width, height, 1, 3, pixels);
+	// Convert to floating point for ImageStack
+	// (a bit annoying, given that we're just going to convert it back, anyways, but
+	// ImageStack has nice utilities)
+	float* fpixels = new float[3*width*height];
+	for (int y = 0; y < height; y++) for (int x = 0; x < width; x++)
+	{
+		int inbase = 4*(y*width + x);
+		int outbase = 3*(y*width + x);
+		fpixels[outbase] = pixels[inbase] / 255.0f;
+		fpixels[outbase+1] = pixels[inbase+1] / 255.0f;
+		fpixels[outbase+2] = pixels[inbase+2] / 255.0f;
+	}
+
+	ImageStack::Image img(width, height, 1, 3, fpixels);
 	ImageStack::Flip::apply(img, 'y');
 	ImageStack::Save::apply(img, "SegmentationOutput/segmentation.png");
 
-	SegmentMesh* segmesh = new SegmentMesh(img, img, false);
-	segmesh->DebugSaveRawSegments("SegmentationOutput");
+	SegmentMesh* segmesh = new SegmentMesh(img, img, true);
+	//segmesh->SaveMasksAndCrops("SegmentationOutput");
+	segmesh->SaveGroupAndSegmentMasks("SegmentationOutput");
+
+	delete[] pixels;
+	delete[] fpixels;
 	delete segmesh;
 }
 
