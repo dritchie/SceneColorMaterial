@@ -15,23 +15,28 @@ struct Segment
 	ImageStack::Image mask;
 	ImageStack::Image srcImg;
 
-	Eigen::Vector2f Center()
-	{
-		return Eigen::Vector2f(origin.x() + mask.width/2.0f, origin.y() + mask.height/2.0f);
-	}
+	Eigen::Vector2f Center();
+	Eigen::Vector3f AverageColor();
 };
 
 class SegmentMesh
 {
 public:
 	SegmentMesh(ImageStack::Image img, ImageStack::Image segmap, bool splitGroups = false);
+	SegmentMesh(ImageStack::Image img, UINT* groupMask, bool splitGroups = false);
 
-	void DebugSaveRawSegments(const std::string& outputdir);
+	void SaveMasksAndCrops(const std::string& outputdir);
+	void SaveGroupAndSegmentMasks(const std::string& outputdir);
+	void SaveModelDescription(const std::string& outfilename);
 
 private:
+
+	void Construct(ImageStack::Image img, UINT* groupMask, bool splitGroups);
+	static void RandomColorMappings(UINT numIds, std::vector<Eigen::Vector3f>& colors);
+
 	ImageStack::Image image;
 	std::vector<Segment> segments;
-	std::vector< vector<UINT> > groups;
+	std::vector< std::vector<UINT> > groups;
 	std::vector< std::unordered_set<UINT> > adjacencies;
 };
 
