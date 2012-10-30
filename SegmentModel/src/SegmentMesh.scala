@@ -12,9 +12,11 @@ import cc.factorie.la.GrowableDenseTensor1
 import io.Source
 
 
-class Segment
+class Segment(val owner:SegmentMesh)
 {
     val features = new ArrayBuffer[SegmentFeature]
+    val adjacencies = new HashSet[Segment]
+    var group : SegmentGroup = null
 }
 
 class SegmentFeature(val name:String)
@@ -22,10 +24,11 @@ class SegmentFeature(val name:String)
     val values = new GrowableDenseTensor1(0)
 }
 
-class SegmentGroup
+class SegmentGroup(val owner:SegmentMesh)
 {
-    var color:Color = null
-    val members = new ArrayBuffer[Int]
+    var color:DiscreteColorVariable = null
+    val members = new ArrayBuffer[Segment]
+    val adjacencies = new HashSet[SegmentGroup]
 }
 
 class SegmentMesh
@@ -34,6 +37,9 @@ class SegmentMesh
     def this(filename:String)
     {
         this()  // Invoke the primary constructor (which does nothing, in our case)
+
+        val adjacencies = new ArrayBuffer[ ArrayBuffer[Int] ]
+
         val source = Source.fromFile(filename)
         val lineIterator = source.getLines()
         while (lineIterator.hasNext)
@@ -42,19 +48,34 @@ class SegmentMesh
             val tokens = line.split(" ")
             tokens(0) match
             {
-                case "SegmentBegin" => parseSegment(lineIterator)
+                case "SegmentBegin" => parseSegment(adjacencies, lineIterator)
                 case "GroupBegin" => parseGroup(lineIterator)
                 case _ =>
             }
         }
         source.close()
+
+        // Finalize segment adjacencies
+        for (i <- 0 until segments.length)
+        {
+            val adjlist = adjacencies(i)
+            val segment = segments(i)
+            segment.adjacencies ++= (for (index <- adjlist) yield segments(index))
+        }
+
+        // Finalize group adjacencies
+        for (group <- groups)
+        {
+            val adjgroups = for (seg <- group.members; aseg <- seg.adjacencies) yield aseg.group
+            group.adjacencies ++= adjgroups.distinct
+        }
     }
 
     /** Private helpers **/
 
-    private def parseSegment(lineIterator:Iterator[String])
+    private def parseSegment(adj:ArrayBuffer[ArrayBuffer[Int]], lineIterator:Iterator[String])
     {
-        val newseg = new Segment
+        val newseg = new Segment(this)
         while (lineIterator.hasNext)
         {
             val line = lineIterator.next
@@ -63,12 +84,12 @@ class SegmentMesh
             {
                 case "AdjacentTo" =>
                 {
-                    val adjlist = new HashSet[Int]
+                    val adjlist = new ArrayBuffer[Int]
                     for (tok <- tokens slice(1, tokens.length))
                     {
                         adjlist += tok.toInt
                     }
-                    adjacencies += adjlist
+                    adj += adjlist
                 }
                 case "SegmentEnd" =>
                 {
@@ -91,7 +112,7 @@ class SegmentMesh
 
     private def parseGroup(lineIterator:Iterator[String])
     {
-        var newgroup = new SegmentGroup
+        var newgroup = new SegmentGroup(this)
         while (lineIterator.hasNext)
         {
             val line = lineIterator.next
@@ -101,13 +122,16 @@ class SegmentMesh
                 case "ObservedColor" =>
                 {
                     // Assuming that colors are given in RGB
-                    newgroup.color = new RGBColor(tokens(1).toDouble, tokens(2).toDouble, tokens(3).toDouble)
+                    val c = new RGBColor(tokens(1).toDouble, tokens(2).toDouble, tokens(3).toDouble)
+                    newgroup.color = new DiscreteColorVariable(newgroup, c)
                 }
                 case "Members" =>
                 {
                     for (tok <- tokens slice(1,tokens.length))
                     {
-                        newgroup.members += tok.toInt
+                        val seg = segments(tok.toInt)
+                        seg.group = newgroup
+                        newgroup.members += seg
                     }
                 }
                 case "GroupEnd" =>
@@ -123,5 +147,4 @@ class SegmentMesh
     /** Data members **/
     val segments = new ArrayBuffer[Segment]
     val groups = new ArrayBuffer[SegmentGroup]
-    val adjacencies = new ArrayBuffer[ HashSet[Int] ]
 }
