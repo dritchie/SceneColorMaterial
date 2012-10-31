@@ -184,15 +184,16 @@
   </component>
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="" />
+    <mapping directory="$PROJECT_DIR$/.." vcs="Git" />
   </component>
   <component name="libraryTable">
-    <library name="factorie-1.0.0-M1">
+    <library name="factorie-1.0.0-M2">
       <CLASSES>
-        <root url="jar://$FACTORIE_HOME$/target/factorie-1.0.0-M1.jar!/" />
+        <root url="jar://$PROJECT_DIR$/../../../factorie-1.0.0-M2-src/factorie-1.0.0-M2/target/factorie-1.0.0-M2.jar!/" />
       </CLASSES>
       <JAVADOC />
       <SOURCES>
-        <root url="file://$FACTORIE_HOME$/src/main/scala/cc/factorie" />
+        <root url="file://$PROJECT_DIR$/../../../factorie-1.0.0-M2-src/factorie-1.0.0-M2/src/main/scala/cc/factorie" />
       </SOURCES>
     </library>
     <library name="scala-compiler">

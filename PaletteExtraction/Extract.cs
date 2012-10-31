@@ -204,11 +204,112 @@ namespace ColorVis
                     SavePaletteToImage(dir, key, dir + "\\renders\\" + key, data);
                 }
             }
-           
+        }
+
+        private void ExtractTemplate_Click(object sender, EventArgs e)
+        {
+            //extract templates from images in a directory
+            String[] files = Directory.GetFiles(dir, "*.png");
+            String infile = dir + "\\palettes.tsv";
+            Dictionary<String, List<PaletteData>> palettes = LoadFilePalettes(infile);
+
+             Directory.CreateDirectory(dir + "\\templates\\");
+             Directory.CreateDirectory(dir + "\\recolor\\");
+
+            Random random = new Random();
+
+            foreach (String f in files)
+            {
+                Bitmap image = new Bitmap(Image.FromFile(f));
+                Segmentation seg = new Segmentation();
+                String basename = f.Replace(dir+"\\", "");
+                String segFile = dir + "/segments/" + basename;
+                seg.LoadFromFile(f, segFile);
+
+                ColorTemplate template = new ColorTemplate(image, seg, palettes[basename].First());
+                Bitmap render = template.Render();
+                render.Save(dir + "\\templates\\" + basename);
+
+                //testing random color assignments
+                int numSeg = template.NumSegments();
+                
+                int[] segToColor = new int[numSeg];
+                for (int t = 0; t < 3; t++)
+                {
+                    for (int i = 0; i < numSeg; i++)
+                        segToColor[i] = random.Next(palettes[basename].First().colors.Count());
+
+                    Bitmap recolor = template.ColorWith(palettes[basename].First(), segToColor);
+                    recolor.Save(dir + "\\recolor\\" + Util.ConvertFileName(basename,"_"+t));
+
+                    Bitmap solidcolor = template.SolidColor(palettes[basename].First(), segToColor);
+                    solidcolor.Save(dir + "\\recolor\\" + Util.ConvertFileName(basename, "_" + t + "_solid"));
+                }
+
+
+            }
+
+
 
         }
 
+        private void RenderWheels_Click(object sender, EventArgs e)
+        {
+            String[] files = Directory.GetFiles(dir, "*.png");
+            String infile = dir + "\\palettes.tsv";
+            Dictionary<String, List<PaletteData>> palettes = LoadFilePalettes(infile);
 
+            String oinfile = dir + "\\oracle.csv";
+            Dictionary<String, List<PaletteData>> oracle = LoadFilePalettes(oinfile);
+
+
+            Directory.CreateDirectory(dir + "\\wheels\\");
+
+            Random random = new Random();
+
+
+            ColorWheel wheel = new ColorWheel(400, 10);
+
+            foreach (String f in files)
+            {
+                Bitmap image = new Bitmap(Image.FromFile(f));
+                Segmentation seg = new Segmentation();
+                String basename = f.Replace(dir + "\\", "");
+
+                List<HSV> phsv = new List<HSV>();
+                List<HSV> ihsv = new List<HSV>();
+                List<HSV> ohsv = new List<HSV>();
+
+                for (int i = 0; i < image.Width; i++)
+                {
+                    for (int j = 0; j < image.Height; j++)
+                    {
+                        ihsv.Add(Util.RGBtoHSV(image.GetPixel(i,j)));
+                    }
+                }
+                foreach (Color c in palettes[basename].First().colors)
+                {
+                    phsv.Add(Util.RGBtoHSV(c));
+                }
+                foreach (Color c in oracle[basename].First().colors)
+                {
+                    ohsv.Add(Util.RGBtoHSV(c));
+                }
+
+                Bitmap iw = wheel.RenderHueHistogram(ihsv);
+                Bitmap pd = wheel.RenderDisk(phsv);
+                Bitmap od = wheel.RenderDisk(ohsv);
+
+                iw.Save(dir + "\\wheels\\" + Util.ConvertFileName(basename, "_hist"));
+                pd.Save(dir + "\\wheels\\" + Util.ConvertFileName(basename, "_disk"));
+                od.Save(dir + "\\wheels\\" + Util.ConvertFileName(basename, "_disko"));
+
+
+
+            }
+
+
+        }
 
 
     }

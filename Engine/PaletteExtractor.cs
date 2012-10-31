@@ -292,6 +292,69 @@ namespace Engine
         public int numSegments;
         public int[] counts;
         public CIELAB[] segToMeanColor;
+
+        public Segmentation()
+        {
+        }
+
+        public Segmentation(int n, int width, int height)
+        {
+            numSegments = n;
+            counts = new int[n];
+            segToMeanColor = new CIELAB[n];
+            assignments = new int[width, height];
+        }
+
+        public void LoadFromFile(String imageFile, String segFile)
+        {
+            Bitmap image = new Bitmap(imageFile);
+            Bitmap map = new Bitmap(segFile);
+
+            int width = image.Width;
+            int height = image.Height;
+            
+            Bitmap resized = Util.ResizeBitmapNearest(map, width, height);
+
+            assignments = new int[width, height];
+
+            List<Color> unique = new List<Color>();
+            for (int i = 0; i < width; i++)
+            {
+                for (int j = 0; j < height; j++)
+                {
+                    Color c = resized.GetPixel(i, j);
+                    if (!unique.Contains(c))
+                        unique.Add(c);
+
+                    int idx = unique.IndexOf(c);
+                    assignments[i, j] = idx;
+                }
+            }
+
+            numSegments = unique.Count();
+            counts = new int[numSegments];
+            segToMeanColor = new CIELAB[numSegments];
+            for (int i = 0; i < numSegments; i++)
+            {
+                segToMeanColor[i] = new CIELAB();
+            }
+            for (int i = 0; i < width; i++)
+            {
+                for (int j = 0; j < height; j++)
+                {
+
+                    int idx = assignments[i, j];
+                    counts[idx]++;
+                    segToMeanColor[idx] += Util.RGBtoLAB(image.GetPixel(i, j));
+                }
+            }
+
+            for (int i = 0; i < numSegments; i++)
+            {
+                segToMeanColor[i] /= counts[i];
+            }
+
+        }
     }
 
     public class PaletteData
@@ -371,25 +434,19 @@ namespace Engine
             
         }
 
-        private String ConvertFileName(String basename, String label, String toExt=null)
-        {
-            FileInfo info = new FileInfo(basename);
-            String extension = info.Extension;
-            String result = (toExt==null)? basename.Replace(extension, label + extension): basename.Replace(extension, label+toExt);
-            return result;
-        }
+
 
         //Load or create the candidate swatches
-        private PaletteData GetPaletteSwatches(string key)
+        private PaletteData GetPaletteSwatches(string key, int maxIters=50)
         {
             PaletteData global = new PaletteData();
 
             //load all the candidate colors (the json file)
-            String jsonFile = dir + "/swatches/" + ConvertFileName(key,"",".json");
+            String jsonFile = dir + "/swatches/" + Util.ConvertFileName(key,"",".json");
 
             //check if it exists, if not, create the swatches
             if (!File.Exists(jsonFile))
-                GenerateCandidates(key);
+                GenerateCandidates(key, maxIters);
 
             String rawText = System.IO.File.ReadAllText(jsonFile);
 
@@ -414,24 +471,13 @@ namespace Engine
             return global;
         }
 
-        //Resize the bitmap using nearest neighbors
-        private Bitmap ResizeBitmapNearest(Bitmap b, int nWidth, int nHeight)
-        {
-            Bitmap result = new Bitmap(nWidth, nHeight);
-            using (Graphics g = Graphics.FromImage((Image)result))
-            {
-                g.InterpolationMode = InterpolationMode.NearestNeighbor;
-                g.SmoothingMode = SmoothingMode.None;
-                g.DrawImage(b, 0, 0, nWidth, nHeight);
-            }
-            return result;
-        }
+
 
         //Load the segmentation file for a particular image
         private Segmentation LoadSegAssignments(String key, int width, int height, CIELAB[,] imageLAB)
         {
             Bitmap map = new Bitmap(dir + "/segments/" + key);
-            Bitmap resized = ResizeBitmapNearest(map, width, height);
+            Bitmap resized = Util.ResizeBitmapNearest(map, width, height);
 
             Segmentation s = new Segmentation();
             s.assignments = new int[width, height];
@@ -478,7 +524,7 @@ namespace Engine
         }
 
         //Precompute some parameters
-        private FeatureParams SetupFeatureParams(SortedSet<Features> included, String key, String saliencyPattern, bool debug = false)
+        private FeatureParams SetupFeatureParams(SortedSet<Features> included, String key, String saliencyPattern, bool debug = false, int maxIters=50)
         {
             FeatureParams options = new FeatureParams();
 
@@ -486,7 +532,7 @@ namespace Engine
             double factor = 0;
             double afactor = 0;
 
-            PaletteData swatches = GetPaletteSwatches(key);
+            PaletteData swatches = GetPaletteSwatches(key, maxIters);
             int scount = swatches.lab.Count();
             for (int i = 0; i < swatches.lab.Count(); i++)
             {
@@ -570,7 +616,7 @@ namespace Engine
 
 
             //read the saliency map, and calculate saliency for each swatch
-            String mapPath = ConvertFileName(key, saliencyPattern);//"gbvs_" + key;
+            String mapPath = Util.ConvertFileName(key, saliencyPattern);//"gbvs_" + key;
             Bitmap map = new Bitmap(Image.FromFile(dir + "/saliency/" + mapPath), image.Width, image.Height);
 
 
@@ -1707,6 +1753,21 @@ namespace Engine
             return weights;
         }
 
+        public double PaletteImageScore(PaletteData palette, String key, String saliencyPattern, bool debug = false)
+        {
+            double score = 0;
+
+            //weights
+            Dictionary<Features, double> weights = new Dictionary<Features, double>();
+            weights = LoadWeights(weightsDir + "/weights-final-no.csv", weightsDir + "/featurenames-all.txt");
+
+            SortedSet<Features> included = new SortedSet<Features>(weights.Keys);
+            FeatureParams fparams = SetupFeatureParams(included, key, saliencyPattern, debug, 1);
+            
+            score = ScorePalette(weights, CalculateFeatures(palette, fparams));
+            return score;
+        }
+
 
         public PaletteData HillClimbPalette(String key, String saliencyPattern, bool debug = false)
         {
@@ -1866,12 +1927,12 @@ namespace Engine
 
         }
 
-        private void GenerateCandidates(String key)
+        private void GenerateCandidates(String key, int maxIters=50)
         {
             //generate candidate colors for this image
             //open image
             Bitmap image = new Bitmap(dir + "\\" + key);
-            String filename = dir + "\\swatches\\" + ConvertFileName(key,"",".json");
+            String filename = dir + "\\swatches\\" + Util.ConvertFileName(key,"",".json");
 
             int numSeeds = 40;
 
@@ -1897,7 +1958,7 @@ namespace Engine
             for (int t = 0; t < trials; t++)
             {
                 List<Cluster> seeds = Clustering.InitializePictureSeeds(colors, numSeeds);
-                double score = Clustering.KMeansPicture(colors, seeds);
+                double score = Clustering.KMeansPicture(colors, seeds, maxIters, null);
                 if (score < bestScore)
                 {
                     clusters = seeds;

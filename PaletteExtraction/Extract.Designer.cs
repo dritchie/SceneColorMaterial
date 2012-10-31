@@ -32,6 +32,8 @@
             this.toolStrip1 = new System.Windows.Forms.ToolStrip();
             this.extractTheme = new System.Windows.Forms.ToolStripButton();
             this.RenderThemes = new System.Windows.Forms.ToolStripButton();
+            this.ExtractTemplate = new System.Windows.Forms.ToolStripButton();
+            this.RenderWheels = new System.Windows.Forms.ToolStripButton();
             this.toolStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -39,7 +41,9 @@
             // 
             this.toolStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.extractTheme,
-            this.RenderThemes});
+            this.RenderThemes,
+            this.ExtractTemplate,
+            this.RenderWheels});
             this.toolStrip1.Location = new System.Drawing.Point(0, 0);
             this.toolStrip1.Name = "toolStrip1";
             this.toolStrip1.Size = new System.Drawing.Size(625, 25);
@@ -66,6 +70,26 @@
             this.RenderThemes.Text = "renderThemes";
             this.RenderThemes.Click += new System.EventHandler(this.RenderThemes_Click);
             // 
+            // ExtractTemplate
+            // 
+            this.ExtractTemplate.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.ExtractTemplate.Image = ((System.Drawing.Image)(resources.GetObject("ExtractTemplate.Image")));
+            this.ExtractTemplate.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.ExtractTemplate.Name = "ExtractTemplate";
+            this.ExtractTemplate.Size = new System.Drawing.Size(96, 22);
+            this.ExtractTemplate.Text = "extractTemplate";
+            this.ExtractTemplate.Click += new System.EventHandler(this.ExtractTemplate_Click);
+            // 
+            // RenderWheels
+            // 
+            this.RenderWheels.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.RenderWheels.Image = ((System.Drawing.Image)(resources.GetObject("RenderWheels.Image")));
+            this.RenderWheels.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.RenderWheels.Name = "RenderWheels";
+            this.RenderWheels.Size = new System.Drawing.Size(83, 22);
+            this.RenderWheels.Text = "renderWheels";
+            this.RenderWheels.Click += new System.EventHandler(this.RenderWheels_Click);
+            // 
             // ColorVis
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -86,6 +110,8 @@
         private System.Windows.Forms.ToolStrip toolStrip1;
         private System.Windows.Forms.ToolStripButton extractTheme;
         private System.Windows.Forms.ToolStripButton RenderThemes;
+        private System.Windows.Forms.ToolStripButton ExtractTemplate;
+        private System.Windows.Forms.ToolStripButton RenderWheels;
     }
 }
 

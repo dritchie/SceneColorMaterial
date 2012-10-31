@@ -41,9 +41,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="UnionFind.cs" />
     <Compile Include="Clustering.cs" />
     <Compile Include="Color.cs" />
     <Compile Include="ColorNames.cs" />
+    <Compile Include="ColorTemplate.cs" />
+    <Compile Include="Filter.cs" />
     <Compile Include="HungarianAlgorithm.cs" />
     <Compile Include="PaletteExtractor.cs" />
     <Compile Include="PriorityQueue.cs" />

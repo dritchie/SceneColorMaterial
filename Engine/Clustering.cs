@@ -266,7 +266,7 @@ namespace Engine
         }
 
 
-        public static double KMeansPicture(List<CIELAB> colors, List<Cluster> seeds, List<double> inWeights=null)
+        public static double KMeansPicture(List<CIELAB> colors, List<Cluster> seeds, int maxIters=50, List<double> inWeights=null)
         {
             //cluster colors given seeds
             //return score
@@ -286,7 +286,7 @@ namespace Engine
             //go through colors
             int[] assignments = new int[colors.Count()];
             int changes = 1;
-            int maxIters = 50;//100;//30;//100;
+            //int maxIters = 50;//100;//30;//100;
 
             for (int t = 0; t < maxIters; t++)
             {
