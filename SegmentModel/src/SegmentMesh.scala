@@ -122,7 +122,7 @@ class SegmentMesh
                 case "ObservedColor" =>
                 {
                     // Assuming that colors are given in RGB
-                    val c = new RGBColor(tokens(1).toDouble, tokens(2).toDouble, tokens(3).toDouble)
+                    val c = Color.RGBColor(tokens(1).toDouble, tokens(2).toDouble, tokens(3).toDouble)
                     newgroup.color = new DiscreteColorVariable(newgroup, c)
                 }
                 case "Members" =>

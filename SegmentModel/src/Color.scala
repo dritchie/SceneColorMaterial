@@ -10,7 +10,7 @@ import cc.factorie.la.DenseTensor1
 
 class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpace)
 {
-    val components = new DenseTensor1(3)
+    private val components = new DenseTensor1(3)
     components.update(0, c1)
     components.update(1, c2)
     components.update(2, c3)
@@ -18,6 +18,10 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
     def this(c:Color) = this(c.components(0), c.components(1), c.components(2), c.colorspace)
 
     override def toString(): String = colorspace + "(" + components(0) + "," + components(1) + "," + components(2) + ")"
+
+    // Component access
+    // (Do a bounds check? That slows code down a lot, though...)
+    def apply(index:Int) = components(index)
 
     def sameColorSpace(c:Color) = colorspace == c.colorspace
 
@@ -36,7 +40,7 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
 
     // Call this before performing any operation between this and another color
     // to make sure that the colors are in the same color space
-    protected def ensureColorSpaceCompatibility(c: Color)
+    private def ensureColorSpaceCompatibility(c: Color)
     {
         if (!sameColorSpace(c))
             throw new Error("Attempting operation on two colors from different color spaces!")
