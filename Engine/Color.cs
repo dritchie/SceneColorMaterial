@@ -3,9 +3,63 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.IO;
 
 namespace Engine
 {
+    public class HSV
+    {
+        public double H;
+        public double S;
+        public double V;
+
+        public HSV()
+        {
+            H = 0;
+            S = 0;
+            V = 0;
+        }
+
+        public HSV(double h, double s, double v)
+        {
+            H = h;
+            S = s;
+            V = v;
+        }
+
+        public static HSV operator +(HSV a, HSV b)
+        {
+            return new HSV(a.H + b.H, a.S + b.S, a.V + b.V);
+        }
+
+        public static HSV operator *(HSV a, HSV b)
+        {
+            return new HSV(a.H * b.H, a.S * b.S, a.V * b.V);
+        }
+
+        public static HSV operator /(HSV a, HSV b)
+        {
+            return new HSV(a.H / b.H, a.S / b.S, a.V / b.V);
+        }
+
+        public static HSV operator -(HSV a, HSV b)
+        {
+            return new HSV(a.H - b.H, a.S - b.S, a.V - b.V);
+        }
+
+        public static HSV operator /(HSV a, double s)
+        {
+            return new HSV(a.H / s, a.S / s, a.V / s);
+        }
+
+        public static HSV operator *(HSV a, double s)
+        {
+            return new HSV(a.H * s, a.S * s, a.V * s);
+        }
+
+    }
+
     public class CIELAB : IEquatable<CIELAB>
     {
         public double L;
@@ -59,6 +113,12 @@ namespace Engine
         {
             return new CIELAB(a.L * b.L, a.A * b.A, a.B * b.B);
         }
+
+        public static CIELAB operator /(CIELAB a, CIELAB b)
+        {
+            return new CIELAB(a.L / b.L, a.A / b.A, a.B / b.B);
+        }
+
         public static CIELAB operator -(CIELAB a, CIELAB b)
         {
             return new CIELAB(a.L - b.L, a.A - b.A, a.B - b.B);
@@ -171,6 +231,161 @@ namespace Engine
             return new CIELAB(cieL, cieA, cieB);
 
         }
+
+        //Resize the bitmap using nearest neighbors
+        public static Bitmap ResizeBitmapNearest(Bitmap b, int nWidth, int nHeight)
+        {
+            Bitmap result = new Bitmap(nWidth, nHeight);
+            using (Graphics g = Graphics.FromImage((Image)result))
+            {
+                g.InterpolationMode = InterpolationMode.NearestNeighbor;
+                g.SmoothingMode = SmoothingMode.None;
+                g.DrawImage(b, 0, 0, nWidth, nHeight);
+            }
+            return result;
+        }
+
+        public static String ConvertFileName(String basename, String label, String toExt = null)
+        {
+            FileInfo info = new FileInfo(basename);
+            String extension = info.Extension;
+            String result = (toExt == null) ? basename.Replace(extension, label + extension) : basename.Replace(extension, label + toExt);
+            return result;
+        }
+
+        //from: http://stackoverflow.com/questions/1335426/is-there-a-built-in-c-net-system-api-for-hsv-to-rgb
+        public static HSV RGBtoHSV(Color color)
+        {
+            int max = Math.Max(color.R, Math.Max(color.G, color.B));
+            int min = Math.Min(color.R, Math.Min(color.G, color.B));
+            double chroma = max - min;
+
+            double huep = 0;
+            if (chroma == 0)
+                huep = 0;
+            else if (max == color.R)
+                huep = (color.G - color.B) / chroma % 6;
+            else if (max == color.G)
+                huep = (color.B - color.R) / chroma + 2;
+            else
+                huep = (color.R - color.G) / chroma + 4;
+
+            double hue = 60 * huep;//color.GetHue();
+
+            if (hue < 0)
+                hue += 360;
+
+           /* double alpha = 0.5 * (2 * color.R - color.G - color.B);
+            double beta = Math.Sqrt(3) / 2.0 * (color.G - color.B);
+            double hue = Math.Atan2(beta, alpha) * 180 / Math.PI;
+            if (hue < 0)
+                hue += 360;*/
+
+            //double hue = color.GetHue();
+
+            double saturation = (max == 0) ? 0 : 1d - (1d * min / max);
+            double value = max / 255d;
+
+
+            return new HSV(hue, saturation, value);
+        }
+
+        public static Color HSVtoRGB(HSV hsv)
+        {
+            double hue = hsv.H;
+            double value = hsv.V;
+            double saturation = hsv.S;
+
+            int hi = Convert.ToInt32(Math.Floor(hue / 60)) % 6;
+            double f = hue / 60 - Math.Floor(hue / 60);
+
+            value = value * 255;
+            int v = Convert.ToInt32(value);
+            int p = Convert.ToInt32(value * (1 - saturation));
+            int q = Convert.ToInt32(value * (1 - f * saturation));
+            int t = Convert.ToInt32(value * (1 - (1 - f) * saturation));
+
+            if (hi == 0)
+                return Color.FromArgb(255, v, t, p);
+            else if (hi == 1)
+                return Color.FromArgb(255, q, v, p);
+            else if (hi == 2)
+                return Color.FromArgb(255, p, v, t);
+            else if (hi == 3)
+                return Color.FromArgb(255, p, q, v);
+            else if (hi == 4)
+                return Color.FromArgb(255, t, p, v);
+            else
+                return Color.FromArgb(255, v, p, q);
+        }
+
+        public static Color[,] BitmapToArray(Bitmap image)
+        {
+            Color[,] result = new Color[image.Width, image.Height];
+            for (int j = 0; j < image.Height; j++)
+            {
+                for (int i = 0; i < image.Width; i++)
+                {
+                    result[i,j] = image.GetPixel(i, j);
+                }
+            }
+            return result;
+        }
+
+        public static Bitmap ArrayToBitmap(Color[,] image)
+        {
+            int width = image.GetLength(0);
+            int height = image.GetLength(1);
+            Bitmap result = new Bitmap(width, height);
+
+            for (int i = 0; i < width; i++)
+            {
+                for (int j = 0; j < height; j++)
+                {
+                    result.SetPixel(i, j, image[i, j]);
+                }
+            }
+
+            return result;
+        }
+
+        //2D array map function
+        public static TDest[,] Map<TSource, TDest>(TSource[,] source, Func<TSource, TDest> func)
+        {
+            int width = source.GetLength(0);
+            int height = source.GetLength(1);
+
+            TDest[,] result = new TDest[width, height];
+
+            for (int i = 0; i < width; i++)
+            {
+                for (int j = 0; j < height; j++)
+                {
+                    result[i, j] = func(source[i, j]);
+                }
+            }
+
+            return result;
+        }
+
+        //Shuffle function
+        public static void Shuffle<T>(List<T> shuffled, Random random=null)
+        {
+            if (random == null)
+                random = new Random();
+
+            for (int j = shuffled.Count() - 1; j >= 0; j--)
+            {
+                int idx = random.Next(j + 1);
+                T temp = shuffled[j];
+                shuffled[j] = shuffled[idx];
+                shuffled[idx] = temp;
+            }
+        }
+
+        
+
+
 
     }
 }
