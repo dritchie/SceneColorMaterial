@@ -70,7 +70,7 @@ object RGBColorSpace extends ColorSpace
 }
 
 
-//conversions assume that RGB is in the range 0-255 and HSV has hue in degrees with S and V between 0 and 1
+//conversions assume that RGB is in the range 0-1 and HSV has hue in degrees with S and V between 0 and 1
 object HSVColorSpace extends ColorSpace
 {
     override def toString(): String = "HSV"
@@ -79,14 +79,14 @@ object HSVColorSpace extends ColorSpace
     {
         val hue = c1
         val saturation = c2
-        val value = c3 * 255
+        val value = c3
 
         val hi: Int = math.floor(hue / 60).toInt % 6
         val f = hue / 60 - math.floor(hue / 60)
-        val v = value.toInt
-        val p = (value * (1 - saturation)).toInt
-        val q = (value * (1 - f * saturation)).toInt
-        val t = (value * (1 - (1 - f) * saturation)).toInt
+        val v = value
+        val p = (value * (1 - saturation))
+        val q = (value * (1 - f * saturation))
+        val t = (value * (1 - (1 - f) * saturation))
 
         if (hi == 0)
             return (v, t, p)
@@ -104,12 +104,12 @@ object HSVColorSpace extends ColorSpace
 
     def fromRGB(c1: Double, c2: Double, c3: Double): (Double, Double, Double) =
     {
-        val r = c1
-        val g = c2
-        val b = c3
+        val r = 255*c1
+        val g = 255*c2
+        val b = 255*c3
         val max = math.max(r, math.max(g, b))
         val min = math.min(r, math.min(g, b))
-        val chroma = (max - min).toDouble
+        val chroma = (max - min)
 
         var huep: Double = 0
         if (chroma == 0)
@@ -135,7 +135,7 @@ object HSVColorSpace extends ColorSpace
 }
 
 
-//conversions assume RGB is in the range 0 to 255
+//conversions assume RGB is in the range 0 to 1
 object LABColorSpace extends ColorSpace
 {
     override def toString(): String = "LAB"
@@ -184,9 +184,9 @@ object LABColorSpace extends ColorSpace
 
         val clamp = (value: Double) => math.min(math.max(value, 0.0), 1.0)
 
-        val red = math.round(255 * (math.pow(clamp(r), 1.0 / gamma)))
-        val green = math.round(255 * math.pow(clamp(g), 1.0 / gamma))
-        val blue = math.round(255 * math.pow(clamp(b), 1.0 / gamma))
+        val red = math.pow(clamp(r), 1.0 / gamma)
+        val green = math.pow(clamp(g), 1.0 / gamma)
+        val blue = math.pow(clamp(b), 1.0 / gamma)
 
         return (red, green, blue)
     }
@@ -194,9 +194,9 @@ object LABColorSpace extends ColorSpace
     def fromRGB(c1: Double, c2: Double, c3: Double): (Double, Double, Double) =
     {
         val gamma = 2.2
-        val red = math.pow(c1 / 255.0, gamma)
-        val green = math.pow(c2 / 255.0, gamma)
-        val blue = math.pow(c3 / 255.0, gamma)
+        val red = math.pow(c1, gamma)
+        val green = math.pow(c2, gamma)
+        val blue = math.pow(c3, gamma)
 
         //sRGB to xyz using the D65 illuminant
         //transformation from http://www.brucelindbloom.com

@@ -18,13 +18,13 @@ object Main
 
 
       //Testing color conversions
-      val rgb = Color.RGBColor(255,0,0)
+      val rgb = Color.RGBColor(1,0,0)
       val lab = new Color(rgb)
       lab.convertTo(LABColorSpace)
 
       println("rgb red to lab " + lab.toString())
-      println("Converting red from rgb to lab and back " + (LABColorSpace.toRGB _ ).tupled(LABColorSpace.fromRGB(255,0,0)))
-      println("Converting red from rgb to hsv and back " + (HSVColorSpace.toRGB _).tupled(HSVColorSpace.fromRGB(255,0,0)))
+      println("Converting red from rgb to lab and back " + (LABColorSpace.toRGB _ ).tupled(LABColorSpace.fromRGB(1,0,0)))
+      println("Converting red from rgb to hsv and back " + (HSVColorSpace.toRGB _).tupled(HSVColorSpace.fromRGB(1,0,0)))
 
 
 
