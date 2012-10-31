@@ -28,12 +28,19 @@ abstract class Color(c1:Double, c2:Double, c3:Double)
     //TODO: can't seem to inherit this if it's a constructor. There's probably a nicer way to do this...
     def initFrom(c:Color)
     {
-      //this(0,0,0)
-        // Do the conversion
-        val comptuple = (fromRGB _).tupled(c.toRGB(c.components(0), c.components(1), c.components(2)))
-        components(0) = comptuple._1
-        components(1) = comptuple._2
-        components(2) = comptuple._3
+        // If we have the same color space as the argument color, just copy the components directly
+        if (sameColorSpace(c))
+        {
+            components := c.components
+        }
+        // Otherwise, do color space conversion
+        else
+        {
+            val comptuple = (fromRGB _).tupled(c.toRGB(c.components(0), c.components(1), c.components(2)))
+            components.update(0, comptuple._1)
+            components.update(1, comptuple._2)
+            components.update(2, comptuple._3)
+        }
     }
 
     // Call this before performing any operation between this and another color
