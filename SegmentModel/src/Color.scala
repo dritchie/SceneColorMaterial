@@ -10,7 +10,7 @@ import cc.factorie.la.DenseTensor1
 
 abstract class Color(c1:Double, c2:Double, c3:Double)
 {
-    private val components = new DenseTensor1(3)
+    val components = new DenseTensor1(3)
     components.update(0, c1)
     components.update(1, c2)
     components.update(2, c3)

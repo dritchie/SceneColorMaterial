@@ -29,6 +29,10 @@ abstract class PairwiseAdjacentColorTemplate extends Template2[DiscreteColorVari
     }
 }
 
+/**
+ * Tries to keep the contrast between adjacent colors similar to the contrasts between the
+ * original observed colors
+ */
 class PairwiseContrastTemplate extends PairwiseAdjacentColorTemplate
 {
     override def score(v1:DiscreteColorVariable#Value, v2:DiscreteColorVariable#Value) =
