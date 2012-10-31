@@ -38,6 +38,14 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
         }
     }
 
+    // Create a copy in a different color space
+    def copyTo(cspace:ColorSpace)
+    {
+        val c = new Color(this)
+        c.convertTo(cspace)
+        c
+    }
+
     // Call this before performing any operation between this and another color
     // to make sure that the colors are in the same color space
     private def ensureColorSpaceCompatibility(c: Color)
@@ -93,17 +101,17 @@ object HSVColorSpace extends ColorSpace
         val t = (value * (1 - (1 - f) * saturation))
 
         if (hi == 0)
-            return (v, t, p)
+            (v, t, p)
         else if (hi == 1)
-            return (q, v, p)
+            (q, v, p)
         else if (hi == 2)
-            return (p, v, t)
+            (p, v, t)
         else if (hi == 3)
-            return (p, q, v)
+            (p, q, v)
         else if (hi == 4)
-            return (t, p, v)
+            (t, p, v)
         else
-            return (v, p, q)
+            (v, p, q)
     }
 
     def fromRGB(c1: Double, c2: Double, c3: Double): (Double, Double, Double) =
@@ -134,7 +142,7 @@ object HSVColorSpace extends ColorSpace
         }
         val value: Double = max / 255.0
 
-        return (hue, saturation, value)
+        (hue, saturation, value)
     }
 }
 
@@ -192,7 +200,7 @@ object LABColorSpace extends ColorSpace
         val green = math.pow(clamp(g), 1.0 / gamma)
         val blue = math.pow(clamp(b), 1.0 / gamma)
 
-        return (red, green, blue)
+        (red, green, blue)
     }
 
     def fromRGB(c1: Double, c2: Double, c3: Double): (Double, Double, Double) =
@@ -234,7 +242,7 @@ object LABColorSpace extends ColorSpace
         val cieA = 500 * (fx - fy)
         val cieB = 200 * (fy - fz)
 
-        return (cieL, cieA, cieB)
+        (cieL, cieA, cieB)
     }
 
 }

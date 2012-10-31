@@ -37,6 +37,9 @@ class PairwiseContrastTemplate extends PairwiseAdjacentColorTemplate
 {
     override def score(v1:DiscreteColorVariable#Value, v2:DiscreteColorVariable#Value) =
     {
+//        val c1 = v1.category
+//        val c2 = v2.category
+
         throw new Error("Not yet implemented")
     }
 }
