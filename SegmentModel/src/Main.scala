@@ -12,24 +12,23 @@ object Main
 {
     def main(args: Array[String])
     {
-//        // Test loading up a segment mesh
-//        val filename = "../SceneViewer/SegmentationOutput/modelDescription.txt"
-//        val segmesh = new SegmentMesh(filename)
-//        println("Done with all the things")
-//
-//        //Testing color conversions
-//        val rgb = Color.RGBColor(1, 0, 0)
-//        val lab = new Color(rgb)
-//        lab.convertTo(LABColorSpace)
-//
-//        println("rgb red to lab " + lab.toString())
-//        println("Converting red from rgb to lab and back " + (LABColorSpace.toRGB _).tupled(LABColorSpace.fromRGB(1, 0, 0)))
-//        println("Converting red from rgb to hsv and back " + (HSVColorSpace.toRGB _).tupled(HSVColorSpace.fromRGB(1, 0, 0)))
+        testContrastModel()
+    }
+
+    def testColorConversions()
+    {
+        //Testing color conversions
+        val rgb = Color.RGBColor(1, 0, 0)
+        val lab = rgb.copyTo(LABColorSpace)
+
+        println("rgb red to lab " + lab.toString())
+        println("Converting red from rgb to lab and back " + (LABColorSpace.toRGB _).tupled(LABColorSpace.fromRGB(1, 0, 0)))
+        println("Converting red from rgb to hsv and back " + (HSVColorSpace.toRGB _).tupled(HSVColorSpace.fromRGB(1, 0, 0)))
     }
 
     def testContrastModel()
     {
-        val filename = "../SceneViewer/SegmentationOutput/modelDescription.txt"
+        val filename = "../SceneViewer/SegmentationOutput/segDescription.txt"
         val segmesh = new SegmentMesh(filename)
         val model = new MaintainObservedContrastModel(segmesh)
 
@@ -46,10 +45,10 @@ object Main
 
         // Do inference
         val sampler = new VariableSettingsSampler[DiscreteColorVariable](model)
-        var optimizer = new SamplingMaximizer(sampler)
+        val optimizer = new SamplingMaximizer(sampler)
         optimizer.maximize(for (group <- segmesh.groups) yield group.color, 100)
 
         // Output the result
-        // TODO: implement this
+        segmesh.saveColorAssignments("../SceneViewer/SegmentationOutput/colorAssignments.txt")
     }
 }

@@ -18,6 +18,7 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
     def this(c:Color) = this(c.components(0), c.components(1), c.components(2), c.colorspace)
 
     override def toString(): String = colorspace + "(" + components(0) + "," + components(1) + "," + components(2) + ")"
+    def componentString() : String = "" + components(0) + " " + components(1) + " " + components(2)
 
     // Component access
     // (Do a bounds check? That slows code down a lot, though...)

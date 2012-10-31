@@ -10,6 +10,7 @@ import collection.mutable.ArrayBuffer
 import collection.mutable.HashSet
 import cc.factorie.la.GrowableDenseTensor1
 import io.Source
+import java.io.FileWriter
 
 
 class Segment(val index:Int, val owner:SegmentMesh)
@@ -142,6 +143,17 @@ class SegmentMesh
                 case _ =>
             }
         }
+    }
+
+    /** Output **/
+    def saveColorAssignments(filename:String)
+    {
+        val out = new FileWriter(filename)
+        for (group <- groups)
+        {
+            out.write(group.color.value.category.componentString() + "\n")
+        }
+        out.close()
     }
 
     /** Data members **/

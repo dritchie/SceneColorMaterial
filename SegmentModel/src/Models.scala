@@ -42,7 +42,7 @@ class PairwiseMaintainObservedContrastFactor(v1:DiscreteColorVariable, v2:Discre
     {
         val contrast = Color.contrast(val1.category, val2.category)
         // This is intended to be a gaussian, but we don't exponentiate it because factorie operates in log space
-        math.abs(contrast - targetContrast) / sigma
+        -math.abs(contrast - targetContrast) / sigma
     }
 }
 
@@ -50,7 +50,7 @@ class PairwiseMaintainObservedContrastFactor(v1:DiscreteColorVariable, v2:Discre
  * Given a segment mesh, builds a graph of factors that attemt to maintain the observed contrast between
  * adjacent color groups
  */
-class MaintainObservedContrastModel(segmesh:SegmentMesh) extends ItemizedModel[DiscreteColorVariable]
+class MaintainObservedContrastModel(segmesh:SegmentMesh) extends ItemizedModel
 {
     // For each group, add a factor for each adjacent group
     // (Deduplicate by only adding the (low, high) pair)
