@@ -23,6 +23,8 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
     // (Do a bounds check? That slows code down a lot, though...)
     def apply(index:Int) = components(index)
 
+    def isIn(cspace:ColorSpace) = colorspace == cspace
+
     def sameColorSpace(c:Color) = colorspace == c.colorspace
 
     // Convert to a different color space
@@ -39,11 +41,22 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
     }
 
     // Create a copy in a different color space
-    def copyTo(cspace:ColorSpace)
+    def copyTo(cspace:ColorSpace) : Color =
     {
         val c = new Color(this)
         c.convertTo(cspace)
         c
+    }
+
+    def luminance() : Double =
+    {
+        var c:Color = null
+        if (colorspace == RGBColorSpace)
+            c = this
+        else
+            c = copyTo(RGBColorSpace)
+
+        0.212*c(0) + 0.7152*c(1) + 0.0722*c(2)
     }
 
     // Call this before performing any operation between this and another color
@@ -63,6 +76,14 @@ object Color
     def RGBColor(c1:Double, c2:Double, c3:Double) = new Color(c1, c2, c3, RGBColorSpace)
     def HSVColor(c1:Double, c2:Double, c3:Double) = new Color(c1, c2, c3, HSVColorSpace)
     def LABColor(c1:Double, c2:Double, c3:Double) = new Color(c1, c2, c3, LABColorSpace)
+
+    // Super simple contrast measure using luminance difference / average luminance
+    def contrast(col1:Color, col2:Color) : Double =
+    {
+        val l1 = col1.luminance()
+        val l2 = col2.luminance()
+        math.abs(l1 - l2) / (0.5 * (l1 + l2))
+    }
 }
 
 
