@@ -11,24 +11,20 @@ object Main
 {
     def main(args: Array[String])
     {
-        // Test loading up a segment mesh
-        val filename = "../SceneViewer/SegmentationOutput/modelDescription.txt"
-        val segmesh = new SegmentMesh(filename)
-        println("Done with all the things")
-
+//        // Test loading up a segment mesh
+//        val filename = "../SceneViewer/SegmentationOutput/modelDescription.txt"
+//        val segmesh = new SegmentMesh(filename)
+//        println("Done with all the things")
 
 
       //Testing color conversions
-      var rgb:RGBColor = new RGBColor(255,0,0)
-      var lab:LABColor = new LABColor(0,0,0)
-      lab.initFrom(rgb)
-
-      var hsv:HSVColor = new HSVColor(0,0,0)
-
+      val rgb = Color.RGBColor(255,0,0)
+      val lab = new Color(rgb)
+      lab.convertTo(LABColorSpace)
 
       println("rgb red to lab " + lab.toString())
-      println("Converting red from rgb to lab and back " + (lab.toRGB _ ).tupled(lab.fromRGB(255,0,0)))
-      println("Converting red from rgb to hsv and back " + (hsv.toRGB _).tupled(hsv.fromRGB(255,0,0)))
+      println("Converting red from rgb to lab and back " + (LABColorSpace.toRGB _ ).tupled(LABColorSpace.fromRGB(255,0,0)))
+      println("Converting red from rgb to hsv and back " + (HSVColorSpace.toRGB _).tupled(HSVColorSpace.fromRGB(255,0,0)))
 
 
 
