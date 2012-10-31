@@ -28,7 +28,7 @@ Vector3f Segment::AverageColor()
 			c += Vector3f(crop(x,y));
 		}
 	}
-	return c / numpixels;
+	return c / (float)numpixels;
 }
 
 
@@ -327,7 +327,7 @@ void SegmentMesh::SaveModelDescription(const std::string& outfilename)
 		Vector3f c(0, 0, 0);
 		for (UINT i = 0; i < groups[g].size(); i++)
 			c += segments[groups[g][i]].AverageColor();
-		c /= groups[g].size();
+		c /= (float)groups[g].size();
 		outfile << "ObservedColor " << c[0] << " " << c[1] << " " << c[2] << endl;
 
 		// Membership

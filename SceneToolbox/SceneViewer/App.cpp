@@ -110,12 +110,11 @@ void App::GenerateSegmentationCallback(Fl_Widget* w, void* v)
 
 	ImageStack::Image img(width, height, 1, 3, fpixels);
 	ImageStack::Flip::apply(img, 'y');
-	ImageStack::Save::apply(img, "SegmentationOutput/segmentation.png");
+	ImageStack::Save::apply(img, "../Output/segmentation.png");
 
 	SegmentMesh* segmesh = new SegmentMesh(img, img, true);
-	//segmesh->SaveMasksAndCrops("SegmentationOutput");
-	segmesh->SaveGroupAndSegmentMasks("SegmentationOutput");
-	segmesh->SaveModelDescription("SegmentationOutput/segDescription.txt");
+	segmesh->SaveGroupAndSegmentMasks("../Output");
+	segmesh->SaveModelDescription("../Output/segDescription.txt");
 
 	delete[] pixels;
 	delete[] fpixels;
