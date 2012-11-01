@@ -28,7 +28,7 @@ object Main
 
     def testContrastModel()
     {
-        val filename = "../SceneViewer/SegmentationOutput/segDescription.txt"
+        val filename = "../SceneToolbox/Output/segDescription.txt"
         val segmesh = new SegmentMesh(filename)
         val model = new MaintainObservedContrastModel(segmesh)
 
@@ -49,6 +49,6 @@ object Main
         optimizer.maximize(for (group <- segmesh.groups) yield group.color, 100)
 
         // Output the result
-        segmesh.saveColorAssignments("../SceneViewer/SegmentationOutput/colorAssignments.txt")
+        segmesh.saveColorAssignments("../SceneToolbox/Output/colorAssignments.txt")
     }
 }
