@@ -11,8 +11,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{B3D07939-BAE6-4E9B-9B18-990C9F3929D2}</ProjectGuid>
-    <RootNamespace>SceneViewer</RootNamespace>
+    <ProjectGuid>{161B6142-140C-4931-B35C-3BD494BA9002}</ProjectGuid>
+    <RootNamespace>SegmentationRecoloring</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -41,13 +41,11 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(ProjectDir)\jsoncpp;$(ProjectDir)\jsoncpp\json;$(SolutionDir)\Shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)\Shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(SolutionDir)$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>GraphicsEngine.lib;FLTKGraphicsApp.lib;ImageStack-x86-static-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>GraphicsEngine.lib;ImageStack-x86-static-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -56,60 +54,23 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>$(ProjectDir)\jsoncpp;$(ProjectDir)\jsoncpp\json;$(SolutionDir)\Shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)\Shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(SolutionDir)$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>GraphicsEngine.lib;FLTKGraphicsApp.lib;ImageStack-x86-static-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>GraphicsEngine.lib;ImageStack-x86-static-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\Shared\SegmentFeatures.cpp" />
-    <ClCompile Include="..\Shared\SegmentMesh.cpp" />
-    <ClCompile Include="App.cpp" />
-    <ClCompile Include="ColorPanel.cpp" />
-    <ClCompile Include="ComponentPanel.cpp" />
-    <ClCompile Include="Framebuffer.cpp" />
-    <ClCompile Include="jsoncpp\json_reader.cpp" />
-    <ClCompile Include="jsoncpp\json_value.cpp" />
-    <ClCompile Include="jsoncpp\json_writer.cpp" />
-    <ClCompile Include="JsonUtils.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="Model.cpp" />
-    <ClCompile Include="Picker.cpp" />
-    <ClCompile Include="Scene.cpp" />
-    <ClCompile Include="WSSScene.cpp" />
-    <ClCompile Include="UTF8Model.cpp" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="..\Shared\SegmentFeatures.h" />
     <ClInclude Include="..\Shared\SegmentMesh.h" />
-    <ClInclude Include="App.h" />
-    <ClInclude Include="ColorGroup.h" />
-    <ClInclude Include="ColorPanel.h" />
-    <ClInclude Include="ComponentPanel.h" />
-    <ClInclude Include="FLTKUtils.h" />
-    <ClInclude Include="Framebuffer.h" />
-    <ClInclude Include="JsonUtils.h" />
-    <ClInclude Include="Model.h" />
-    <ClInclude Include="Picker.h" />
-    <ClInclude Include="RenderOptions.h" />
-    <ClInclude Include="Scene.h" />
-    <ClInclude Include="WSSScene.h" />
-    <ClInclude Include="UTF8Model.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="GLSL\Flat.frag" />
-    <None Include="GLSL\Flat.vert" />
-    <None Include="GLSL\Picking.frag" />
-    <None Include="GLSL\Picking.vert" />
-    <None Include="GLSL\Shaded.frag" />
-    <None Include="GLSL\Shaded.vert" />
-    <None Include="Parameters.txt" />
+    <ClCompile Include="..\Shared\SegmentFeatures.cpp" />
+    <ClCompile Include="..\Shared\SegmentMesh.cpp" />
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
