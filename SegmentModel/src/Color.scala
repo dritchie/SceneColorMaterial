@@ -18,10 +18,13 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
     def this(c:Color) = this(c.components(0), c.components(1), c.components(2), c.colorspace)
 
     override def toString(): String = colorspace + "(" + components(0) + "," + components(1) + "," + components(2) + ")"
+    def componentString() : String = "" + components(0) + " " + components(1) + " " + components(2)
 
     // Component access
     // (Do a bounds check? That slows code down a lot, though...)
     def apply(index:Int) = components(index)
+
+    def isIn(cspace:ColorSpace) = colorspace == cspace
 
     def sameColorSpace(c:Color) = colorspace == c.colorspace
 
@@ -36,6 +39,25 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
             components.update(2, newcomps._3)
             colorspace = cspace
         }
+    }
+
+    // Create a copy in a different color space
+    def copyTo(cspace:ColorSpace) : Color =
+    {
+        val c = new Color(this)
+        c.convertTo(cspace)
+        c
+    }
+
+    def luminance() : Double =
+    {
+        var c:Color = null
+        if (colorspace == RGBColorSpace)
+            c = this
+        else
+            c = copyTo(RGBColorSpace)
+
+        0.212*c(0) + 0.7152*c(1) + 0.0722*c(2)
     }
 
     // Call this before performing any operation between this and another color
@@ -55,6 +77,14 @@ object Color
     def RGBColor(c1:Double, c2:Double, c3:Double) = new Color(c1, c2, c3, RGBColorSpace)
     def HSVColor(c1:Double, c2:Double, c3:Double) = new Color(c1, c2, c3, HSVColorSpace)
     def LABColor(c1:Double, c2:Double, c3:Double) = new Color(c1, c2, c3, LABColorSpace)
+
+    // Super simple contrast measure using luminance difference / average luminance
+    def contrast(col1:Color, col2:Color) : Double =
+    {
+        val l1 = col1.luminance()
+        val l2 = col2.luminance()
+        math.abs(l1 - l2) / (0.5 * (l1 + l2))
+    }
 }
 
 
@@ -93,17 +123,17 @@ object HSVColorSpace extends ColorSpace
         val t = (value * (1 - (1 - f) * saturation))
 
         if (hi == 0)
-            return (v, t, p)
+            (v, t, p)
         else if (hi == 1)
-            return (q, v, p)
+            (q, v, p)
         else if (hi == 2)
-            return (p, v, t)
+            (p, v, t)
         else if (hi == 3)
-            return (p, q, v)
+            (p, q, v)
         else if (hi == 4)
-            return (t, p, v)
+            (t, p, v)
         else
-            return (v, p, q)
+            (v, p, q)
     }
 
     def fromRGB(c1: Double, c2: Double, c3: Double): (Double, Double, Double) =
@@ -134,7 +164,7 @@ object HSVColorSpace extends ColorSpace
         }
         val value: Double = max / 255.0
 
-        return (hue, saturation, value)
+        (hue, saturation, value)
     }
 }
 
@@ -192,7 +222,7 @@ object LABColorSpace extends ColorSpace
         val green = math.pow(clamp(g), 1.0 / gamma)
         val blue = math.pow(clamp(b), 1.0 / gamma)
 
-        return (red, green, blue)
+        (red, green, blue)
     }
 
     def fromRGB(c1: Double, c2: Double, c3: Double): (Double, Double, Double) =
@@ -234,7 +264,7 @@ object LABColorSpace extends ColorSpace
         val cieA = 500 * (fx - fy)
         val cieB = 200 * (fy - fz)
 
-        return (cieL, cieA, cieB)
+        (cieL, cieA, cieB)
     }
 
 }

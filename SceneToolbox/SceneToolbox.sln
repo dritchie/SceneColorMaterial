@@ -1,7 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SceneViewer", "SceneViewer.vcxproj", "{B3D07939-BAE6-4E9B-9B18-990C9F3929D2}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SceneViewer", "SceneViewer\SceneViewer.vcxproj", "{B3D07939-BAE6-4E9B-9B18-990C9F3929D2}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SegmentationRecoloring", "SegmentationRecoloring\SegmentationRecoloring.vcxproj", "{161B6142-140C-4931-B35C-3BD494BA9002}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -13,6 +15,10 @@ Global
 		{B3D07939-BAE6-4E9B-9B18-990C9F3929D2}.Debug|Win32.Build.0 = Debug|Win32
 		{B3D07939-BAE6-4E9B-9B18-990C9F3929D2}.Release|Win32.ActiveCfg = Release|Win32
 		{B3D07939-BAE6-4E9B-9B18-990C9F3929D2}.Release|Win32.Build.0 = Release|Win32
+		{161B6142-140C-4931-B35C-3BD494BA9002}.Debug|Win32.ActiveCfg = Debug|Win32
+		{161B6142-140C-4931-B35C-3BD494BA9002}.Debug|Win32.Build.0 = Debug|Win32
+		{161B6142-140C-4931-B35C-3BD494BA9002}.Release|Win32.ActiveCfg = Release|Win32
+		{161B6142-140C-4931-B35C-3BD494BA9002}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

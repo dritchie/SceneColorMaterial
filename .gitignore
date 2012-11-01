@@ -14,3 +14,16 @@
 /MaterialRegionRenderer/output
 /MaterialRegionRenderer/output_bad
 /misc
+*.pdb
+*.exe
+*.exp
+*.lib
+*.ipch
+*.lastbuildstate
+*.log
+*.obj
+*.tlog
+*.manifest
+*.dll
+*.cache
+*.resources

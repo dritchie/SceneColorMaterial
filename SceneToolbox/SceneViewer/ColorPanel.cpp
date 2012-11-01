@@ -46,7 +46,7 @@ void ColorPanel::ResetButtonCallback(Fl_Widget* w, void* v)
 void ColorPanel::FixedToggleCallback(Fl_Widget* w, void* v)
 {
 	ColorPanel* panel = (ColorPanel*)v;
-	panel->activeColorGroup->isFixed = panel->fixedToggle->value();
+	panel->activeColorGroup->isFixed = (bool)panel->fixedToggle->value();
 }
 
 void ColorPanel::WhichColorGroupCallback(Fl_Widget* w, void* v)

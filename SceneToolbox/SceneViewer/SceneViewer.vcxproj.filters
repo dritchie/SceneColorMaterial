@@ -43,10 +43,10 @@
     <ClCompile Include="ComponentPanel.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SegmentMesh.cpp">
+    <ClCompile Include="..\Shared\SegmentMesh.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SegmentFeatures.cpp">
+    <ClCompile Include="..\Shared\SegmentFeatures.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -107,10 +107,10 @@
     <ClInclude Include="ColorGroup.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SegmentMesh.h">
+    <ClInclude Include="..\Shared\SegmentMesh.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SegmentFeatures.h">
+    <ClInclude Include="..\Shared\SegmentFeatures.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

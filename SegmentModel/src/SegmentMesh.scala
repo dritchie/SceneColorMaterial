@@ -10,9 +10,10 @@ import collection.mutable.ArrayBuffer
 import collection.mutable.HashSet
 import cc.factorie.la.GrowableDenseTensor1
 import io.Source
+import java.io.FileWriter
 
 
-class Segment(val owner:SegmentMesh)
+class Segment(val index:Int, val owner:SegmentMesh)
 {
     val features = new ArrayBuffer[SegmentFeature]
     val adjacencies = new HashSet[Segment]
@@ -24,7 +25,7 @@ class SegmentFeature(val name:String)
     val values = new GrowableDenseTensor1(0)
 }
 
-class SegmentGroup(val owner:SegmentMesh)
+class SegmentGroup(val index:Int, val owner:SegmentMesh)
 {
     var color:DiscreteColorVariable = null
     val members = new ArrayBuffer[Segment]
@@ -75,7 +76,7 @@ class SegmentMesh
 
     private def parseSegment(adj:ArrayBuffer[ArrayBuffer[Int]], lineIterator:Iterator[String])
     {
-        val newseg = new Segment(this)
+        val newseg = new Segment(segments.length, this)
         while (lineIterator.hasNext)
         {
             val line = lineIterator.next
@@ -112,7 +113,7 @@ class SegmentMesh
 
     private def parseGroup(lineIterator:Iterator[String])
     {
-        var newgroup = new SegmentGroup(this)
+        var newgroup = new SegmentGroup(groups.length, this)
         while (lineIterator.hasNext)
         {
             val line = lineIterator.next
@@ -142,6 +143,17 @@ class SegmentMesh
                 case _ =>
             }
         }
+    }
+
+    /** Output **/
+    def saveColorAssignments(filename:String)
+    {
+        val out = new FileWriter(filename)
+        for (group <- groups)
+        {
+            out.write(group.color.value.category.componentString() + "\n")
+        }
+        out.close()
     }
 
     /** Data members **/
