@@ -3,7 +3,9 @@
 #include "Eigen/Geometry"
 #include <map>
 #include <fstream>
+#include <sstream>
 #include <stack>
+#include "Utility/FileSystem.h"
 
 using namespace std;
 using namespace ImageStack;
@@ -341,4 +343,48 @@ void SegmentMesh::SaveModelDescription(const std::string& outfilename)
 	// Cleanup
 	for (UINT i = 0; i < features.size(); i++)
 		delete features[i];
+}
+
+Image SegmentMesh::Recolor(const std::vector<Eigen::Vector3f>& groupColors)
+{
+	if (groupColors.size() != groups.size())
+		FatalError(string("SegmentMesh::Recolor - number of colors provided != number of color groups"))
+
+	Image recolored(image.width, image.height, 1, 3);
+	for (UINT g = 0; g < groups.size(); g++)
+	{
+		const Vector3f color = groupColors[g];
+		vector<UINT>& group = groups[g];
+		for (UINT i = 0; i < group.size(); i++)
+		{
+			Segment& seg = segments[group[i]];
+			for (int y = 0; y < seg.mask.height; y++) for (int x = 0; x < seg.mask.width; x++)
+			{
+				if (*seg.mask(x,y))
+				{
+					float* pixel = recolored(x+seg.origin.x(), y+seg.origin.y());
+					pixel[0] = color[0];
+					pixel[1] = color[1];
+					pixel[2] = color[2];
+				}
+			}
+		}
+	}
+
+	return recolored;
+}
+
+Image SegmentMesh::Recolor(const std::string& colorAssignmentFilename)
+{
+	vector<string> lines = GraphicsEngine::FileLines(colorAssignmentFilename);
+	
+	vector<Vector3f> colors(lines.size());
+	for (UINT i = 0; i < lines.size(); i++)
+	{
+		stringstream ss; ss.str(lines[i]);
+		Vector3f& color = colors[i];
+		ss >> color[0] >> color[1] >> color[2];
+	}
+
+	return Recolor(colors);
 }

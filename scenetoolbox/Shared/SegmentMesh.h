@@ -29,6 +29,9 @@ public:
 	void SaveGroupAndSegmentMasks(const std::string& outputdir);
 	void SaveModelDescription(const std::string& outfilename);
 
+	ImageStack::Image Recolor(const std::vector<Eigen::Vector3f>& groupColors);
+	ImageStack::Image Recolor(const std::string& colorAssignmentFilename);
+
 private:
 
 	void Construct(ImageStack::Image img, UINT* groupMask, bool splitGroups);

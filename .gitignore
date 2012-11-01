@@ -27,3 +27,4 @@
 *.dll
 *.cache
 *.resources
+*.idb
