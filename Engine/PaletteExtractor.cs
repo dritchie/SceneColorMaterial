@@ -289,9 +289,10 @@ namespace Engine
     public class Segmentation
     {
         public int[,] assignments;
-        public int numSegments;
+        public int numSegments; 
         public int[] counts;
         public CIELAB[] segToMeanColor;
+
 
         public Segmentation()
         {
@@ -366,6 +367,7 @@ namespace Engine
         public int seconds;
         public int id;
         public String log;
+        public String workerName;
 
         public PaletteData()
         {
