@@ -1,0 +1,13 @@
+#Sample config. Change to localconfig.txt to use
+#palettefile - the palette file produced when extracting palettes or from Colourlovers
+palettefile > C:/Users/sharon/Documents/ColorTransfer/Colourlovers/patterns.csv
+
+#where you want to save images
+outdir > C:/Users/sharon/Documents/ColorTransfer/SceneColorMaterial/PatternColorizer/out
+
+#where the input images are
+imagedir > C:/Users/sharon/Documents/ColorTransfer/Colourlovers/data/albenaj
+
+#colornames data file and weights
+json > C:/Users/sharon/Documents/Color/c3/data/xkcd/c3_data.json
+weightsDir > C:/Users/sharon/Documents/ColorTransfer/SceneColorMaterial/weights
