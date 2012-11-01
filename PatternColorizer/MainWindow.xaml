@@ -3,6 +3,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="MainWindow" Height="350" Width="525">
     <Grid>
-        <Button Content="TemplateLayers" Height="43" HorizontalAlignment="Left" Name="RenderLayers" VerticalAlignment="Top" Width="100" Click="TemplateLayers_Click" />
+        <Button Content="OutputPatterns" Height="43" HorizontalAlignment="Left" Name="RenderLayers" VerticalAlignment="Top" Width="100" Click="OutputPatterns_Click" />
     </Grid>
 </Window>

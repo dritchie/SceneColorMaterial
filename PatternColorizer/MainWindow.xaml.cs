@@ -27,11 +27,13 @@ namespace PatternColorizer
     public partial class MainWindow : Window
     {
         String config = "../../localconfig.txt";
-        String palettedir;
+        String palettefile;
         String imagedir;
         String outdir;
         String json;
         String weightsDir;
+
+        Dictionary<String, PaletteData> palettes;
 
         public MainWindow()
         {
@@ -48,8 +50,8 @@ namespace PatternColorizer
                     case "imagedir":
                         imagedir = fields.Last().Trim();
                         break;
-                    case "palettedir":
-                        palettedir = fields.Last().Trim();
+                    case "palettefile":
+                        palettefile = fields.Last().Trim();
                         break;
                     case "outdir":
                         outdir = fields.Last().Trim();
@@ -64,6 +66,9 @@ namespace PatternColorizer
                         break;
                 }
             }
+
+            //read the palettes
+            palettes = LoadFilePalettes(palettefile);
         }
 
 
@@ -75,8 +80,8 @@ namespace PatternColorizer
             Dictionary<String, PaletteData> plist = new Dictionary<String, PaletteData>();
             String[] lines = File.ReadAllLines(file);
 
-            //extracted palettes
-            if (finfo.Extension == "tsv")
+            //extracted palettes file format
+            if (finfo.Extension == ".tsv")
             {
                 for (int i = 1; i < lines.Count(); i++)
                 {
@@ -101,7 +106,7 @@ namespace PatternColorizer
                         throw new IOException("More than one palette per key");
                 }
             }
-            else //pattern template palettes
+            else //pattern template file format
             {
                 for (int i = 0; i < lines.Count(); i++)
                 {
@@ -116,7 +121,7 @@ namespace PatternColorizer
                     String key = fields[1]+".png";
                     foreach (String s in colors)
                     {
-                        Color c = ColorTranslator.FromHtml(s);
+                        Color c = ColorTranslator.FromHtml("#"+s);
                         data.colors.Add(c);
                         data.lab.Add(Util.RGBtoLAB(c));
                         
@@ -132,58 +137,40 @@ namespace PatternColorizer
             return plist;
         }
 
-        private void TemplateLayers_Click(object sender, RoutedEventArgs e)
+        //Test the quantization, connected components on different color layers, and output the descriptor
+        private void OutputPatterns_Click(object sender, RoutedEventArgs e)
         {
-            //save the templates to layers
-            Directory.CreateDirectory(outdir + "\\layers\\");
+            //Create output directories
             Directory.CreateDirectory(outdir + "\\cc\\");
+            Directory.CreateDirectory(outdir + "\\quantized\\");
+            Directory.CreateDirectory(outdir + "\\mesh\\");
 
             //read in the patterns and save out their layers
-            String[] paletteVals = { "#CCCCCC", "#999999", "#666666", "#333333", "#000000"};
-            List<Color> colors = paletteVals.Select<String, Color>(s => ColorTranslator.FromHtml(s)).ToList<Color>();
-            List<CIELAB> lab = colors.Select<Color, CIELAB>(c => Util.RGBtoLAB(c)).ToList<CIELAB>();
-            PaletteData palette = new PaletteData();
-
             String[] files = System.IO.Directory.GetFiles(System.IO.Path.Combine(imagedir));
-            
-            //find the darkest color
+             
             foreach (String f in files)
             {
-                int numColors = 0;
+              
                 Bitmap image= new Bitmap(f);
-                double darkestL = 100;
-
                 String basename = new FileInfo(f).Name;
-            
-                for (int i = 0; i < image.Width; i++)
-                {
-                    for (int j = 0; j < image.Height; j++)
-                    {
-                        double L = Util.RGBtoLAB(image.GetPixel(i, j)).L;
-                        darkestL = Math.Min(L, darkestL);
-                    }
-                }
-
-                //find the number of colors
-                for (int i = 0; i < lab.Count(); i++)
-                {
-                    if (lab[i].L >= darkestL)
-                    {
-                        numColors = i + 1;
-                    }
-                }
-
-
-                palette.colors = colors.Take<Color>(numColors).ToList<Color>();
-                palette.lab = lab.Take<CIELAB>(numColors).ToList<CIELAB>();
-
+                PaletteData palette = palettes[basename];
 
                 ColorTemplate template = new ColorTemplate(image, palette);
 
+                //output the template descriptor
+                String filename = Path.Combine(outdir, "mesh", Util.ConvertFileName(basename, "", ".txt"));
+                SegmentMesh mesh = new SegmentMesh(template);
+                mesh.WriteToFile(filename);
+
+
+                Bitmap qdebug = template.DebugQuantization();
+                qdebug.Save(Path.Combine(outdir, "quantized", Util.ConvertFileName(basename,"_quantized",".png")));
+                image.Save(Path.Combine(outdir, "quantized", Util.ConvertFileName(basename, "_original", ".png")));
+
+                int numColors = palette.colors.Count();
                 for (int i = 0; i < numColors; i++)
                 {
-                    Bitmap result = template.RenderSegment(i);
-                    result.Save(Path.Combine(outdir, "layers",Util.ConvertFileName(basename, "_" + i)));
+                    Bitmap result = template.RenderSlot(i);
 
                     //save the connected components
                     UnionFind<Color> uf = new UnionFind<Color>((a, b) => (a.GetHashCode() == b.GetHashCode()));
@@ -195,12 +182,7 @@ namespace PatternColorizer
                     debug.Dispose();
                 }
 
-
-
             }
-
-
-
 
         }
     }

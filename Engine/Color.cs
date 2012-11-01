@@ -382,10 +382,5 @@ namespace Engine
                 shuffled[idx] = temp;
             }
         }
-
-        
-
-
-
     }
 }
