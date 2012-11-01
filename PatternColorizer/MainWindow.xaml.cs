@@ -163,24 +163,24 @@ namespace PatternColorizer
                 mesh.WriteToFile(filename);
 
 
-                Bitmap qdebug = template.DebugQuantization();
-                qdebug.Save(Path.Combine(outdir, "quantized", Util.ConvertFileName(basename,"_quantized",".png")));
+                Bitmap result = template.DebugQuantization();
+                result.Save(Path.Combine(outdir, "quantized", Util.ConvertFileName(basename,"_quantized",".png")));
                 image.Save(Path.Combine(outdir, "quantized", Util.ConvertFileName(basename, "_original", ".png")));
+
+
+                //save the connected components
+                UnionFind<Color> uf = new UnionFind<Color>((a, b) => (a.GetHashCode() == b.GetHashCode()));
+                Color[,] resultArray = Util.BitmapToArray(result);
+                int[,] cc = uf.ConnectedComponentsNoiseRemoval(resultArray);
 
                 int numColors = palette.colors.Count();
                 for (int i = 0; i < numColors; i++)
                 {
-                    Bitmap result = template.RenderSlot(i);
-
-                    //save the connected components
-                    UnionFind<Color> uf = new UnionFind<Color>((a, b) => (a.GetHashCode() == b.GetHashCode()));
-                    int[,] cc = uf.ConnectedComponents(Util.BitmapToArray(result), Color.FromArgb(0,0,0,0));
-                    Bitmap debug = uf.RenderComponents(cc);
+                    Bitmap debug = uf.RenderComponents(cc, resultArray, palette.colors[i]);
                     debug.Save(Path.Combine(outdir, "cc", Util.ConvertFileName(basename, "_" + i)));
-
-                    result.Dispose();
                     debug.Dispose();
                 }
+                result.Dispose();
 
             }
 

@@ -26,12 +26,14 @@ namespace PatternColorizer
         public List<SegmentFeature> features;
         public List<Point> points;
         public int groupId;
+        public int assignmentId;
 
-        public Segment()
+        public Segment(int id)
         {
             adjacencies = new SortedSet<int>();
             features = new List<SegmentFeature>();
             points = new List<Point>();
+            assignmentId = id;
         }
 
     }
@@ -72,7 +74,7 @@ namespace PatternColorizer
 
             UnionFind<Color> uf = new UnionFind<Color>((a, b) => (a.GetHashCode() == b.GetHashCode()));
             Bitmap image = template.DebugQuantization();
-            int[,] assignments = uf.ConnectedComponents(Util.BitmapToArray(image));
+            int[,] assignments = uf.ConnectedComponentsNoiseRemoval(Util.BitmapToArray(image));
             
 
             Dictionary<int, Segment> idToSegment = new Dictionary<int, Segment>();
@@ -87,7 +89,7 @@ namespace PatternColorizer
                 {
                     int id = assignments[i, j];
                     if (!idToSegment.ContainsKey(id))
-                        idToSegment.Add(id, new Segment());
+                        idToSegment.Add(id, new Segment(id));
 
                     idToSegment[id].points.Add(new Point(i, j));
                     idToSegment[id].groupId = template.GetSlotId(i, j);
@@ -111,10 +113,21 @@ namespace PatternColorizer
                 }
             }
 
-            //finalize segment list
+            //finalize segment list and adjacency list
+            Dictionary<int, int> idToIdx = new Dictionary<int, int>();
             foreach (int id in idToSegment.Keys)
             {
                 segments.Add(idToSegment[id]);
+                idToIdx.Add(id, segments.Count() - 1);
+            }
+
+            //finalize adjacencies
+            for (int i = 0; i < segments.Count(); i++)
+            {
+                SortedSet<int> renamedAdj = new SortedSet<int>();
+                foreach (int a in segments[i].adjacencies)
+                    renamedAdj.Add(idToIdx[a]);
+                segments[i].adjacencies = renamedAdj;
             }
 
             //finalize groups
