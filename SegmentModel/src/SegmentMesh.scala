@@ -156,6 +156,17 @@ class SegmentMesh
         out.close()
     }
 
+    /** Evaluation **/
+    def scoreAssignment():Double =
+    {
+      //just scoring by the color difference between the observed and assigned colors of each group, weighted uniformly
+      //the smaller the score, the better
+      val diffs = groups.map(
+        g=>{if (g.color.observedColor==null) 0 else g.color.observedColor.distanceTo(g.color.value.category)}
+      )
+      diffs.sum
+    }
+
     /** Data members **/
     val segments = new ArrayBuffer[Segment]
     val groups = new ArrayBuffer[SegmentGroup]

@@ -17,7 +17,7 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
 
     def this(c:Color) = this(c.components(0), c.components(1), c.components(2), c.colorspace)
 
-    override def toString(): String = colorspace + "(" + components(0) + "," + components(1) + "," + components(2) + ")"
+    override def toString: String = colorspace + "(" + components(0) + "," + components(1) + "," + components(2) + ")"
     def componentString() : String = "" + components(0) + " " + components(1) + " " + components(2)
 
     // Component access
@@ -60,9 +60,15 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
         0.212*c(0) + 0.7152*c(1) + 0.0722*c(2)
     }
 
+   def distanceTo(color:Color): Double =
+   {
+     ensureColorSpaceCompatibility(color)
+     colorspace.distance(this,color)
+   }
+
     // Call this before performing any operation between this and another color
     // to make sure that the colors are in the same color space
-    private def ensureColorSpaceCompatibility(c: Color)
+   def ensureColorSpaceCompatibility(c: Color)
     {
         if (!sameColorSpace(c))
             throw new Error("Attempting operation on two colors from different color spaces!")
@@ -94,11 +100,18 @@ trait ColorSpace
 {
     def toRGB(c1: Double, c2: Double, c3: Double): (Double, Double, Double)
     def fromRGB(c1: Double, c2: Double, c3: Double): (Double, Double, Double)
+
+    //default is Euclidean distance, but other color spaces (like HSV) might want something else
+    def distance(a:Color, b:Color):Double =
+    {
+      a.ensureColorSpaceCompatibility(b)
+      math.sqrt(math.pow(a(0)-b(0),2) + math.pow(a(1)-b(1),2) + math.pow(a(2)-b(2),2))
+    }
 }
 
 object RGBColorSpace extends ColorSpace
 {
-    override def toString(): String = "RGB"
+    override def toString: String = "RGB"
     def toRGB(c1: Double, c2: Double, c3: Double): (Double, Double, Double) = (c1, c2, c3)
     def fromRGB(c1: Double, c2: Double, c3: Double): (Double, Double, Double) = (c1, c2, c3)
 }
@@ -107,7 +120,7 @@ object RGBColorSpace extends ColorSpace
 //conversions assume that RGB is in the range 0-1 and HSV has hue in degrees with S and V between 0 and 1
 object HSVColorSpace extends ColorSpace
 {
-    override def toString(): String = "HSV"
+    override def toString: String = "HSV"
 
     def toRGB(c1: Double, c2: Double, c3: Double): (Double, Double, Double) =
     {
@@ -172,7 +185,7 @@ object HSVColorSpace extends ColorSpace
 //conversions assume RGB is in the range 0 to 1
 object LABColorSpace extends ColorSpace
 {
-    override def toString(): String = "LAB"
+    override def toString: String = "LAB"
 
     def toRGB(c1: Double, c2: Double, c3: Double): (Double, Double, Double) =
     {

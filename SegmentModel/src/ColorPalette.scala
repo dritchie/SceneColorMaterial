@@ -14,5 +14,13 @@ class ColorPalette
         // TODO: Make this load colors from some file (possibly an Adobe .ase file?)
     }
 
+  //get the palette of the segment mesh
+    def this(segmesh:SegmentMesh)
+    {
+      this()
+      colors = {for (group<-segmesh.groups if (group.color.observedColor!=null))
+                    yield group.color.observedColor}.toArray
+    }
+
     var colors : Array[Color] = null
 }
