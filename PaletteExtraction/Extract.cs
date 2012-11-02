@@ -231,7 +231,7 @@ namespace ColorVis
                 render.Save(dir + "\\templates\\" + basename);
 
                 //testing random color assignments
-                int numSeg = template.NumSegments();
+                int numSeg = template.NumSlots();
                 
                 int[] segToColor = new int[numSeg];
                 for (int t = 0; t < 3; t++)
