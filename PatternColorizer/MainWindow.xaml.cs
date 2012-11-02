@@ -185,5 +185,60 @@ namespace PatternColorizer
             }
 
         }
+
+        private void Recolor()
+        {
+            Directory.CreateDirectory(outdir + "\\recolored\\");
+
+            //read in the patterns and save out their layers
+            String[] files = System.IO.Directory.GetFiles(System.IO.Path.Combine(imagedir));
+
+            foreach (String f in files)
+            {
+
+                Bitmap image = new Bitmap(f);
+                String basename = new FileInfo(f).Name;
+                PaletteData palette = palettes[basename];
+
+                //TODO: save and reload color templates functionality
+                ColorTemplate template = new ColorTemplate(image, palette);
+
+                //Read the recoloring description if available
+                String specs = Path.Combine(outdir, "specs", Util.ConvertFileName(basename,"",".txt"));
+                PaletteData data = new PaletteData();
+               
+                if (File.Exists(specs))
+                {
+                    String[] lines = File.ReadAllLines(specs);
+                    int[] slotToColor = new int[template.NumSlots()];
+                    for (int i=0; i<slotToColor.Count(); i++)
+                        slotToColor[i] = i;
+                    foreach (String line in lines)
+                    {
+                        //rgb floats
+                        int[] fields = line.Split(new string[]{" "},StringSplitOptions.RemoveEmptyEntries).Select<String, int>(s=>((int)(Math.Round(double.Parse(s)*255)))).ToArray<int>();
+                        Color color = Color.FromArgb(fields[0], fields[1], fields[2]);
+                        data.colors.Add(color);
+                        data.lab.Add(Util.RGBtoLAB(color));
+                    }
+
+                    Bitmap orig = template.DebugQuantization();
+                    orig.Save(Path.Combine(outdir, "recolored", Util.ConvertFileName(basename, "_original",".png"))); 
+                    orig.Dispose();
+
+                    Bitmap result = template.SolidColor(data, slotToColor);
+                    result.Save(Path.Combine(outdir, "recolored", Util.ConvertFileName(basename, "_recolor", ".png")));
+                    result.Dispose();
+                }
+
+
+            }
+        }
+
+        private void RecolorPatterns_Click(object sender, RoutedEventArgs e)
+        {
+            Recolor();
+        }
+
     }
 }

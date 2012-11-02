@@ -4,5 +4,6 @@
         Title="MainWindow" Height="350" Width="525">
     <Grid>
         <Button Content="OutputPatterns" Height="43" HorizontalAlignment="Left" Name="RenderLayers" VerticalAlignment="Top" Width="100" Click="OutputPatterns_Click" />
+        <Button Content="RecolorPatterns" Height="43" HorizontalAlignment="Left" Margin="0,66,0,0" Name="RecolorPatterns" VerticalAlignment="Top" Width="100" Click="RecolorPatterns_Click" />
     </Grid>
 </Window>
