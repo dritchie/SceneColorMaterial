@@ -8,23 +8,6 @@
 
 import cc.factorie._
 
-/**
- * Factor that enforces that the contrast between two colors should be similar to the observed contrast between
- * their owner groups
- */
-class PairwiseMaintainObservedContrastFactor(v1:DiscreteColorVariable, v2:DiscreteColorVariable) extends Factor2(v1,v2)
-{
-    private val sigma = 0.2     // I just made this up
-    private val targetContrast = Color.contrast(v1.observedColor, v2.observedColor)
-
-    def score(val1:DiscreteColorVariable#Value, val2:DiscreteColorVariable#Value) =
-    {
-        val contrast = Color.contrast(val1.category, val2.category)
-        // This is intended to be a gaussian, but we don't exponentiate it because factorie operates in log space
-        -math.abs(contrast - targetContrast) / sigma
-    }
-}
-
 class TargetSaturationFactor(v:DiscreteColorVariable, private val target:Double, private val bandwidth:Double) extends Factor1(v)
 {
     def score(v:DiscreteColorVariable#Value) =
@@ -49,5 +32,16 @@ class TargetContrastFactor(v1:DiscreteColorVariable, v2:DiscreteColorVariable, p
     {
         val contrast = Color.contrast(val1.category, val2.category)
         MathUtils.gaussianKernel(contrast, target, bandwidth)
+    }
+}
+
+class TargetComplementarityFactor(v1:DiscreteColorVariable, v2:DiscreteColorVariable, private val target:Double, private val bandwidth:Double) extends Factor2(v1,v2)
+{
+    def score(val1:DiscreteColorVariable#Value, val2:DiscreteColorVariable#Value) =
+    {
+        val hue1 = val1.category.copyTo(HSVColorSpace)(0)
+        val hue2 = val2.category.copyTo(HSVColorSpace)(0)
+        val complementarity = math.abs(hue1 - hue2)
+        MathUtils.gaussianKernel(complementarity, target, bandwidth)
     }
 }

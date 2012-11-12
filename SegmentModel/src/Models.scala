@@ -30,6 +30,23 @@ abstract class PairwiseAdjacentColorTemplate extends Template2[DiscreteColorVari
 }
 
 /**
+ * Factor that enforces that the contrast between two colors should be similar to the observed contrast between
+ * their owner groups
+ */
+class PairwiseMaintainObservedContrastFactor(v1:DiscreteColorVariable, v2:DiscreteColorVariable) extends Factor2(v1,v2)
+{
+    private val sigma = 0.2     // I just made this up
+private val targetContrast = Color.contrast(v1.observedColor, v2.observedColor)
+
+    def score(val1:DiscreteColorVariable#Value, val2:DiscreteColorVariable#Value) =
+    {
+        val contrast = Color.contrast(val1.category, val2.category)
+        // This is intended to be a gaussian, but we don't exponentiate it because factorie operates in log space
+        -math.abs(contrast - targetContrast) / sigma
+    }
+}
+
+/**
  * Given a segment mesh, builds a graph of factors that attemt to maintain the observed contrast between
  * adjacent color groups
  */
