@@ -11,25 +11,16 @@ import collection.mutable.ArrayBuffer
 
 class VectorHistogram(data:Seq[DenseTensor1], numBins:Int)
 {
-    val bins = new Array[Double](numBins)
+    val bins = Array.fill[Double](numBins)(0.0)
     val centroids = VectorHistogram.vectorQuantization(data, numBins)
 
     // Assign each data point to the closet centroid; record frequencies
     // (I assume that numBins will be small, so we're just using brute-force
     // closest-centroid finding)
-    val centroidIndices = 0 until centroids.length
     for (point <- data)
     {
-        val closest = centroidIndices.reduceLeft[(Int, Double)](
-        (bestSoFar, currIndex) =>
-        {
-            val dist = (point - centroids(currIndex)).twoNormSquared
-            if (dist < bestSoFar._2)
-                (currIndex, dist)
-            else
-                bestSoFar
-        })
-        bins(closest._1) += 1
+        val bestIndex = MathUtils.closestVectorBruteForce(point, centroids)
+        bins(bestIndex) += 1
     }
 
     // Normalize the histogram
@@ -39,9 +30,55 @@ class VectorHistogram(data:Seq[DenseTensor1], numBins:Int)
 
 object VectorHistogram
 {
-    def vectorQuantization(samples:Seq[DenseTensor1], numGroups:Int) : Seq[DenseTensor1] =
+    // This just does kmeans
+    def vectorQuantization(samples:Seq[DenseTensor1], numSymbols:Int) : Seq[DenseTensor1] =
     {
-        // TODO: Fill in
-        new ArrayBuffer[DenseTensor1](numGroups)
+        // Find the minimum values for vector components
+        val mins = samples.reduceLeft(
+        (minsofar, curr) =>
+        {
+            for (i <- 0 until minsofar.length) minsofar(i) = math.min(minsofar(i), curr(i))
+            minsofar
+        })
+        val maxs = samples.reduceLeft(
+        (maxsofar, curr) =>
+        {
+            for (i <- 0 until maxsofar.length) maxsofar(i) = math.max(maxsofar(i), curr(i))
+            maxsofar
+        })
+
+        // Initialize the quantization vectors randomly
+        // TODO: Consider stratified randomization?
+        val quantVecs = for (i <- 0 until numSymbols) yield MathUtils.randomVector(mins, maxs)
+
+        val assignments = new Array[Int](samples.length)
+        val counts = new Array[Int](quantVecs.length)
+        var converged = false
+        while (!converged)
+        {
+            // Reset counts
+            for (i <- 0 until counts.length) counts(i) = 0
+
+            // Assign points to closest quantization vector
+            var changed = false
+            for (i <- 0 until samples.length)
+            {
+                val closestIndex = MathUtils.closestVectorBruteForce(samples(i), quantVecs)
+                changed |= (closestIndex != assignments(i))
+                assignments(i) = closestIndex
+                counts(closestIndex) += 1
+            }
+            if (!changed) converged = true
+
+            // Update quant vectors to be average of assigned vectors
+            if (changed)
+            {
+                for (i <- 0 until quantVecs.length) quantVecs(i) := 0.0
+                for (i <- 0 until samples.length) quantVecs(assignments(i)) += samples(i)
+                for (i <- 0 until quantVecs.length) quantVecs(i) /= counts(i)
+            }
+        }
+
+        quantVecs
     }
 }
