@@ -13,7 +13,7 @@ class TargetSaturationFactor(v:DiscreteColorVariable, private val target:Double,
     def score(v:DiscreteColorVariable#Value) =
     {
         val saturation = v.category.copyTo(HSVColorSpace)(1)
-        MathUtils.gaussianKernel(saturation, target, bandwidth)
+        MathUtils.logGaussianKernel(saturation, target, bandwidth)
     }
 }
 
@@ -22,7 +22,7 @@ class TargetValueFactor(v:DiscreteColorVariable, private val target:Double, priv
     def score(v:DiscreteColorVariable#Value) =
     {
         val value = v.category.copyTo(HSVColorSpace)(2)
-        MathUtils.gaussianKernel(value, target, bandwidth)
+        MathUtils.logGaussianKernel(value, target, bandwidth)
     }
 }
 
@@ -31,7 +31,7 @@ class TargetContrastFactor(v1:DiscreteColorVariable, v2:DiscreteColorVariable, p
     def score(val1:DiscreteColorVariable#Value, val2:DiscreteColorVariable#Value) =
     {
         val contrast = Color.contrast(val1.category, val2.category)
-        MathUtils.gaussianKernel(contrast, target, bandwidth)
+        MathUtils.logGaussianKernel(contrast, target, bandwidth)
     }
 }
 
@@ -42,6 +42,6 @@ class TargetComplementarityFactor(v1:DiscreteColorVariable, v2:DiscreteColorVari
         val hue1 = val1.category.copyTo(HSVColorSpace)(0)
         val hue2 = val2.category.copyTo(HSVColorSpace)(0)
         val complementarity = math.abs(hue1 - hue2)
-        MathUtils.gaussianKernel(complementarity, target, bandwidth)
+        MathUtils.logGaussianKernel(complementarity, target, bandwidth)
     }
 }

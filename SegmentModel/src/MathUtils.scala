@@ -7,15 +7,15 @@
  */
 object MathUtils
 {
-    def gaussianKernel(x:Double, mu:Double, sigma:Double) =
+    def logGaussianKernel(x:Double, mu:Double, sigma:Double) =
     {
         val xminusmu = x - mu
         (-xminusmu*xminusmu) / (2*sigma*sigma)
     }
 
-    def gaussianDistribution(x:Double, mu:Double, sigma:Double) =
+    def logGaussianDistribution(x:Double, mu:Double, sigma:Double) =
     {
         val coeff = 1.0 / (sigma * math.sqrt(2*math.Pi))
-        coeff * gaussianKernel(x, mu, sigma)
+        coeff * logGaussianKernel(x, mu, sigma)
     }
 }
