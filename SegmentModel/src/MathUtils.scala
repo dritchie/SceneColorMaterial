@@ -10,17 +10,46 @@ import cc.factorie.la.DenseTensor1
 
 object MathUtils
 {
-    def logGaussianKernel(x:Double, mu:Double, sigma:Double) =
-    {
-        val xminusmu = x - mu
-        (-xminusmu*xminusmu) / (2*sigma*sigma)
-    }
+    /** Gaussians **/
 
-    def logGaussianDistribution(x:Double, mu:Double, sigma:Double) =
+    def logGaussianKernel(arg:Double, sigma:Double) : Double = -arg / (2*sigma*sigma)
+
+    def gaussianKernel(arg:Double, sigma:Double) : Double = math.exp(logGaussianKernel(arg, sigma))
+
+    def logGaussianDistribution(arg:Double, sigma:Double) : Double =
     {
         val coeff = 1.0 / (sigma * math.sqrt(2*math.Pi))
-        coeff * logGaussianKernel(x, mu, sigma)
+        math.log(coeff) + logGaussianKernel(arg, sigma)
     }
+
+    def gaussianDistribution(arg:Double, sigma:Double) : Double =
+    {
+        val coeff = 1.0 / (sigma * math.sqrt(2*math.Pi))
+        coeff * gaussianKernel(arg, sigma)
+    }
+
+    def logGaussianKernel(x:Double, mu:Double, sigma:Double) : Double =
+    {
+        val xminusmu = x - mu
+        logGaussianKernel(xminusmu*xminusmu, sigma)
+    }
+
+    def gaussianKernel(x:Double, mu:Double, sigma:Double) : Double = math.exp(logGaussianKernel(x, mu, sigma))
+
+    def logGaussianDistribution(x:Double, mu:Double, sigma:Double) : Double =
+    {
+        val xminusmu = x - mu
+        logGaussianDistribution(xminusmu*xminusmu, sigma)
+    }
+
+    def gaussianDistribution(x:Double, mu:Double, sigma:Double) : Double =
+    {
+        val xminusmu = x - mu
+        gaussianDistribution(xminusmu*xminusmu, sigma)
+    }
+
+
+    /** Random numbers **/
 
     def randBetween(min:Double, max:Double) = min + math.random*max
 
@@ -30,6 +59,9 @@ object MathUtils
         for (i <- 0 until rvec.length) rvec(i) = randBetween(mins(i), maxs(i))
         rvec
     }
+
+
+    /** Misc **/
 
     // Returns the index of the closest vector
     def closestVectorBruteForce(queryVec:DenseTensor1, pool:Seq[DenseTensor1]) : Int =

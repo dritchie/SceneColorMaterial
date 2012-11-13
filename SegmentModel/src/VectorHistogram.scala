@@ -8,6 +8,32 @@
 
 import cc.factorie.la.DenseTensor1
 
+class ColorHistogram(data:Seq[Color], numBins:Int)
+{
+    assert(data.length > 0, {println("ColorHistogram: cannot construct from 0 data points")})
+
+    val colorspace = data(0).colorSpace
+    val bins = new Array[Double](numBins)
+    val centroids = new Array[Color](numBins)
+    constructorHelper(data, numBins)
+
+    def constructorHelper(data:Seq[Color], numBins:Int)
+    {
+        // Ensure that all colors are in the same color space
+        assert(data.foldLeft(true)((sofar, curr) => { sofar && curr.isIn(colorspace) }),
+               {println("ColorHistogram: input colors not all in same color space!")})
+
+        // Convert from a vector histogram
+        val hist = new VectorHistogram(for (color <- data) yield color.components, numBins)
+        Array.copy(hist.bins, 0, bins, 0, hist.bins.length)
+        for (i <- 0 until hist.centroids.length)
+        {
+            val c = hist.centroids(i)
+            centroids(i) = new Color(c(0), c(1), c(2), colorspace)
+        }
+    }
+}
+
 class VectorHistogram(data:Seq[DenseTensor1], numBins:Int)
 {
     val bins = Array.fill[Double](numBins)(0.0)

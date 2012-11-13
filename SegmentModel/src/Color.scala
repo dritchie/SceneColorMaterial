@@ -24,8 +24,8 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
     // (Do a bounds check? That slows code down a lot, though...)
     def apply(index:Int) = components(index)
 
+    def colorSpace = colorspace
     def isIn(cspace:ColorSpace) = colorspace == cspace
-
     def sameColorSpace(c:Color) = colorspace == c.colorspace
 
     // Convert to a different color space
@@ -65,22 +65,16 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
         0.212*c(0) + 0.7152*c(1) + 0.0722*c(2)
     }
 
-   def distanceTo(color:Color): Double =
-   {
-     ensureColorSpaceCompatibility(color)
-     colorspace.distance(this,color)
-   }
-
-    // Call this before performing any operation between this and another color
-    // to make sure that the colors are in the same color space
-   def ensureColorSpaceCompatibility(c: Color)
+    def distance(color:Color): Double =
     {
-        if (!sameColorSpace(c))
-            throw new Error("Attempting operation on two colors from different color spaces!")
+        val c = color.copyIfNeededTo(this.colorspace)
+        colorspace.distance(this,c)
     }
-
-    // Operations (scaling, adding, distance computation, etc.) go here
-    // (Make sure to call 'ensureColorSpaceCompatibility' before doing any of these)
+    def distanceSquared(color:Color) : Double =
+    {
+        val c = color.copyIfNeededTo(this.colorspace)
+        colorspace.distanceSquared(this, c)
+    }
 }
 
 object Color
@@ -107,10 +101,14 @@ trait ColorSpace
     def fromRGB(c1: Double, c2: Double, c3: Double): (Double, Double, Double)
 
     //default is Euclidean distance, but other color spaces (like HSV) might want something else
-    def distance(a:Color, b:Color):Double =
+    def distanceSquared(a:Color, b:Color):Double =
     {
-      a.ensureColorSpaceCompatibility(b)
-      math.sqrt(math.pow(a(0)-b(0),2) + math.pow(a(1)-b(1),2) + math.pow(a(2)-b(2),2))
+        (a.components - b.components).twoNormSquared
+    }
+
+    final def distance(a:Color, b:Color):Double =
+    {
+        math.sqrt(distanceSquared(a, b))
     }
 }
 
