@@ -7,12 +7,13 @@
  */
 
 import cc.factorie._
+import la.DenseTensor1
 
 class TargetSaturationFactor(v:DiscreteColorVariable, private val target:Double, private val bandwidth:Double) extends Factor1(v)
 {
     def score(v:DiscreteColorVariable#Value) =
     {
-        val saturation = v.category.copyTo(HSVColorSpace)(1)
+        val saturation = v.category.copyIfNeededTo(HSVColorSpace)(1)
         MathUtils.logGaussianKernel(saturation, target, bandwidth)
     }
 }
@@ -21,7 +22,7 @@ class TargetValueFactor(v:DiscreteColorVariable, private val target:Double, priv
 {
     def score(v:DiscreteColorVariable#Value) =
     {
-        val value = v.category.copyTo(HSVColorSpace)(2)
+        val value = v.category.copyIfNeededTo(HSVColorSpace)(2)
         MathUtils.logGaussianKernel(value, target, bandwidth)
     }
 }
@@ -39,9 +40,22 @@ class TargetComplementarityFactor(v1:DiscreteColorVariable, v2:DiscreteColorVari
 {
     def score(val1:DiscreteColorVariable#Value, val2:DiscreteColorVariable#Value) =
     {
-        val hue1 = val1.category.copyTo(HSVColorSpace)(0)
-        val hue2 = val2.category.copyTo(HSVColorSpace)(0)
+        val hue1 = val1.category.copyIfNeededTo(HSVColorSpace)(0)
+        val hue2 = val2.category.copyIfNeededTo(HSVColorSpace)(0)
         val complementarity = math.abs(hue1 - hue2)
         MathUtils.logGaussianKernel(complementarity, target, bandwidth)
+    }
+}
+
+// Assumes the histogram was calculated from LAB colors
+class InterpolatedHistogramFactor(v:DiscreteColorVariable, private val hist:VectorHistogram) extends Factor1(v)
+{
+    def score(v:DiscreteColorVariable#Value) =
+    {
+    }
+
+    private def estimateBandwidth(vec:DenseTensor1) : Double =
+    {
+
     }
 }

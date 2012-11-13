@@ -7,7 +7,6 @@
  */
 
 import cc.factorie.la.DenseTensor1
-import collection.mutable.ArrayBuffer
 
 class VectorHistogram(data:Seq[DenseTensor1], numBins:Int)
 {

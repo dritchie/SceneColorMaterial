@@ -10,12 +10,12 @@ import cc.factorie.la.DenseTensor1
 
 class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpace)
 {
-    private val components = new DenseTensor1(3)
+    val components = new DenseTensor1(3)
     components.update(0, c1)
     components.update(1, c2)
     components.update(2, c3)
 
-    def this(c:Color) = this(c.components(0), c.components(1), c.components(2), c.colorspace)
+    def this(c:Color) = this(c(0), c(1), c(2), c.colorspace)
 
     override def toString: String = colorspace + "(" + components(0) + "," + components(1) + "," + components(2) + ")"
     def componentString() : String = "" + components(0) + " " + components(1) + " " + components(2)
@@ -49,14 +49,19 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
         c
     }
 
+    // Convert to a different colorspace, but if the color is already in that
+    // colorspace, just return a reference to the color unchanged
+    def copyIfNeededTo(cspace:ColorSpace) : Color =
+    {
+        if (isIn(cspace))
+            this
+        else
+            copyTo(cspace)
+    }
+
     def luminance() : Double =
     {
-        var c:Color = null
-        if (colorspace == RGBColorSpace)
-            c = this
-        else
-            c = copyTo(RGBColorSpace)
-
+        val c = copyIfNeededTo(RGBColorSpace)
         0.212*c(0) + 0.7152*c(1) + 0.0722*c(2)
     }
 
