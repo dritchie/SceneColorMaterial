@@ -47,36 +47,13 @@ class TargetComplementarityFactor(v1:DiscreteColorVariable, v2:DiscreteColorVari
 }
 
 // Based on [Wang et al. 2010] "Data-Driven Image Color Theme Enhancement"
-class InterpolatedHistogramFactor(v:DiscreteColorVariable, private val hist:ColorHistogram) extends Factor1(v)
+class ColorHistogramPriorFactor(v:DiscreteColorVariable, private val hist:ColorHistogram) extends Factor1(v)
 {
-    assert(hist.bins.length >= 3, {println("InterpolatedHistogramFactor: need at least 3 bins for bandwidth estimation")})
-
     // TODO: Consider caching scores to avoid unncessary recomputation (perhaps better done at the Template level?)
 
     def score(v:DiscreteColorVariable#Value) =
     {
         val c = v.category.copyIfNeededTo(hist.colorspace)
-        val sigma = estimateBandwidth(c)
-
-        var sum = 0.0
-        for (i <- 0 until hist.bins.length)
-        {
-            val centroid = hist.centroids(i)
-            val freq = hist.bins(i)
-            val d2 = c.distanceSquared(centroid)
-            sum += freq * MathUtils.gaussianDistribution(d2, sigma)
-        }
-
-        math.log(sum)
-    }
-
-    private def estimateBandwidth(c:Color) : Double =
-    {
-        // Sort bins by their distance to c
-        var dists = for (color <- hist.centroids) yield color.distanceSquared(c)
-        dists = dists.sorted
-
-        // The average distance of the top 3
-        0.3333 * (math.sqrt(dists(0)) + math.sqrt(dists(1)) + math.sqrt(dists(3)))
+        hist.evaluateAt(c.components)
     }
 }

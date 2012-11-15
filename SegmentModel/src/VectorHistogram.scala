@@ -8,55 +8,70 @@
 
 import cc.factorie.la.DenseTensor1
 
-class ColorHistogram(data:Seq[Color], numBins:Int)
+class ColorHistogram(data:Seq[Color], numBins:Int) extends VectorHistogram(for (c <- data) yield c.components, numBins, data(0).colorSpace.distance)
 {
-    assert(data.length > 0, {println("ColorHistogram: cannot construct from 0 data points")})
-
     val colorspace = data(0).colorSpace
-    val bins = new Array[Double](numBins)
-    val centroids = new Array[Color](numBins)
-    constructorHelper(data, numBins)
 
-    def constructorHelper(data:Seq[Color], numBins:Int)
-    {
-        // Ensure that all colors are in the same color space
-        assert(data.foldLeft(true)((sofar, curr) => { sofar && curr.isIn(colorspace) }),
-               {println("ColorHistogram: input colors not all in same color space!")})
-
-        // Convert from a vector histogram
-        val hist = new VectorHistogram(for (color <- data) yield color.components, numBins)
-        Array.copy(hist.bins, 0, bins, 0, hist.bins.length)
-        for (i <- 0 until hist.centroids.length)
-        {
-            val c = hist.centroids(i)
-            centroids(i) = new Color(c(0), c(1), c(2), colorspace)
-        }
-    }
+    // Ensure that all colors are in the same color space
+    assert(data.foldLeft(true)((sofar, curr) => { sofar && curr.isIn(colorspace) }),
+           {println("ColorHistogram: input colors not all in same color space!")})
 }
 
-class VectorHistogram(data:Seq[DenseTensor1], numBins:Int)
+class VectorHistogram(data:Seq[DenseTensor1], numBins:Int, val metric:MathUtils.DistanceMetric = MathUtils.euclideanDistance)
 {
+    assert(data.length > 0, {println("VectorHistogram: cannot construct from 0 data points")})
+    assert(numBins >= 3, {println("VectorHistogram: need at least 3 bins to do bandwidth estimation")})
+
     val bins = Array.fill[Double](numBins)(0.0)
-    val centroids = VectorHistogram.vectorQuantization(data, numBins)
+    val centroids = VectorHistogram.vectorQuantization(data, numBins, metric)
 
     // Assign each data point to the closet centroid; record frequencies
     // (I assume that numBins will be small, so we're just using brute-force
     // closest-centroid finding)
     for (point <- data)
     {
-        val bestIndex = MathUtils.closestVectorBruteForce(point, centroids)
+        val bestIndex = MathUtils.closestVectorBruteForce(point, centroids, metric)
         bins(bestIndex) += 1
     }
 
     // Normalize the histogram
     for (i <- 0 until bins.length)
         bins(i) /= data.length
+
+
+    /** Methods **/
+
+    def evaluateAt(point:DenseTensor1) : Double =
+    {
+        val sigma = estimateBandwidth(point)
+
+        var sum = 0.0
+        for (i <- 0 until bins.length)
+        {
+            val centroid = centroids(i)
+            val freq = bins(i)
+            val d2 = metric(point, centroid)
+            sum += freq * MathUtils.gaussianDistribution(d2, sigma)
+        }
+
+        math.log(sum)
+    }
+
+    private def estimateBandwidth(point:DenseTensor1) : Double =
+    {
+        // Sort bins by their distance to c
+        var dists = for (c <- centroids) yield metric(c, point)
+        dists = dists.sorted
+
+        // The average distance of the top 3
+        0.3333 * (dists(0) + dists(1) + dists(3))
+    }
 }
 
 object VectorHistogram
 {
     // This just does kmeans
-    def vectorQuantization(samples:Seq[DenseTensor1], numSymbols:Int) : Seq[DenseTensor1] =
+    def vectorQuantization(samples:Seq[DenseTensor1], numSymbols:Int, metric:MathUtils.DistanceMetric = MathUtils.euclideanDistance) : Seq[DenseTensor1] =
     {
         // Find the minimum values for vector components
         val mins = samples.reduceLeft(
@@ -88,7 +103,7 @@ object VectorHistogram
             var changed = false
             for (i <- 0 until samples.length)
             {
-                val closestIndex = MathUtils.closestVectorBruteForce(samples(i), quantVecs)
+                val closestIndex = MathUtils.closestVectorBruteForce(samples(i), quantVecs, metric)
                 changed |= (closestIndex != assignments(i))
                 assignments(i) = closestIndex
                 counts(closestIndex) += 1

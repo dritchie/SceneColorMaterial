@@ -12,7 +12,7 @@ object MathUtils
 {
     /** Gaussians **/
 
-    def logGaussianKernel(arg:Double, sigma:Double) : Double = -arg / (2*sigma*sigma)
+    def logGaussianKernel(arg:Double, sigma:Double) : Double = -(arg*arg) / (2*sigma*sigma)
 
     def gaussianKernel(arg:Double, sigma:Double) : Double = math.exp(logGaussianKernel(arg, sigma))
 
@@ -31,7 +31,7 @@ object MathUtils
     def logGaussianKernel(x:Double, mu:Double, sigma:Double) : Double =
     {
         val xminusmu = x - mu
-        logGaussianKernel(xminusmu*xminusmu, sigma)
+        logGaussianKernel(xminusmu, sigma)
     }
 
     def gaussianKernel(x:Double, mu:Double, sigma:Double) : Double = math.exp(logGaussianKernel(x, mu, sigma))
@@ -39,13 +39,13 @@ object MathUtils
     def logGaussianDistribution(x:Double, mu:Double, sigma:Double) : Double =
     {
         val xminusmu = x - mu
-        logGaussianDistribution(xminusmu*xminusmu, sigma)
+        logGaussianDistribution(xminusmu, sigma)
     }
 
     def gaussianDistribution(x:Double, mu:Double, sigma:Double) : Double =
     {
         val xminusmu = x - mu
-        gaussianDistribution(xminusmu*xminusmu, sigma)
+        gaussianDistribution(xminusmu, sigma)
     }
 
 
@@ -63,14 +63,18 @@ object MathUtils
 
     /** Misc **/
 
+    type DistanceMetric = (DenseTensor1, DenseTensor1) => Double
+
+    def euclideanDistance(a:DenseTensor1, b:DenseTensor1):Double = (a - b).twoNorm
+
     // Returns the index of the closest vector
-    def closestVectorBruteForce(queryVec:DenseTensor1, pool:Seq[DenseTensor1]) : Int =
+    def closestVectorBruteForce(queryVec:DenseTensor1, pool:Seq[DenseTensor1], metric:DistanceMetric = euclideanDistance) : Int =
     {
         var bestDist = Double.MaxValue
         var bestIndex = -1
         for (index <- 0 until pool.length)
         {
-            val dist = (queryVec - pool(index)).twoNormSquared
+            val dist = metric(queryVec, pool(index))
             if (dist < bestDist)
             {
                 bestDist = dist

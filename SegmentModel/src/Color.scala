@@ -68,12 +68,7 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
     def distance(color:Color): Double =
     {
         val c = color.copyIfNeededTo(this.colorspace)
-        colorspace.distance(this,c)
-    }
-    def distanceSquared(color:Color) : Double =
-    {
-        val c = color.copyIfNeededTo(this.colorspace)
-        colorspace.distanceSquared(this, c)
+        colorspace.distance(this.components, c.components)
     }
 }
 
@@ -100,16 +95,8 @@ trait ColorSpace
     def toRGB(c1: Double, c2: Double, c3: Double): (Double, Double, Double)
     def fromRGB(c1: Double, c2: Double, c3: Double): (Double, Double, Double)
 
-    //default is Euclidean distance, but other color spaces (like HSV) might want something else
-    def distanceSquared(a:Color, b:Color):Double =
-    {
-        (a.components - b.components).twoNormSquared
-    }
-
-    final def distance(a:Color, b:Color):Double =
-    {
-        math.sqrt(distanceSquared(a, b))
-    }
+    // Default is Euclidean distance, but other color spaces (like HSV) might want something else
+    def distance:MathUtils.DistanceMetric = MathUtils.euclideanDistance
 }
 
 object RGBColorSpace extends ColorSpace
