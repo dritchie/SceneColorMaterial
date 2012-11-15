@@ -8,36 +8,29 @@
 
 import cc.factorie.la.DenseTensor1
 
-class ColorHistogram(data:Seq[Color], numBins:Int) extends VectorHistogram(for (c <- data) yield c.components, numBins, data(0).colorSpace.distance)
+class ColorHistogram(centroids:IndexedSeq[DenseTensor1], bins:IndexedSeq[Double], metric:MathUtils.DistanceMetric, val colorspace:ColorSpace) extends VectorHistogram(centroids, bins, metric)
 {
-    val colorspace = data(0).colorSpace
-
-    // Ensure that all colors are in the same color space
-    assert(data.foldLeft(true)((sofar, curr) => { sofar && curr.isIn(colorspace) }),
-           {println("ColorHistogram: input colors not all in same color space!")})
 }
 
-class VectorHistogram(data:Seq[DenseTensor1], numBins:Int, val metric:MathUtils.DistanceMetric = MathUtils.euclideanDistance)
+object ColorHistogram
 {
-    assert(data.length > 0, {println("VectorHistogram: cannot construct from 0 data points")})
-    assert(numBins >= 3, {println("VectorHistogram: need at least 3 bins to do bandwidth estimation")})
-
-    val bins = Array.fill[Double](numBins)(0.0)
-    val centroids = VectorHistogram.vectorQuantization(data, numBins, metric)
-
-    // Assign each data point to the closet centroid; record frequencies
-    // (I assume that numBins will be small, so we're just using brute-force
-    // closest-centroid finding)
-    for (point <- data)
+    def apply(data:Seq[Color], numBins:Int)
     {
-        val bestIndex = MathUtils.closestVectorBruteForce(point, centroids, metric)
-        bins(bestIndex) += 1
+        assert(data.length > 0, {println("ColorHistogram: cannot construct from 0 data points")})
+
+        val colorspace = data(0).colorSpace
+
+        // Ensure that all colors are in the same color space
+        assert(data.foldLeft(true)((sofar, curr) => { sofar && curr.isIn(colorspace) }),
+        {println("ColorHistogram: input colors not all in same color space!")})
+
+        VectorHistogram(for (c <- data) yield c.components, numBins, colorspace.distance)
     }
+}
 
-    // Normalize the histogram
-    for (i <- 0 until bins.length)
-        bins(i) /= data.length
-
+class VectorHistogram(val centroids:IndexedSeq[DenseTensor1], val bins:IndexedSeq[Double], val metric:MathUtils.DistanceMetric)
+{
+    assert(bins.length >= 3, {println("VectorHistogram: need at least 3 bins to do bandwidth estimation")})
 
     /** Methods **/
 
@@ -70,8 +63,30 @@ class VectorHistogram(data:Seq[DenseTensor1], numBins:Int, val metric:MathUtils.
 
 object VectorHistogram
 {
-    // This just does kmeans
-    def vectorQuantization(samples:Seq[DenseTensor1], numSymbols:Int, metric:MathUtils.DistanceMetric = MathUtils.euclideanDistance) : Seq[DenseTensor1] =
+    // Construct a vector histogram from data.
+    // I think this is kind of a hack, but apparently this is a common design pattern in Scala
+    //  to get around the 'must call default constructor as the first line of an alternative constructor'
+    //  issue.
+    def apply(data:Seq[DenseTensor1], numBins:Int, metric:MathUtils.DistanceMetric)
+    {
+        assert(data.length > 0, {println("VectorHistogram: cannot construct from 0 data points")})
+
+        val bins = Array.fill[Double](numBins)(0.0)
+        val (centroids, assignments) = vectorQuantization(data, numBins, metric)
+
+        // Record bin frequencies
+        for (i <- 0 until data.length) bins(assignments(i)) += 1
+
+        // Normalize the histogram
+        for (i <- 0 until bins.length)
+            bins(i) /= data.length
+
+        new VectorHistogram(centroids, bins, metric)
+    }
+
+    // Returns a tuple of the quantization vectors and the assignments of each sample to its closest quantization vector
+    // (Implemenation-wise, this just does kmeans)
+    def vectorQuantization(samples:Seq[DenseTensor1], numSymbols:Int, metric:MathUtils.DistanceMetric) : (IndexedSeq[DenseTensor1], IndexedSeq[Int]) =
     {
         // Find the minimum values for vector components
         val mins = samples.reduceLeft(
@@ -119,6 +134,6 @@ object VectorHistogram
             }
         }
 
-        quantVecs
+        (quantVecs, assignments)
     }
 }
