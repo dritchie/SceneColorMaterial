@@ -6,7 +6,7 @@
  * To change this template use File | Settings | File Templates.
  */
 
-import cc.factorie.la.DenseTensor1
+import cc.factorie.la.Tensor1
 
 object MathUtils
 {
@@ -53,9 +53,9 @@ object MathUtils
 
     def randBetween(min:Double, max:Double) = min + math.random*max
 
-    def randomVector(mins:DenseTensor1, maxs:DenseTensor1) =
+    def randomVector(mins:Tensor1, maxs:Tensor1) =
     {
-        val rvec = new DenseTensor1(mins.length)
+        val rvec = mins.copy
         for (i <- 0 until rvec.length) rvec(i) = randBetween(mins(i), maxs(i))
         rvec
     }
@@ -63,12 +63,12 @@ object MathUtils
 
     /** Misc **/
 
-    type DistanceMetric = (DenseTensor1, DenseTensor1) => Double
+    type DistanceMetric = (Tensor1, Tensor1) => Double
 
-    def euclideanDistance(a:DenseTensor1, b:DenseTensor1):Double = (a - b).twoNorm
+    def euclideanDistance(a:Tensor1, b:Tensor1):Double = (a - b).twoNorm
 
     // Returns the index of the closest vector
-    def closestVectorBruteForce(queryVec:DenseTensor1, pool:Seq[DenseTensor1], metric:DistanceMetric = euclideanDistance) : Int =
+    def closestVectorBruteForce(queryVec:Tensor1, pool:Seq[Tensor1], metric:DistanceMetric) : Int =
     {
         var bestDist = Double.MaxValue
         var bestIndex = -1

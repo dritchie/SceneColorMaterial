@@ -6,9 +6,9 @@
  * To change this template use File | Settings | File Templates.
  */
 
-import cc.factorie.la.DenseTensor1
+import cc.factorie.la.Tensor1
 
-class ColorHistogram(centroids:IndexedSeq[DenseTensor1], bins:IndexedSeq[Double], metric:MathUtils.DistanceMetric, val colorspace:ColorSpace) extends VectorHistogram(centroids, bins, metric)
+class ColorHistogram(centroids:IndexedSeq[Tensor1], bins:IndexedSeq[Double], metric:MathUtils.DistanceMetric, val colorspace:ColorSpace) extends VectorHistogram(centroids, bins, metric)
 {
 }
 
@@ -28,13 +28,13 @@ object ColorHistogram
     }
 }
 
-class VectorHistogram(val centroids:IndexedSeq[DenseTensor1], val bins:IndexedSeq[Double], val metric:MathUtils.DistanceMetric)
+class VectorHistogram(val centroids:IndexedSeq[Tensor1], val bins:IndexedSeq[Double], val metric:MathUtils.DistanceMetric)
 {
     assert(bins.length >= 3, {println("VectorHistogram: need at least 3 bins to do bandwidth estimation")})
 
     /** Methods **/
 
-    def evaluateAt(point:DenseTensor1) : Double =
+    def evaluateAt(point:Tensor1) : Double =
     {
         val sigma = estimateBandwidth(point)
 
@@ -50,7 +50,7 @@ class VectorHistogram(val centroids:IndexedSeq[DenseTensor1], val bins:IndexedSe
         math.log(sum)
     }
 
-    private def estimateBandwidth(point:DenseTensor1) : Double =
+    private def estimateBandwidth(point:Tensor1) : Double =
     {
         // Sort bins by their distance to c
         var dists = for (c <- centroids) yield metric(c, point)
@@ -67,7 +67,7 @@ object VectorHistogram
     // I think this is kind of a hack, but apparently this is a common design pattern in Scala
     //  to get around the 'must call default constructor as the first line of an alternative constructor'
     //  issue.
-    def apply(data:Seq[DenseTensor1], numBins:Int, metric:MathUtils.DistanceMetric)
+    def apply(data:Seq[Tensor1], numBins:Int, metric:MathUtils.DistanceMetric)
     {
         assert(data.length > 0, {println("VectorHistogram: cannot construct from 0 data points")})
 
@@ -86,7 +86,7 @@ object VectorHistogram
 
     // Returns a tuple of the quantization vectors and the assignments of each sample to its closest quantization vector
     // (Implemenation-wise, this just does kmeans)
-    def vectorQuantization(samples:Seq[DenseTensor1], numSymbols:Int, metric:MathUtils.DistanceMetric) : (IndexedSeq[DenseTensor1], IndexedSeq[Int]) =
+    def vectorQuantization(samples:Seq[Tensor1], numSymbols:Int, metric:MathUtils.DistanceMetric) : (IndexedSeq[Tensor1], IndexedSeq[Int]) =
     {
         // Find the minimum values for vector components
         val mins = samples.reduceLeft(

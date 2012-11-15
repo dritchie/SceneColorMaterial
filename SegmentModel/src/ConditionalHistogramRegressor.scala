@@ -6,20 +6,43 @@
  * To change this template use File | Settings | File Templates.
  */
 
-import cc.factorie.la.DenseTensor1
+import cc.factorie.la.Tensor1
 import jnisvmlight._
 
-// NOTE: We can only regress on scalar-valued targets
+class ConditionalHistogramRegressor(private val centroids:IndexedSeq[Tensor1], featureDim:Int, private val metric:MathUtils.DistanceMetric,
+                                    private val regressors:IndexedSeq[SVMLightModel])
+{
+    private val featureIndices = (0 until featureDim).toArray
+
+    /** Methods **/
+
+    def predictHistogram(featureVec:Tensor1) : VectorHistogram =
+    {
+        val svmlightfeatures = new FeatureVector(featureIndices, featureVec.toArray)
+        val bins = new Array[Double](centroids.length)
+        var totalmass = 0.0
+        for (i <- 0 until bins.length)
+        {
+            val prediction = regressors(i).classify(svmlightfeatures)
+            bins(i) = prediction
+            totalmass += prediction
+        }
+
+        // Normalize bins
+        for (i <- 0 until bins.length) bins(i) /= totalmass
+
+        new VectorHistogram(centroids, bins, metric)
+    }
+}
 
 object ConditionalHistogramRegressor
 {
-    class RegressionExample(val target:Double, val features:DenseTensor1) {}
-    def distanceMetric(a:DenseTensor1, b:DenseTensor1) : Double = math.abs(a(0) - b(0))
+    class RegressionExample(val target:Tensor1, val features:Tensor1) {}
 
-    def apply(examples:Seq[ConditionalHistogramRegressor.RegressionExample], numBins:Int)
+    def apply(examples:Seq[ConditionalHistogramRegressor.RegressionExample], numBins:Int, metric:MathUtils.DistanceMetric)
     {
         assert(examples.length > 0, {println("ConditionalHistogramRegressor: cannot train with 0 training examples")})
-        val (centroids, assignments) = VectorHistogram.vectorQuantization(for (ex <- examples) yield new DenseTensor1(1, ex.target), numBins, ConditionalHistogramRegressor.distanceMetric)
+        val (centroids, assignments) = VectorHistogram.vectorQuantization(for (ex <- examples) yield ex.target, numBins, metric)
 
         // Set up the JNI interface to svmlight
         val trainer = new SVMLightInterface()
@@ -50,31 +73,6 @@ object ConditionalHistogramRegressor
             regressors(i) = trainer.trainModel(trainingData, params)
         }
 
-        new ConditionalHistogramRegressor(centroids, examples(0).features.length, regressors)
-    }
-}
-
-class ConditionalHistogramRegressor(private val centroids:IndexedSeq[DenseTensor1], featureDim:Int, private val regressors:IndexedSeq[SVMLightModel])
-{
-    private val featureIndices = (0 until featureDim).toArray
-
-    /** Methods **/
-
-    def predictHistogram(featureVec:DenseTensor1) : VectorHistogram =
-    {
-        val svmlightfeatures = new FeatureVector(featureIndices, featureVec.toArray)
-        val bins = new Array[Double](centroids.length)
-        var totalmass = 0.0
-        for (i <- 0 until bins.length)
-        {
-            val prediction = regressors(i).classify(svmlightfeatures)
-            bins(i) = prediction
-            totalmass += prediction
-        }
-
-        // Normalize bins
-        for (i <- 0 until bins.length) bins(i) /= totalmass
-
-        new VectorHistogram(centroids, bins, ConditionalHistogramRegressor.distanceMetric)
+        new ConditionalHistogramRegressor(centroids, examples(0).features.length, metric, regressors)
     }
 }
