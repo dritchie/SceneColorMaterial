@@ -7,6 +7,8 @@
  */
 
 import cc.factorie.la.Tensor1
+import collection.mutable.ArrayBuffer
+import util.Random
 
 class ColorHistogram(centroids:IndexedSeq[Tensor1], bins:IndexedSeq[Double], metric:MathUtils.DistanceMetric, val colorspace:ColorSpace) extends VectorHistogram(centroids, bins, metric)
 {
@@ -14,7 +16,7 @@ class ColorHistogram(centroids:IndexedSeq[Tensor1], bins:IndexedSeq[Double], met
 
 object ColorHistogram
 {
-    def apply(data:Seq[Color], numBins:Int)
+    def apply(data:IndexedSeq[Color], numBins:Int)
     {
         assert(data.length > 0, {println("ColorHistogram: cannot construct from 0 data points")})
 
@@ -46,8 +48,7 @@ class VectorHistogram(val centroids:IndexedSeq[Tensor1], val bins:IndexedSeq[Dou
             val d2 = metric(point, centroid)
             sum += freq * MathUtils.gaussianDistribution(d2, sigma)
         }
-
-        math.log(sum)
+        sum
     }
 
     private def estimateBandwidth(point:Tensor1) : Double =
@@ -64,10 +65,7 @@ class VectorHistogram(val centroids:IndexedSeq[Tensor1], val bins:IndexedSeq[Dou
 object VectorHistogram
 {
     // Construct a vector histogram from data.
-    // I think this is kind of a hack, but apparently this is a common design pattern in Scala
-    //  to get around the 'must call default constructor as the first line of an alternative constructor'
-    //  issue.
-    def apply(data:Seq[Tensor1], numBins:Int, metric:MathUtils.DistanceMetric)
+    def apply(data:Seq[Tensor1], numBins:Int, metric:MathUtils.DistanceMetric) : VectorHistogram =
     {
         assert(data.length > 0, {println("VectorHistogram: cannot construct from 0 data points")})
 
@@ -88,25 +86,19 @@ object VectorHistogram
     // (Implemenation-wise, this just does kmeans)
     def vectorQuantization(samples:Seq[Tensor1], numSymbols:Int, metric:MathUtils.DistanceMetric) : (IndexedSeq[Tensor1], IndexedSeq[Int]) =
     {
-        // Find the minimum values for vector components
-        val mins = samples.reduceLeft(
-        (minsofar, curr) =>
+        // Choose the initial quantization vectors randomly from the input samples
+        val pool = new ArrayBuffer[Int]()
+        pool ++= (0 until samples.length)
+        val r = new Random()
+        val quantVecs = for (i <- 0 until numSymbols) yield
         {
-            for (i <- 0 until minsofar.length) minsofar(i) = math.min(minsofar(i), curr(i))
-            minsofar
-        })
-        val maxs = samples.reduceLeft(
-        (maxsofar, curr) =>
-        {
-            for (i <- 0 until maxsofar.length) maxsofar(i) = math.max(maxsofar(i), curr(i))
-            maxsofar
-        })
+            val rindex = r.nextInt(pool.length)
+            val todrop = pool(rindex)
+            pool -= todrop
+            samples(todrop).copy
+        }
 
-        // Initialize the quantization vectors randomly
-        // TODO: Consider stratified randomization?
-        val quantVecs = for (i <- 0 until numSymbols) yield MathUtils.randomVector(mins, maxs)
-
-        val assignments = new Array[Int](samples.length)
+        val assignments = Array.fill[Int](samples.length)(-1)
         val counts = new Array[Int](quantVecs.length)
         var converged = false
         while (!converged)
@@ -130,7 +122,7 @@ object VectorHistogram
             {
                 for (i <- 0 until quantVecs.length) quantVecs(i) := 0.0
                 for (i <- 0 until samples.length) quantVecs(assignments(i)) += samples(i)
-                for (i <- 0 until quantVecs.length) quantVecs(i) /= counts(i)
+                for (i <- 0 until quantVecs.length) if (counts(i) > 0) quantVecs(i) /= counts(i)
             }
         }
 

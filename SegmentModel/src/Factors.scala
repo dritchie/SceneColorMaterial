@@ -54,6 +54,6 @@ class ColorHistogramPriorFactor(v:DiscreteColorVariable, private val hist:ColorH
     def score(v:DiscreteColorVariable#Value) =
     {
         val c = v.category.copyIfNeededTo(hist.colorspace)
-        hist.evaluateAt(c.components)
+        math.log(hist.evaluateAt(c.components))
     }
 }

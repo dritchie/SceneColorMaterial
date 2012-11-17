@@ -37,7 +37,7 @@ class ConditionalHistogramRegressor(private val centroids:IndexedSeq[Tensor1], f
 
 object ConditionalHistogramRegressor
 {
-    class RegressionExample(val target:Tensor1, val features:Tensor1) {}
+    case class RegressionExample(val target:Tensor1, val features:Tensor1) {}
 
     def apply(examples:Seq[ConditionalHistogramRegressor.RegressionExample], numBins:Int, metric:MathUtils.DistanceMetric)
     {

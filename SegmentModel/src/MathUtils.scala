@@ -6,7 +6,7 @@
  * To change this template use File | Settings | File Templates.
  */
 
-import cc.factorie.la.Tensor1
+import cc.factorie.la.{DenseTensor1, Tensor1}
 
 object MathUtils
 {
@@ -51,13 +51,45 @@ object MathUtils
 
     /** Random numbers **/
 
-    def randBetween(min:Double, max:Double) = min + math.random*max
+    def randBetween(min:Double, max:Double) : Double = min + math.random*max
 
     def randomVector(mins:Tensor1, maxs:Tensor1) =
     {
         val rvec = mins.copy
         for (i <- 0 until rvec.length) rvec(i) = randBetween(mins(i), maxs(i))
         rvec
+    }
+
+    def gaussianRandom() : Double =
+    {
+        // Box-Muller method
+        val minval = Double.MinPositiveValue
+        val maxval = 1.0 - minval
+        val u = randBetween(minval, maxval)
+        val v = randBetween(minval, maxval)
+        math.sqrt(-2.0 * math.log(u)) * math.cos(2.0*math.Pi*v)
+    }
+
+    def gaussianRandom(mu:Double, sigma:Double) : Double = mu + sigma*gaussianRandom()
+
+    def multinomialRandom(params:IndexedSeq[Double]) : Int =
+    {
+        val x = math.random
+        var probAccum = Double.MinPositiveValue
+        for (result <- 0 until params.length)
+        {
+            probAccum += params(result)
+            if (x <= probAccum) return result
+        }
+        params.length - 1
+    }
+
+
+    /** Polar and spherical coordinates **/
+
+    def polarToRectangular(angle:Double, radius:Double) : DenseTensor1 =
+    {
+        new DenseTensor1(Array(radius*math.cos(angle), radius*math.sin(angle)))
     }
 
 
