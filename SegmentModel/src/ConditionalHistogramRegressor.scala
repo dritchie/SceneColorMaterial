@@ -31,18 +31,21 @@ class ConditionalHistogramRegressor(private val centroids:IndexedSeq[Tensor1], f
         // Normalize bins
         for (i <- 0 until bins.length) bins(i) /= totalmass
 
-        new VectorHistogram(centroids, bins, metric)
+        val hist = new VectorHistogram(metric)
+        hist.setData(centroids, bins)
+        hist
     }
 }
 
 object ConditionalHistogramRegressor
 {
-    case class RegressionExample(val target:Tensor1, val features:Tensor1) {}
+    case class RegressionExample(target:Tensor1, features:Tensor1) {}
 
-    def apply(examples:Seq[ConditionalHistogramRegressor.RegressionExample], numBins:Int, metric:MathUtils.DistanceMetric)
+    def apply(examples:Seq[ConditionalHistogramRegressor.RegressionExample], metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer)
     {
         assert(examples.length > 0, {println("ConditionalHistogramRegressor: cannot train with 0 training examples")})
-        val (centroids, assignments) = VectorHistogram.vectorQuantization(for (ex <- examples) yield ex.target, numBins, metric)
+        val (centroids, assignments) = quantizer(for (ex <- examples) yield ex.target, metric)
+        val numBins = centroids.length
 
         // Set up the JNI interface to svmlight
         val trainer = new SVMLightInterface()
@@ -50,7 +53,7 @@ object ConditionalHistogramRegressor
 
         // Set up necessary training parameters
         val params = new TrainingParameters()
-        params.getLearningParameters().`type` = LearnParam.REGRESSION.toLong
+        params.getLearningParameters.`type` = LearnParam.REGRESSION.toLong
         // TODO: Consider non-default kernels, such as RBF kernel?
 
         // Train 'em up!
