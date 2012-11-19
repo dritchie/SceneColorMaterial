@@ -26,46 +26,54 @@ object ColorHistogram
         assert(data.foldLeft(true)((sofar, curr) => { sofar && curr.isIn(colorspace) }),
         {println("ColorHistogram: input colors not all in same color space!")})
 
-        VectorHistogram(for (c <- data) yield c.components, numBins, colorspace.distance)
+        VectorHistogram.trainKMeans(for (c <- data) yield c.components, numBins, colorspace.distance)
     }
 }
 
 class VectorHistogram(val centroids:IndexedSeq[Tensor1], val bins:IndexedSeq[Double], val metric:MathUtils.DistanceMetric)
 {
-    assert(bins.length >= 3, {println("VectorHistogram: need at least 3 bins to do bandwidth estimation")})
+    assert(bins.length > VectorHistogram.numBandwidthEstimationNeighbors, {println("VectorHistogram: Not enough bins to do bandwidth estimation")})
+
+    private val bandwidths = estimateBandwidths()
 
     /** Methods **/
 
     def evaluateAt(point:Tensor1) : Double =
     {
-        val sigma = estimateBandwidth(point)
-
         var sum = 0.0
         for (i <- 0 until bins.length)
         {
             val centroid = centroids(i)
             val freq = bins(i)
             val d2 = metric(point, centroid)
+            val sigma = bandwidths(i)
             sum += freq * MathUtils.gaussianDistribution(d2, sigma)
         }
-        sum
+        sum / bins.length
     }
 
-    private def estimateBandwidth(point:Tensor1) : Double =
+    private def estimateBandwidths() =
     {
-        // Sort bins by their distance to c
-        var dists = for (c <- centroids) yield metric(c, point)
-        dists = dists.sorted
-
-        // The average distance of the top 3
-        0.3333 * (dists(0) + dists(1) + dists(3))
+        val n = VectorHistogram.numBandwidthEstimationNeighbors
+        val invN = 1.0/n
+        for (i <- 0 until bins.length) yield
+        {
+            val otherIndices = (0 until bins.length).filter((index) => index != i)
+            var dists = for (j <- otherIndices) yield metric(centroids(i), centroids(j))
+            dists = dists.sorted
+            var sum = 0.0
+            for (j <- 0 until n) sum += dists(j)
+            invN*sum
+        }
     }
 }
 
 object VectorHistogram
 {
-    // Construct a vector histogram from data.
-    def apply(data:Seq[Tensor1], numBins:Int, metric:MathUtils.DistanceMetric) : VectorHistogram =
+    private val numBandwidthEstimationNeighbors = 3
+
+    // Construct a vector histogram from data using KMeans
+    def trainKMeans(data:Seq[Tensor1], numBins:Int, metric:MathUtils.DistanceMetric) : VectorHistogram =
     {
         assert(data.length > 0, {println("VectorHistogram: cannot construct from 0 data points")})
 
@@ -81,6 +89,19 @@ object VectorHistogram
 
         new VectorHistogram(centroids, bins, metric)
     }
+
+//    // Construct a vector histogram from data using uniform binning
+//    def trainUniform(data:Seq[Tensor1], binsPerDim:IndexedSeq[Int], metric:MathUtils.DistanceMetric) : VectorHistogram =
+//    {
+//        assert(data.length > 0, {println("VectorHistogram: cannot construct from 0 data points")})
+//
+//        val numbins = binsPerDim.reduceLeft((a,b) => a * b)
+//        val bins = Array.fill[Double](numbins)(0.0)
+//        val centroids = Array.fill[Tensor1](numbins)(Tensor1(0.0, 0.0))
+//        // TODO: Verify that centroids is full of *different* Tensor1's
+//
+//        // TODO: Finish this
+//    }
 
     // Returns a tuple of the quantization vectors and the assignments of each sample to its closest quantization vector
     // (Implemenation-wise, this just does kmeans)

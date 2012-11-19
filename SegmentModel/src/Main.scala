@@ -111,7 +111,7 @@ object Main
             (means(which) + MathUtils.polarToRectangular(angle, radius)).asInstanceOf[Tensor1]
         }
         println("Training vector histogram from samples...")
-        val hist = VectorHistogram(samples, 20, MathUtils.euclideanDistance)
+        val hist = VectorHistogram.trainKMeans(samples, 20, MathUtils.euclideanDistance)
 
         // Convert to density map
         println("Generating estimated density map...")
@@ -130,6 +130,7 @@ object Main
         for (y <- 0 until imdim; x <- 0 until imdim) densityMap(x)(y) /= max
 
         // Convert density map to image; save to disk
+        img = new BufferedImage(imdim, imdim, BufferedImage.TYPE_INT_ARGB)
         for (y <- 0 until imdim; x <- 0 until imdim)
         {
             val density = densityMap(x)(y).toFloat
