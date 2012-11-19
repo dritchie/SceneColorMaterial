@@ -32,6 +32,7 @@ object ColorHistogram
 
 class VectorHistogram(val centroids:IndexedSeq[Tensor1], val bins:IndexedSeq[Double], val metric:MathUtils.DistanceMetric)
 {
+    assert(bins.length == centroids.length, {println("VectorHistogram: bins, centroids have mismatched dimensions")})
     assert(bins.length > VectorHistogram.numBandwidthEstimationNeighbors, {println("VectorHistogram: Not enough bins to do bandwidth estimation")})
 
     private val bandwidths = estimateBandwidths()
@@ -90,18 +91,60 @@ object VectorHistogram
         new VectorHistogram(centroids, bins, metric)
     }
 
-//    // Construct a vector histogram from data using uniform binning
-//    def trainUniform(data:Seq[Tensor1], binsPerDim:IndexedSeq[Int], metric:MathUtils.DistanceMetric) : VectorHistogram =
-//    {
-//        assert(data.length > 0, {println("VectorHistogram: cannot construct from 0 data points")})
-//
-//        val numbins = binsPerDim.reduceLeft((a,b) => a * b)
-//        val bins = Array.fill[Double](numbins)(0.0)
-//        val centroids = Array.fill[Tensor1](numbins)(Tensor1(0.0, 0.0))
-//        // TODO: Verify that centroids is full of *different* Tensor1's
-//
-//        // TODO: Finish this
-//    }
+    // Construct a vector histogram from data using uniform binning
+    def trainUniform(data:Seq[Tensor1], binsPerDim:IndexedSeq[Int], metric:MathUtils.DistanceMetric) : VectorHistogram =
+    {
+        assert(data.length > 0, {println("VectorHistogram: cannot construct from 0 data points")})
+
+        val numbins = binsPerDim.reduceLeft((a,b) => a * b)
+
+        // Find min/max value for each dimension
+        val minvec = data.reduceLeft((sofar, curr) => {
+            val newsofar = sofar.copy
+            for (i <- 0 until curr.length) newsofar(i) = math.min(sofar(i), curr(i))
+            newsofar
+        })
+        val maxvec = data.reduceLeft((sofar, curr) => {
+            val newsofar = sofar.copy
+            for (i <- 0 until curr.length) newsofar(i) = math.max(sofar(i), curr(i))
+            newsofar
+        })
+
+        // Compute discretization along each axis
+        val slices = for (i <- 0 until binsPerDim.length) yield
+        {
+            val min = minvec(i)
+            val max = maxvec(i)
+            val numbins = binsPerDim(i)
+            val binwidth = (max - min) / numbins
+            val halfwidth = 0.5*binwidth
+            for (i <- 0 until numbins) yield min + i*binwidth + halfwidth
+        }
+
+        // Take the 'outer product' of slices to produce the final centroids
+        def outerProdFrom(index:Int) : IndexedSeq[IndexedSeq[Double]] =
+        {
+            if (index == binsPerDim.length-1)
+                slices(index).map((sliceval) => IndexedSeq(sliceval))
+            else
+            {
+                val op = outerProdFrom(index+1)
+                slices(index).flatMap((sliceval) => op.map((seq) => seq.+:(sliceval)))
+            }
+        }
+        val centroids = outerProdFrom(0).map((seq) => Tensor1(seq:_*))
+
+        // Fill in bins
+        val bins = Array.fill[Double](numbins)(0.0)
+        for (d <- data)
+        {
+            val closestBinIndex = MathUtils.closestVectorBruteForce(d, centroids, metric)
+            bins(closestBinIndex) += 1
+        }
+        for (i <- 0 until numbins) bins(i) /= data.length
+
+        new VectorHistogram(centroids, bins, metric)
+    }
 
     // Returns a tuple of the quantization vectors and the assignments of each sample to its closest quantization vector
     // (Implemenation-wise, this just does kmeans)

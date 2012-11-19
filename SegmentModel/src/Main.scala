@@ -112,6 +112,7 @@ object Main
         }
         println("Training vector histogram from samples...")
         val hist = VectorHistogram.trainKMeans(samples, 20, MathUtils.euclideanDistance)
+        //val hist = VectorHistogram.trainUniform(samples, Array(10, 10), MathUtils.euclideanDistance)
 
         // Convert to density map
         println("Generating estimated density map...")
