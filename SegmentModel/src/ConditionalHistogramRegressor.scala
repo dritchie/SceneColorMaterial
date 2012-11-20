@@ -9,12 +9,53 @@
 import cc.factorie.la.Tensor1
 import jnisvmlight._
 
-class ConditionalHistogramRegressor(private val centroids:IndexedSeq[Tensor1], featureDim:Int, private val metric:MathUtils.DistanceMetric,
-                                    private val regressors:IndexedSeq[SVMLightModel])
+class ConditionalHistogramRegressor(examples:Seq[ConditionalHistogramRegressor.RegressionExample], private val metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer)
 {
-    private val featureIndices = (0 until featureDim).toArray
+    private var centroids:IndexedSeq[Tensor1] = null
+    private var regressors:Array[SVMLightModel] = null
+    private var featureIndices:Array[Int] = null
 
-    /** Methods **/
+    train(examples, quantizer)
+
+    private def train(examples:Seq[ConditionalHistogramRegressor.RegressionExample], quantizer:VectorQuantizer)
+    {
+        assert(examples.length > 0, {println("ConditionalHistogramRegressor: cannot train with 0 training examples")})
+        featureIndices = (0 until examples(0).features.length).toArray
+
+        // Invoke the quantizer
+        val (centroids, assignments) = quantizer(for (ex <- examples) yield ex.target, metric)
+        this.centroids = centroids
+        val numBins = centroids.length
+
+        // Set up the JNI interface to svmlight
+        val trainer = new SVMLightInterface()
+        SVMLightInterface.SORT_INPUT_VECTORS = false    // Dimensions will already be sorted
+
+        // Set up necessary training parameters
+        val params = new TrainingParameters()
+        params.getLearningParameters.`type` = LearnParam.REGRESSION.toLong
+        // TODO: Consider non-default kernels, such as RBF kernel?
+
+        // Train 'em up!
+        regressors = new Array[SVMLightModel](numBins)
+        for (i <- 0 until numBins)
+        {
+            // Fill in training data in the format expected by svmlight
+            val trainingData = new Array[LabeledFeatureVector](examples.length)
+            for (j <- 0 until examples.length)
+            {
+                val ex = examples(j)
+                val target = if (assignments(j) == i) 1.0 else 0.0
+                val dims = (0 until ex.features.length).toArray
+                val features = ex.features.toArray
+                trainingData(i) = new LabeledFeatureVector(target, dims, features)
+            }
+            // TODO: Consider normalizing/standardizing the data so that linear kernel turns into cosine/mahalanobis distance?
+
+            // Finally, train the SVM regressor
+            regressors(i) = trainer.trainModel(trainingData, params)
+        }
+    }
 
     def predictHistogram(featureVec:Tensor1) : VectorHistogram =
     {
@@ -40,42 +81,4 @@ class ConditionalHistogramRegressor(private val centroids:IndexedSeq[Tensor1], f
 object ConditionalHistogramRegressor
 {
     case class RegressionExample(target:Tensor1, features:Tensor1) {}
-
-    def apply(examples:Seq[ConditionalHistogramRegressor.RegressionExample], metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer)
-    {
-        assert(examples.length > 0, {println("ConditionalHistogramRegressor: cannot train with 0 training examples")})
-        val (centroids, assignments) = quantizer(for (ex <- examples) yield ex.target, metric)
-        val numBins = centroids.length
-
-        // Set up the JNI interface to svmlight
-        val trainer = new SVMLightInterface()
-        SVMLightInterface.SORT_INPUT_VECTORS = false    // Dimensions will already be sorted
-
-        // Set up necessary training parameters
-        val params = new TrainingParameters()
-        params.getLearningParameters.`type` = LearnParam.REGRESSION.toLong
-        // TODO: Consider non-default kernels, such as RBF kernel?
-
-        // Train 'em up!
-        val regressors = new Array[SVMLightModel](numBins)
-        for (i <- 0 until numBins)
-        {
-            // Fill in training data in the format expected by svmlight
-            val trainingData = new Array[LabeledFeatureVector](examples.length)
-            for (j <- 0 until examples.length)
-            {
-                val ex = examples(j)
-                val target = if (assignments(j) == i) 1.0 else 0.0
-                val dims = (0 until ex.features.length).toArray
-                val features = ex.features.toArray
-                trainingData(i) = new LabeledFeatureVector(target, dims, features)
-            }
-            // TODO: Consider normalizing/standardizing the data so that linear kernel turns into cosine/mahalanobis distance?
-
-            // Finally, train the SVM regressor
-            regressors(i) = trainer.trainModel(trainingData, params)
-        }
-
-        new ConditionalHistogramRegressor(centroids, examples(0).features.length, metric, regressors)
-    }
 }

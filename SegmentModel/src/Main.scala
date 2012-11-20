@@ -111,8 +111,8 @@ object Main
             (means(which) + MathUtils.polarToRectangular(angle, radius)).asInstanceOf[Tensor1]
         }
         println("Training vector histogram from samples...")
-        val hist = VectorHistogram.trainKMeans(samples, 20, MathUtils.euclideanDistance)
-        //val hist = VectorHistogram.trainUniform(samples, Array(10, 10), MathUtils.euclideanDistance)
+        val hist = VectorHistogram(samples, MathUtils.euclideanDistance, new KMeansVectorQuantizer(20))
+        //val hist = VectorHistogram(samples, MathUtils.euclideanDistance, new UniformVectorQuantizer(Array(10, 10)))
 
         // Convert to density map
         println("Generating estimated density map...")
