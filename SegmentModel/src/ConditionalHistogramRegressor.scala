@@ -34,21 +34,23 @@ class ConditionalHistogramRegressor(examples:Seq[ConditionalHistogramRegressor.R
         // Set up necessary training parameters
         val params = new TrainingParameters()
         params.getLearningParameters.`type` = LearnParam.REGRESSION.toLong
+        params.getLearningParameters.svm_c = 1
         // TODO: Consider non-default kernels, such as RBF kernel?
 
         // Train 'em up!
         regressors = new Array[SVMLightModel](numBins)
         for (i <- 0 until numBins)
         {
+          println("ConditionalHistogramRegressor: Training bin " + i)
             // Fill in training data in the format expected by svmlight
             val trainingData = new Array[LabeledFeatureVector](examples.length)
             for (j <- 0 until examples.length)
             {
                 val ex = examples(j)
                 val target = if (assignments(j) == i) 1.0 else 0.0
-                val dims = (0 until ex.features.length).toArray
+                val dims = (0 until ex.features.length).map(x => x+1).toArray  //feature numbers have to be >=1
                 val features = ex.features.toArray
-                trainingData(i) = new LabeledFeatureVector(target, dims, features)
+                trainingData(j) = new LabeledFeatureVector(target, dims, features)
             }
             // TODO: Consider normalizing/standardizing the data so that linear kernel turns into cosine/mahalanobis distance?
 

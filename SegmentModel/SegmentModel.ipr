@@ -202,11 +202,13 @@
     <library name="jnisvmlight">
       <CLASSES>
         <root url="jar://$SVMLIGHT_HOME$/lib/jnisvmlight.jar!/" />
+        <root url="file://$SVMLIGHT_HOME$/lib" />
       </CLASSES>
       <JAVADOC />
       <SOURCES>
         <root url="file://$SVMLIGHT_HOME$/src" />
       </SOURCES>
+      <jarDirectory url="file://$SVMLIGHT_HOME$/lib" recursive="false" />
     </library>
     <library name="scala-compiler">
       <CLASSES>
