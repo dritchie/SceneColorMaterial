@@ -33,8 +33,9 @@ class ConditionalHistogramRegressor(examples:Seq[ConditionalHistogramRegressor.R
 
         // Set up necessary training parameters
         val params = new TrainingParameters()
-        params.getLearningParameters.`type` = LearnParam.REGRESSION.toLong
-        params.getLearningParameters.svm_c = 1
+        //TODO: Changing this to Regression seems to make things very slow. Might be a parameter or training data issue?
+        //params.getLearningParameters.`type` = LearnParam.REGRESSION.toLong
+        //params.getLearningParameters.svm_c = 1
         // TODO: Consider non-default kernels, such as RBF kernel?
 
         // Train 'em up!

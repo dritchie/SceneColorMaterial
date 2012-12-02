@@ -181,7 +181,7 @@ object PatternMain {
 
         } else
         {
-          val distribution = samples.contrastRegressor((n, label)).predictHistogram(Tensor1(size, s))
+          val distribution = samples.contrastRegressor((label, n)).predictHistogram(Tensor1(size, s))
           model += new ContrastPriorFactor2(seg.group.color, g.color, distribution)
         }
       }
