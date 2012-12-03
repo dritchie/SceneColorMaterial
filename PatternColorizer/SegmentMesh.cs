@@ -138,9 +138,58 @@ namespace PatternColorizer
             }
 
             //finalize segment list
+
+            ClassifySegments();
+
             foreach (Segment s in segments)
             {
                 ComputeFeatures(s);
+            }
+
+        }
+
+        public void ClassifySegments()
+        {
+            //label some segments as noise
+            
+            //label the color group with the largest segment as a background element
+            //label all segments in the color group as a background (?), unless it is noise
+            //0-noise, 1-background, 2-foreground
+            double largestSize = 0;
+            int segIdx = -1;
+            
+            for (int i = 0; i < segments.Count(); i++)
+            {
+                double size = segments[i].points.Count();
+                if (segments[i].assignmentId >= 0 && largestSize < size)
+                {
+                    largestSize = size;
+                    segIdx = i;
+                }
+            }
+
+            int groupId = segments[segIdx].groupId;
+
+            SegmentFeature bg = new SegmentFeature("Label");
+            bg.values.Add(1);
+            foreach (int idx in groups[groupId].members)
+            {
+                if (segments[idx].assignmentId >=0)
+                    segments[idx].features.Add(bg);
+            }
+
+            SegmentFeature noise = new SegmentFeature("Label");
+            noise.values.Add(0);
+
+            SegmentFeature fg = new SegmentFeature("Label");
+            fg.values.Add(2);
+
+            foreach (Segment s in segments)
+            {
+                if (s.assignmentId < 0)
+                    s.features.Add(noise);
+                else if (s.groupId != groupId)
+                    s.features.Add(fg);
             }
 
         }
@@ -151,6 +200,7 @@ namespace PatternColorizer
             SegmentFeature f = new SegmentFeature("RelativeSize");
             f.values.Add(s.points.Count() / (double)(imageWidth * imageHeight));
             s.features.Add(f);
+
         }
 
 

@@ -68,3 +68,12 @@ class ContrastPriorFactor2(v1:DiscreteColorVariable, v2:DiscreteColorVariable, p
   }
 
 }
+
+class FeaturePriorFactor(v1:DiscreteColorVariable, private val hist:VectorHistogram, val func:(Color=>Double)) extends Factor1(v1)
+{
+  def score(val1:DiscreteColorVariable#Value) =
+  {
+    val c = func(val1.category)
+    math.log(hist.evaluateAt(Tensor1(c)))
+  }
+}
