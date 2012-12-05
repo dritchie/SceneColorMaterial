@@ -58,6 +58,11 @@ object Main
         segmesh.saveColorAssignments("../SceneToolbox/Output/colorAssignments.txt")
     }
 
+    def testHistogramRegression()
+    {
+
+    }
+
     def testVectorHistogram()
     {
         /** Lay down some 2D gaussians, then use VectorHistogram to reconstruct **/
