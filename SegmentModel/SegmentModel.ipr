@@ -50,6 +50,9 @@
     <option name="USE_PROJECT_PROFILE" value="true" />
     <version value="1.0" />
   </component>
+  <component name="JavacSettings">
+    <option name="MAXIMUM_HEAP_SIZE" value="256" />
+  </component>
   <component name="Palette2">
     <group name="Swing">
       <item class="com.intellij.uiDesigner.HSpacer" tooltip-text="Horizontal Spacer" icon="/com/intellij/uiDesigner/icons/hspacer.png" removable="false" auto-create-binding="false" can-attach-label="false">
@@ -202,11 +205,13 @@
     <library name="jnisvmlight">
       <CLASSES>
         <root url="jar://$SVMLIGHT_HOME$/lib/jnisvmlight.jar!/" />
+        <root url="file://$SVMLIGHT_HOME$/lib" />
       </CLASSES>
       <JAVADOC />
       <SOURCES>
         <root url="file://$SVMLIGHT_HOME$/src" />
       </SOURCES>
+      <jarDirectory url="file://$SVMLIGHT_HOME$/lib" recursive="false" />
     </library>
     <library name="scala-compiler">
       <CLASSES>

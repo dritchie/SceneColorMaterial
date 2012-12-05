@@ -111,7 +111,10 @@ namespace Engine
                    }
                }
                if (best != "")
+               {
+                   //cache the best
                    return map[best];
+               } 
                else
                    //give up
                    return -1;

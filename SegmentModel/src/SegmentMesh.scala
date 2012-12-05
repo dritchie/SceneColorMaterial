@@ -164,8 +164,24 @@ class SegmentMesh
       val diffs = groups.map(
         g=>{if (g.color.observedColor==null) 0 else g.color.observedColor.distance(g.color.value.category)}
       )
-      diffs.sum
+      diffs.sum/groups.length
     }
+
+  def scoreAssignment(assign:Seq[Color]):Double =
+  {
+    var diffs = 0.0
+
+    for (i <- groups.indices)
+    {
+      if (groups(i).color.observedColor == null)
+        diffs += 0.0
+      else
+        diffs += groups(i).color.observedColor.distance(assign(i))
+    }
+
+    diffs/groups.length
+
+  }
 
     /** Data members **/
     val segments = new ArrayBuffer[Segment]

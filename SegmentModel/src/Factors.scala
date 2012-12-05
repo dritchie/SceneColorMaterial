@@ -7,6 +7,7 @@
  */
 
 import cc.factorie._
+import la.Tensor1
 
 class TargetSaturationFactor(v:DiscreteColorVariable, private val target:Double, private val bandwidth:Double) extends Factor1(v)
 {
@@ -56,4 +57,23 @@ class ColorHistogramPriorFactor(v:DiscreteColorVariable, private val hist:ColorH
         val c = v.category.copyIfNeededTo(hist.colorspace)
         math.log(hist.evaluateAt(c.components))
     }
+}
+
+class ContrastPriorFactor2(v1:DiscreteColorVariable, v2:DiscreteColorVariable, private val hist:VectorHistogram) extends Factor2(v1,v2)
+{
+  def score(val1:DiscreteColorVariable#Value, val2:DiscreteColorVariable#Value) =
+  {
+    val c = Color.contrast(val1.category, val2.category)
+    math.log(hist.evaluateAt(Tensor1(c)))
+  }
+
+}
+
+class FeaturePriorFactor(v1:DiscreteColorVariable, private val hist:VectorHistogram, val func:(Color=>Double)) extends Factor1(v1)
+{
+  def score(val1:DiscreteColorVariable#Value) =
+  {
+    val c = func(val1.category)
+    math.log(hist.evaluateAt(Tensor1(c)))
+  }
 }
