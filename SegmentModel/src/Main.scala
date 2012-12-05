@@ -12,13 +12,15 @@ import java.awt
 import java.io.File
 import java.awt.image.BufferedImage
 import javax.imageio.ImageIO
+import collection.mutable.ArrayBuffer
 
 object Main
 {
     def main(args: Array[String])
     {
         //testContrastModel()
-        testVectorHistogram()
+        //testVectorHistogram()
+        testHistogramRegression()
     }
 
     def testColorConversions()
@@ -58,30 +60,17 @@ object Main
         segmesh.saveColorAssignments("../SceneToolbox/Output/colorAssignments.txt")
     }
 
-    def testHistogramRegression()
+    type DensityMap = Array[Array[Double]]
+
+    // Assumes that each gaussian in the mixture is contained in (0,1) along each dimension
+    // Just isotropic gaussians, to make things easy
+    def gmmToDensityMap(weights:Array[Double], means:Array[DenseTensor1], stddevs:Array[Double], resolution:Int) : DensityMap =
     {
-
-    }
-
-    def testVectorHistogram()
-    {
-        /** Lay down some 2D gaussians, then use VectorHistogram to reconstruct **/
-
-        // 3 different isotropic Gaussians
-        val weights = Array(1.0/3.0, 1.0/3.0, 1.0/3.0)
-        val means = Array(new DenseTensor1(Array(0.25, 0.25)),
-                          new DenseTensor1(Array(0.5, 0.75)),
-                          new DenseTensor1(Array(0.75, 0.4)))
-        val stddevs = Array(0.1, 0.1, 0.1)
-
-        // Rasterize to density map
-        println("Generating ground truth density map...")
-        val imdim = 500
-        var densityMap = Array.fill(imdim, imdim)(0.0)
-        for (y <- 0 until imdim; x <- 0 until imdim)
+        val densityMap = Array.fill(resolution, resolution)(0.0)
+        for (y <- 0 until resolution; x <- 0 until resolution)
         {
-            val fy = y.toDouble / imdim
-            val fx = x.toDouble / imdim
+            val fy = y.toDouble / resolution
+            val fx = x.toDouble / resolution
             var sum = 0.0
             for (i <- 0 until weights.length)
             {
@@ -92,58 +81,152 @@ object Main
         }
         // Normalize density map
         var max = 0.0
-        for (y <- 0 until imdim; x <- 0 until imdim) max = math.max(max, densityMap(x)(y))
-        for (y <- 0 until imdim; x <- 0 until imdim) densityMap(x)(y) /= max
+        for (y <- 0 until resolution; x <- 0 until resolution) max = math.max(max, densityMap(x)(y))
+        for (y <- 0 until resolution; x <- 0 until resolution) densityMap(x)(y) /= max
+        densityMap
+    }
 
-        // Convert density map to image; save to disk
-        var img = new BufferedImage(imdim, imdim, BufferedImage.TYPE_INT_ARGB)
+    def histogramToDensityMap(hist:VectorHistogram, resolution:Int) : DensityMap =
+    {
+        val densityMap = Array.fill(resolution, resolution)(0.0)
+        for (y <- 0 until resolution; x <- 0 until resolution)
+        {
+            val fy = y.toDouble / resolution
+            val fx = x.toDouble / resolution
+            val d = hist.evaluateAt(Tensor1(fx, fy))
+            assert(d == d, {"Histogram evaluated to NaN"})
+            densityMap(x)(y) = d
+        }
+        // Normalize density map
+        var max = 0.0
+        for (y <- 0 until resolution; x <- 0 until resolution) max = math.max(max, densityMap(x)(y))
+        for (y <- 0 until resolution; x <- 0 until resolution) densityMap(x)(y) /= max
+        densityMap
+    }
+
+    // Saves to PNG format
+    def saveDensityMapToImage(densityMap:DensityMap, imfilename:String)
+    {
+        val imdim = densityMap.length
+        val img = new BufferedImage(imdim, imdim, BufferedImage.TYPE_INT_ARGB)
         for (y <- 0 until imdim; x <- 0 until imdim)
         {
             val density = densityMap(x)(y).toFloat
             val color = new awt.Color(density, density, density)
             img.setRGB(x, y, color.getRGB)
         }
-        ImageIO.write(img, "png", new File("trueDensity.png"))
+        ImageIO.write(img, "png", new File(imfilename))
+    }
 
-        // Sample from this distribution a bunch, then build VectorHistogram from samples
-        println("Sampling from ground truth distribution...")
-        val numsamples = 50000
-        val samples = for (i <- 0 until numsamples) yield
+    // Just isotropic gaussians, to make things easy
+    def sampleFromGMM(weights:Array[Double], means:Array[DenseTensor1], stddevs:Array[Double], numsamples:Int) : IndexedSeq[Tensor1] =
+    {
+        for (i <- 0 until numsamples) yield
         {
             val which = MathUtils.multinomialRandom(weights)
             val radius = stddevs(which)*MathUtils.gaussianRandom()
             val angle = MathUtils.randBetween(0.0, 2.0*math.Pi)
             (means(which) + MathUtils.polarToRectangular(angle, radius)).asInstanceOf[Tensor1]
         }
+    }
+
+    def testHistogramRegression()
+    {
+        /* Have features drawn from two distinct classes (two gaussians)
+         * For each feature class, generate a distinct target distribution (using two gaussians?)
+         * Try to regress histograms for these distributions based on the features
+         */
+
+        val numClasses = 2
+
+        // Feature classes
+        val feature_means = Array(Tensor1(0.1, 0.1), Tensor1(5.9, 5.9))
+        val feature_stddevs = Array(0.1, 0.1)
+
+        // Target distributions
+        val target_weights = Array(
+            Array(0.5, 0.5),    // Class 1
+            Array(0.5, 0.5)     // Class 2
+        )
+        val target_means = Array(
+            Array(Tensor1(0.5, 0.25), Tensor1(0.5, 0.75)),    // Class 1
+            Array(Tensor1(0.25, 0.5), Tensor1(0.75, 0.5))     // Class 2
+        )
+        val target_stddevs  = Array(
+            Array(0.1, 0.1),        // Class 1
+            Array(0.1, 0.1)         // Class 2
+        )
+
+        // Generate density maps for ground truth distributions for each feature class;
+        // save these to images
+        val imdim = 500
+        for (i <- 0 until numClasses)
+        {
+            println("Generating ground truth density for class " + i + "...")
+            val densityMap = gmmToDensityMap(target_weights(i), target_means(i), target_stddevs(i), imdim)
+            saveDensityMapToImage(densityMap, "trueDensity_class" + i + ".png")
+        }
+
+        // Sample a bunch from each feature class, associating a sampled target value with each sampled feature vector
+        //val numSamplesPerClass = 20000
+        val numSamplesPerClass = 20
+        val samples = new ArrayBuffer[ConditionalHistogramRegressor.RegressionExample]
+        println("Generating training samples...")
+        for (i <- 0 until numClasses)
+        {
+            val featureVecs = sampleFromGMM(Array(1.0), Array(feature_means(i)), Array(feature_stddevs(i)), numSamplesPerClass)
+            val targetVecs = sampleFromGMM(target_weights(i), target_means(i), target_stddevs(i), numSamplesPerClass)
+            for (j <- 0 until numSamplesPerClass)
+                samples += ConditionalHistogramRegressor.RegressionExample(targetVecs(j), featureVecs(j))
+        }
+
+        // Train a ConditionalHistogramRegressor
+        println("Training ConditionalHistogramRegressor...")
+        val chr = new ConditionalHistogramRegressor(samples, MathUtils.euclideanDistance, new KMeansVectorQuantizer(20))
+
+        // Predict histograms for the means of each feature class, convert to densitymaps and save images
+        for (i <- 0 until numClasses)
+        {
+            println("Predicting density for features drawn from class " + i + "...")
+            val hist = chr.predictHistogram(feature_means(i))
+            val densityMap = histogramToDensityMap(hist, imdim)
+            saveDensityMapToImage(densityMap, "predictedDensity_class" + i + ".png")
+        }
+    }
+
+    def testVectorHistogram()
+    {
+        /** Lay down some 2D gaussians, then use VectorHistogram to reconstruct **/
+
+        // 3 different isotropic Gaussians
+        val weights = Array(1.0/3.0, 1.0/3.0, 1.0/3.0)
+        val means = Array(Tensor1(0.25, 0.25),
+                          Tensor1(0.5, 0.75),
+                          Tensor1(0.75, 0.4))
+        val stddevs = Array(0.1, 0.1, 0.1)
+
+        // Rasterize to density map
+        println("Generating ground truth density map...")
+        val imdim = 500
+        var densityMap = gmmToDensityMap(weights, means, stddevs, imdim)
+
+        // Convert density map to image; save to disk
+        saveDensityMapToImage(densityMap, "trueDensity.png")
+
+        // Sample from this distribution a bunch, then build VectorHistogram from samples
+        println("Sampling from ground truth distribution...")
+        val numsamples = 50000
+        val samples = sampleFromGMM(weights, means, stddevs, numsamples)
         println("Training vector histogram from samples...")
         val hist = VectorHistogram(samples, MathUtils.euclideanDistance, new KMeansVectorQuantizer(20))
         //val hist = VectorHistogram(samples, MathUtils.euclideanDistance, new UniformVectorQuantizer(Array(10, 10)))
 
         // Convert to density map
         println("Generating estimated density map...")
-        densityMap = Array.fill(imdim, imdim)(0.0)
-        for (y <- 0 until imdim; x <- 0 until imdim)
-        {
-            val fy = y.toDouble / imdim
-            val fx = x.toDouble / imdim
-            val d = hist.evaluateAt(Tensor1(fx, fy))
-            assert(d == d, {"Histogram evaluated to NaN"})
-            densityMap(x)(y) = d
-        }
-        // Normalize density map
-        max = 0.0
-        for (y <- 0 until imdim; x <- 0 until imdim) max = math.max(max, densityMap(x)(y))
-        for (y <- 0 until imdim; x <- 0 until imdim) densityMap(x)(y) /= max
+        densityMap = histogramToDensityMap(hist, imdim)
 
         // Convert density map to image; save to disk
-        img = new BufferedImage(imdim, imdim, BufferedImage.TYPE_INT_ARGB)
-        for (y <- 0 until imdim; x <- 0 until imdim)
-        {
-            val density = densityMap(x)(y).toFloat
-            val color = new awt.Color(density, density, density)
-            img.setRGB(x, y, color.getRGB)
-        }
-        ImageIO.write(img, "png", new File("estimatedDensity.png"))
+        saveDensityMapToImage(densityMap, "estimatedDensity.png")
 
         println("DONE")
     }

@@ -93,7 +93,7 @@ object MathUtils
     }
 
 
-    /** Misc **/
+    /** Distance and nearest neighbors **/
 
     type DistanceMetric = (Tensor1, Tensor1) => Double
 
@@ -114,5 +114,13 @@ object MathUtils
             }
         }
         bestIndex
+    }
+
+
+    /** Misc **/
+
+    def clamp(value:Double, min:Double, max:Double) : Double =
+    {
+        if (value < min) min else if (value > max) max else value
     }
 }
