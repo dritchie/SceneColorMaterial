@@ -236,6 +236,15 @@
         <root url="jar://$SCALA_HOME$/src/scala-dbc-src.jar!/" />
       </SOURCES>
     </library>
+    <library name="weka">
+      <CLASSES>
+        <root url="jar://$WEKA_HOME$/weka.jar!/" />
+      </CLASSES>
+      <JAVADOC />
+      <SOURCES>
+        <root url="jar://$WEKA_HOME$/weka-src.jar!/src/main/java" />
+      </SOURCES>
+    </library>
   </component>
 </project>
 

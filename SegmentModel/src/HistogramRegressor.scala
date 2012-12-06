@@ -8,6 +8,26 @@
 
 import cc.factorie.la.Tensor1
 import jnisvmlight._
+import weka.classifiers.`lazy`.IBk
+import weka.classifiers.Classifier
+import weka.core._
+import neighboursearch.KDTree
+
+object HistogramRegressor
+{
+    case class RegressionExample(target:Tensor1, features:Tensor1) {}
+
+    def KNN(examples:Seq[HistogramRegressor.RegressionExample], metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer, generator:WekaRegressorGenerator) =
+    {
+        val classifier = new IBk()
+        classifier.setDistanceWeighting(new SelectedTag(IBk.WEIGHT_INVERSE, IBk.TAGS_WEIGHTING))
+        classifier.setKNN(10)
+        classifier.setMeanSquared(true)
+        classifier.setNearestNeighbourSearchAlgorithm(new KDTree())
+
+        generator(classifier, examples, metric, quantizer)
+    }
+}
 
 abstract class HistogramRegressor(examples:Seq[HistogramRegressor.RegressionExample], private val metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer)
 {
@@ -100,7 +120,95 @@ class SVMLightHistogramRegressor(examples:Seq[HistogramRegressor.RegressionExamp
     }
 }
 
-object HistogramRegressor
+/*
+There are two posssible implmentations for Weka-based regressors:
+ (1) Train a multi-class classifier where each bin is a class, then ask for the distribution over classes
+ (2) Train one regressor for each bin
+I don't know which one will work better, so it's probably best to try both and see.
+ */
+
+trait WekaRegressorGenerator
 {
-    case class RegressionExample(target:Tensor1, features:Tensor1) {}
+    def apply(classifier:Classifier, examples:Seq[HistogramRegressor.RegressionExample],
+                          metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer) : HistogramRegressor
+}
+
+object WekaMultiClassHistogramRegressor extends WekaRegressorGenerator
+{
+    def apply(classifier:Classifier, examples:Seq[HistogramRegressor.RegressionExample],
+                          metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer) = new WekaMultiClassHistogramRegressor(classifier, examples, metric, quantizer)
+}
+
+class WekaMultiClassHistogramRegressor(private val classifier:Classifier, examples:Seq[HistogramRegressor.RegressionExample], metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer)
+    extends HistogramRegressor(examples, metric, quantizer)
+{
+    private val attributePrototype:FastVector = buildAttributePrototype(examples)
+
+    train(examples)
+
+    private def buildAttributePrototype(examples:Seq[HistogramRegressor.RegressionExample]) : FastVector =
+    {
+        val featureVec = examples(0).features
+        val attribProto = new FastVector(featureVec.length+1)
+
+        // Add feature attributes
+        for (i <- 0 until featureVec.length)
+            attribProto.addElement(new Attribute("numericAttrib"+i))
+
+        // Add the class attribute
+        val classValues = new FastVector(centroids.length)
+        for (i <- 0 until centroids.length)
+            classValues.addElement(i.toString)
+        attribProto.addElement(new Attribute("class", classValues))
+
+        attribProto
+    }
+
+    // If trueBin = -1, then this is an 'unlabeled' instance
+    private def convertToWekaInstance(featureVec:Tensor1, trueBin:Int = -1) : Instance =
+    {
+        val instance = new Instance(attributePrototype.size)
+
+        // Set feature values
+        for (i <- 0 until featureVec.length)
+            instance.setValue(i, featureVec(i))
+
+        // Set class value
+        if (trueBin >= 0)
+            instance.setValue(attributePrototype.size - 1, trueBin)
+
+        instance
+    }
+
+    private def train(examples:Seq[HistogramRegressor.RegressionExample])
+    {
+        // Associate training examples with their closest bin
+        val assignments = new Array[Int](examples.length)
+        for (i <- 0 until examples.length)
+            assignments(i) = MathUtils.closestVectorBruteForce(examples(i).target, centroids, metric)
+
+        // Init Weka training set
+        val trainingSet = new Instances("trainingSet", attributePrototype, examples.length)
+        // Don't forget to tell it where in the attribute vector the class is!
+        trainingSet.setClassIndex(attributePrototype.size - 1)
+        // Populate training set
+        for (i <- 0 until examples.length)
+        {
+            val instance = convertToWekaInstance(examples(i).features, assignments(i))
+            trainingSet.add(instance)
+        }
+
+        // Train the model
+        classifier.buildClassifier(trainingSet)
+    }
+
+    protected def fillBins(featureVec:Tensor1, bins:Array[Double])
+    {
+        // Convert feature vector to Weka format
+        val instance = convertToWekaInstance(featureVec)
+
+        // Ask classifier for distribution over classes
+        val distrib = classifier.distributionForInstance(instance)
+        Array.copy(distrib, 0, bins, 0, bins.length)
+    }
 }

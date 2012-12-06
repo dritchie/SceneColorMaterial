@@ -169,7 +169,7 @@ object Main
 
         // Sample a bunch from each feature class, associating a sampled target value with each sampled feature vector
         //val numSamplesPerClass = 20000
-        val numSamplesPerClass = 20
+        val numSamplesPerClass = 2000
         val samples = new ArrayBuffer[HistogramRegressor.RegressionExample]
         println("Generating training samples...")
         for (i <- 0 until numClasses)
@@ -182,13 +182,14 @@ object Main
 
         // Train a HistogramRegressor
         println("Training HistogramRegressor...")
-        val chr = new SVMLightHistogramRegressor(samples, MathUtils.euclideanDistance, new KMeansVectorQuantizer(20))
+        //val hr = new SVMLightHistogramRegressor(samples, MathUtils.euclideanDistance, new KMeansVectorQuantizer(20))
+        val hr = HistogramRegressor.KNN(samples, MathUtils.euclideanDistance, new KMeansVectorQuantizer(20), WekaMultiClassHistogramRegressor)
 
         // Predict histograms for the means of each feature class, convert to densitymaps and save images
         for (i <- 0 until numClasses)
         {
             println("Predicting density for features drawn from class " + i + "...")
-            val hist = chr.predictHistogram(feature_means(i))
+            val hist = hr.predictHistogram(feature_means(i))
             val densityMap = histogramToDensityMap(hist, imdim)
             saveDensityMapToImage(densityMap, "predictedDensity_class" + i + ".png")
         }
