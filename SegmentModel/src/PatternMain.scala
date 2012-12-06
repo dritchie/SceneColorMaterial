@@ -17,14 +17,14 @@ import scala.util.Random
 
 class TrainingSamples() {
   //binary features
-   val contrasts = Map[(Int,Int), ArrayBuffer[ConditionalHistogramRegressor.RegressionExample]]()//ArrayBuffer[(Double, Double, Double)]]()
-   val contrastRegressor = mutable.Map[(Int,Int), ConditionalHistogramRegressor]()
+   val contrasts = Map[(Int,Int), ArrayBuffer[HistogramRegressor.RegressionExample]]()//ArrayBuffer[(Double, Double, Double)]]()
+   val contrastRegressor = mutable.Map[(Int,Int), HistogramRegressor]()
 
   //unary features
-   val lightness = Map[Int, ArrayBuffer[ConditionalHistogramRegressor.RegressionExample]]()
-   val lightnessRegressor = mutable.Map[Int, ConditionalHistogramRegressor]()
-   val saturation = Map[Int, ArrayBuffer[ConditionalHistogramRegressor.RegressionExample]]()
-   val saturationRegressor = mutable.Map[Int, ConditionalHistogramRegressor]()
+   val lightness = Map[Int, ArrayBuffer[HistogramRegressor.RegressionExample]]()
+   val lightnessRegressor = mutable.Map[Int, HistogramRegressor]()
+   val saturation = Map[Int, ArrayBuffer[HistogramRegressor.RegressionExample]]()
+   val saturationRegressor = mutable.Map[Int, HistogramRegressor]()
 
    //testing the vector histogram
    val lightnessVH = Map[Int, VectorHistogram]()
@@ -156,12 +156,12 @@ object PatternMain {
         {
 
           if (!samples.contrasts.contains((Math.min(n, label), Math.max(n, label))))
-            samples.contrasts += ((Math.min(n, label),Math.max(n, label)) -> new ArrayBuffer[ConditionalHistogramRegressor.RegressionExample]())
+            samples.contrasts += ((Math.min(n, label),Math.max(n, label)) -> new ArrayBuffer[HistogramRegressor.RegressionExample]())
 
            if (n < label)
-             samples.contrasts((n,label)) += ConditionalHistogramRegressor.RegressionExample(Tensor1(c), Tensor1(s,size)) //((s, size, c))
+             samples.contrasts((n,label)) += HistogramRegressor.RegressionExample(Tensor1(c), Tensor1(s,size)) //((s, size, c))
           else
-             samples.contrasts((label,n)) += ConditionalHistogramRegressor.RegressionExample(Tensor1(c), Tensor1(size, s))//((size, s, c))
+             samples.contrasts((label,n)) += HistogramRegressor.RegressionExample(Tensor1(c), Tensor1(size, s))//((size, s, c))
 
         }
 
@@ -172,12 +172,12 @@ object PatternMain {
         val saturation = hsv(1)
 
         if (!samples.lightness.contains(label))
-          samples.lightness += label -> new ArrayBuffer[ConditionalHistogramRegressor.RegressionExample]
+          samples.lightness += label -> new ArrayBuffer[HistogramRegressor.RegressionExample]
         if (!samples.saturation.contains(label))
-          samples.saturation += label -> new ArrayBuffer[ConditionalHistogramRegressor.RegressionExample]
+          samples.saturation += label -> new ArrayBuffer[HistogramRegressor.RegressionExample]
 
-        samples.lightness(label) += ConditionalHistogramRegressor.RegressionExample(Tensor1(lightness), Tensor1(size))
-        samples.saturation(label) += ConditionalHistogramRegressor.RegressionExample(Tensor1(saturation), Tensor1(size))
+        samples.lightness(label) += HistogramRegressor.RegressionExample(Tensor1(lightness), Tensor1(size))
+        samples.saturation(label) += HistogramRegressor.RegressionExample(Tensor1(saturation), Tensor1(size))
 
       }
     }
@@ -199,13 +199,13 @@ object PatternMain {
       println("step " + l1 + " " + l2)
       val seq = samples.contrasts((l1,l2)).toSeq
       println("seq length " + seq.length)
-      samples.contrastRegressor += ((l1,l2) -> new ConditionalHistogramRegressor(seq, MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins)))
+      samples.contrastRegressor += ((l1,l2) -> new SVMLightHistogramRegressor(seq, MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins)))
 
     }
     for (l <- samples.lightness.keys)
     {
-      samples.lightnessRegressor += l -> new ConditionalHistogramRegressor(samples.lightness(l).toSeq, MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins))
-      samples.saturationRegressor += l -> new ConditionalHistogramRegressor(samples.saturation(l).toSeq, MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins))
+      samples.lightnessRegressor += l -> new SVMLightHistogramRegressor(samples.lightness(l).toSeq, MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins))
+      samples.saturationRegressor += l -> new SVMLightHistogramRegressor(samples.saturation(l).toSeq, MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins))
     }
 
     println("Done training regressors")
@@ -264,7 +264,7 @@ object PatternMain {
     println("Building model")
 
 
-    val stripFeatures = (list:ArrayBuffer[ConditionalHistogramRegressor.RegressionExample]) => list.map(e => e.target).toSeq
+    val stripFeatures = (list:ArrayBuffer[HistogramRegressor.RegressionExample]) => list.map(e => e.target).toSeq
 
 
     //precompute the Vector Histograms

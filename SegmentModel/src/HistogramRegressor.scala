@@ -9,24 +9,49 @@
 import cc.factorie.la.Tensor1
 import jnisvmlight._
 
-class ConditionalHistogramRegressor(examples:Seq[ConditionalHistogramRegressor.RegressionExample], private val metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer)
+abstract class HistogramRegressor(examples:Seq[HistogramRegressor.RegressionExample], private val metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer)
 {
-    private var centroids:IndexedSeq[Tensor1] = null
+    protected val centroids:IndexedSeq[Tensor1] = getCentroids(examples, quantizer)
+
+    private def getCentroids(examples:Seq[HistogramRegressor.RegressionExample], quantizer:VectorQuantizer) : IndexedSeq[Tensor1] =
+    {
+        assert(examples.length > 0, {println("HistogramRegressor: cannot train with 0 training examples")})
+        println("Quantizing...")
+        (quantizer(for (ex <- examples) yield ex.target, metric))._1
+    }
+
+    protected def fillBins(featureVec:Tensor1, bins:Array[Double])
+
+    def predictHistogram(featureVec:Tensor1) : VectorHistogram =
+    {
+        val bins = new Array[Double](centroids.length)
+        fillBins(featureVec, bins)
+
+        // Normalize bins
+        var totalmass = 0.0
+        for (i <- 0 until bins.length)
+            totalmass += bins(i)
+        for (i <- 0 until bins.length) bins(i) /= totalmass
+
+        // Construct histogram
+        val hist = new VectorHistogram(metric)
+        hist.setData(centroids, bins)
+        hist
+    }
+}
+
+class SVMLightHistogramRegressor(examples:Seq[HistogramRegressor.RegressionExample], metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer)
+    extends HistogramRegressor(examples, metric, quantizer)
+{
     private var regressors:Array[SVMLightModel] = null
     private var featureIndices:Array[Int] = null
 
-    train(examples, quantizer)
+    train(examples)
 
-    private def train(examples:Seq[ConditionalHistogramRegressor.RegressionExample], quantizer:VectorQuantizer)
+    private def train(examples:Seq[HistogramRegressor.RegressionExample])
     {
-        assert(examples.length > 0, {println("ConditionalHistogramRegressor: cannot train with 0 training examples")})
-        featureIndices = (0 until examples(0).features.length).toArray
-
-        // Invoke the quantizer
-        println("Quantizing...")
-        val (centroids, assignments) = quantizer(for (ex <- examples) yield ex.target, metric)
-        this.centroids = centroids
         val numBins = centroids.length
+        featureIndices = (0 until examples(0).features.length).toArray
 
         // Set up the JNI interface to svmlight
         val trainer = new SVMLightInterface()
@@ -46,7 +71,7 @@ class ConditionalHistogramRegressor(examples:Seq[ConditionalHistogramRegressor.R
         regressors = new Array[SVMLightModel](numBins)
         for (i <- 0 until numBins)
         {
-            println("ConditionalHistogramRegressor: Training bin " + i)
+            println("HistogramRegressor: Training bin " + i)
             // Fill in training data in the format expected by svmlight
             println("Formatting training data...")
             val trainingData = new Array[LabeledFeatureVector](examples.length)
@@ -67,28 +92,15 @@ class ConditionalHistogramRegressor(examples:Seq[ConditionalHistogramRegressor.R
         }
     }
 
-    def predictHistogram(featureVec:Tensor1) : VectorHistogram =
+    protected def fillBins(featureVec:Tensor1, bins:Array[Double])
     {
         val svmlightfeatures = new FeatureVector(featureIndices, featureVec.toArray)
-        val bins = new Array[Double](centroids.length)
-        var totalmass = 0.0
         for (i <- 0 until bins.length)
-        {
-            val prediction = MathUtils.clamp(regressors(i).classify(svmlightfeatures), 0.0, 1.0)
-            bins(i) = prediction
-            totalmass += prediction
-        }
-
-        // Normalize bins
-        for (i <- 0 until bins.length) bins(i) /= totalmass
-
-        val hist = new VectorHistogram(metric)
-        hist.setData(centroids, bins)
-        hist
+            bins(i) = MathUtils.clamp(regressors(i).classify(svmlightfeatures), 0.0, 1.0)
     }
 }
 
-object ConditionalHistogramRegressor
+object HistogramRegressor
 {
     case class RegressionExample(target:Tensor1, features:Tensor1) {}
 }

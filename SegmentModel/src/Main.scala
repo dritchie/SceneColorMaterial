@@ -170,19 +170,19 @@ object Main
         // Sample a bunch from each feature class, associating a sampled target value with each sampled feature vector
         //val numSamplesPerClass = 20000
         val numSamplesPerClass = 20
-        val samples = new ArrayBuffer[ConditionalHistogramRegressor.RegressionExample]
+        val samples = new ArrayBuffer[HistogramRegressor.RegressionExample]
         println("Generating training samples...")
         for (i <- 0 until numClasses)
         {
             val featureVecs = sampleFromGMM(Array(1.0), Array(feature_means(i)), Array(feature_stddevs(i)), numSamplesPerClass)
             val targetVecs = sampleFromGMM(target_weights(i), target_means(i), target_stddevs(i), numSamplesPerClass)
             for (j <- 0 until numSamplesPerClass)
-                samples += ConditionalHistogramRegressor.RegressionExample(targetVecs(j), featureVecs(j))
+                samples += HistogramRegressor.RegressionExample(targetVecs(j), featureVecs(j))
         }
 
-        // Train a ConditionalHistogramRegressor
-        println("Training ConditionalHistogramRegressor...")
-        val chr = new ConditionalHistogramRegressor(samples, MathUtils.euclideanDistance, new KMeansVectorQuantizer(20))
+        // Train a HistogramRegressor
+        println("Training HistogramRegressor...")
+        val chr = new SVMLightHistogramRegressor(samples, MathUtils.euclideanDistance, new KMeansVectorQuantizer(20))
 
         // Predict histograms for the means of each feature class, convert to densitymaps and save images
         for (i <- 0 until numClasses)
