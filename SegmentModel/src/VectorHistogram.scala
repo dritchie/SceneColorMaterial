@@ -75,9 +75,9 @@ class VectorHistogram(private val metric:MathUtils.DistanceMetric)
         {
             val centroid = centroids(i)
             val freq = bins(i)
-            val d2 = metric(point, centroid)
+            val d = metric(point, centroid)
             val sigma = bandwidths(i)
-            sum += freq * MathUtils.gaussianDistribution(d2, sigma)
+            sum += freq * MathUtils.gaussianDistribution(d, sigma)
         }
         sum / bins.length
     }
@@ -85,9 +85,10 @@ class VectorHistogram(private val metric:MathUtils.DistanceMetric)
     def evaluateBinAt(bin:Int, point:Tensor1) : Double =
     {
         val centroid = centroids(bin)
-        val d2 = metric(point, centroid)
+        val d = metric(point, centroid)
         val sigma = bandwidths(bin)
-        MathUtils.gaussianDistribution(d2, sigma)
+        val value = MathUtils.gaussianDistribution(d, sigma)
+        value
     }
 
     private def estimateBandwidths()

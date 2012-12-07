@@ -182,8 +182,8 @@ object Main
 
         // Train a HistogramRegressor
         println("Training HistogramRegressor...")
-        //val hr = new SVMLightHistogramRegressor(samples, MathUtils.euclideanDistance, new KMeansVectorQuantizer(20))
         val hr = HistogramRegressor.KNN(samples, MathUtils.euclideanDistance, new KMeansVectorQuantizer(20), WekaMultiClassHistogramRegressor)
+        //val hr = HistogramRegressor.KNN(samples, MathUtils.euclideanDistance, new KMeansVectorQuantizer(20), WekaBinByBinHistogramRegressor)
 
         // Predict histograms for the means of each feature class, convert to densitymaps and save images
         for (i <- 0 until numClasses)
