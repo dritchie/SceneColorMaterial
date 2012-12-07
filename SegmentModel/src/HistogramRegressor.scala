@@ -8,8 +8,10 @@
 
 import cc.factorie.la.Tensor1
 import jnisvmlight._
-import weka.classifiers.`lazy`.IBk
+import weka.classifiers.`lazy`.{LWL, IBk}
 import weka.classifiers.Classifier
+import weka.classifiers.functions.supportVector.RBFKernel
+import weka.classifiers.functions.{SMO, Logistic}
 import weka.core._
 import neighboursearch.KDTree
 
@@ -24,6 +26,35 @@ object HistogramRegressor
         classifier.setKNN(100)
         classifier.setMeanSquared(true)
         classifier.setNearestNeighbourSearchAlgorithm(new KDTree())
+
+        generator(classifier, examples, metric, quantizer)
+    }
+
+    def LogisticRegression(examples:Seq[HistogramRegressor.RegressionExample], metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer, generator:WekaHistogramRegressor) =
+    {
+        val classifier = new Logistic()
+
+        generator(classifier, examples, metric, quantizer)
+    }
+
+    def LWLR(examples:Seq[HistogramRegressor.RegressionExample], metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer, generator:WekaHistogramRegressor) =
+    {
+        val classifier = new Logistic()
+        val enhancer = new LWL()
+        enhancer.setClassifier(classifier)
+        enhancer.setNearestNeighbourSearchAlgorithm(new KDTree())
+        enhancer.setKNN(100)
+
+        generator(enhancer, examples, metric, quantizer)
+    }
+
+    def SVM(examples:Seq[HistogramRegressor.RegressionExample], metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer, generator:WekaHistogramRegressor) =
+    {
+        val classifier = new SMO()
+        classifier.setNumFolds(10)
+        classifier.setFilterType(new SelectedTag(SMO.FILTER_STANDARDIZE, SMO.TAGS_FILTER))
+        val kernel = new RBFKernel()
+        classifier.setKernel(kernel)
 
         generator(classifier, examples, metric, quantizer)
     }
