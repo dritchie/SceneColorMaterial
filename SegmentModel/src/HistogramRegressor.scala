@@ -17,7 +17,7 @@ object HistogramRegressor
 {
     case class RegressionExample(target:Tensor1, features:Tensor1) {}
 
-    def KNN(examples:Seq[HistogramRegressor.RegressionExample], metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer, generator:WekaRegressorGenerator) =
+    def KNN(examples:Seq[HistogramRegressor.RegressionExample], metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer, generator:WekaHistogramRegressor) =
     {
         val classifier = new IBk()
         classifier.setDistanceWeighting(new SelectedTag(IBk.WEIGHT_INVERSE, IBk.TAGS_WEIGHTING))
@@ -127,13 +127,13 @@ There are two posssible implmentations for Weka-based regressors:
 I don't know which one will work better, so it's probably best to try both and see.
  */
 
-trait WekaRegressorGenerator
+trait WekaHistogramRegressor
 {
     def apply(classifier:Classifier, examples:Seq[HistogramRegressor.RegressionExample],
                           metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer) : HistogramRegressor
 }
 
-object WekaMultiClassHistogramRegressor extends WekaRegressorGenerator
+object WekaMultiClassHistogramRegressor extends WekaHistogramRegressor
 {
     def apply(classifier:Classifier, examples:Seq[HistogramRegressor.RegressionExample],
                           metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer) = new WekaMultiClassHistogramRegressor(classifier, examples, metric, quantizer)
@@ -142,7 +142,10 @@ object WekaMultiClassHistogramRegressor extends WekaRegressorGenerator
 class WekaMultiClassHistogramRegressor(private val classifier:Classifier, examples:Seq[HistogramRegressor.RegressionExample], metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer)
     extends HistogramRegressor(examples, metric, quantizer)
 {
-    private val attributePrototype:FastVector = buildAttributePrototype(examples)
+    private val attributePrototype = buildAttributePrototype(examples)
+
+    private val dummyDataset = new Instances("dummySet", attributePrototype, 0)
+    dummyDataset.setClassIndex(attributePrototype.size - 1)
 
     train(examples)
 
@@ -206,6 +209,10 @@ class WekaMultiClassHistogramRegressor(private val classifier:Classifier, exampl
     {
         // Convert feature vector to Weka format
         val instance = convertToWekaInstance(featureVec)
+
+        // We have to associate the instance with a dataset in order for it
+        // to know which attributes it has and which is the class attribute
+        instance.setDataset(dummyDataset)
 
         // Ask classifier for distribution over classes
         val distrib = classifier.distributionForInstance(instance)
