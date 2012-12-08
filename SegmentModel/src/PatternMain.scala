@@ -88,7 +88,7 @@ object PatternMain {
       // Output the result
       segmesh.saveColorAssignments(outputDir+"/"+files(idx).getName)
 
-      //Evaluate assignments
+      // Evaluate assignments
       val score = segmesh.scoreAssignment()
       println(files(idx).getName+" Score: "+score)
       avgScore += score

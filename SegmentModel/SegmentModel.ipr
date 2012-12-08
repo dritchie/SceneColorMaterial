@@ -197,9 +197,9 @@
     <mapping directory="$PROJECT_DIR$/.." vcs="Git" />
   </component>
   <component name="libraryTable">
-    <library name="factorie-1.0.0-M1">
+    <library name="factorie-1.0.0-M2">
       <CLASSES>
-        <root url="jar://$FACTORIE_HOME$/target/factorie-1.0.0-M1.jar!/" />
+        <root url="jar://$FACTORIE_HOME$/target/factorie-1.0.0-M2.jar!/" />
       </CLASSES>
       <JAVADOC />
       <SOURCES>
