@@ -7,22 +7,39 @@
  */
 
 import cc.factorie._
+import cc.factorie.la.Tensor1
 
-/**
- * Given a segment mesh, builds a graph of factors that attemt to maintain the observed contrast between
- * adjacent color groups
- */
-class MaintainObservedContrastModel(segmesh:SegmentMesh[DiscreteColorVariable]) extends ItemizedModel
+type UnaryColorPropertyExtractor = Color => Tensor1
+type BinaryColorPropertyExtractor = (Color, Color) => Tensor1
+
+trait UnarySegmentTemplate
 {
-    // For each group, add a factor for each adjacent group
-    // (Deduplicate by only adding the (low, high) pair)
-    for (group1 <- segmesh.groups)
+    def colorPropExtractor:UnaryColorPropertyExtractor
+    def computeStatistics(color:Color, hist:VectorHistogram) : Tensor1  =
     {
-        for (group2 <- group1.adjacencies)
-        {
-            if (group1.index < group2.index)
-                this += new PairwiseMaintainObservedContrastFactor(group1.color, group2.color)
-        }
+        val props = colorPropExtractor(color)
+        val density = hist.evaluateAt(props)
+        Tensor1(math.log(density))
     }
 }
 
+trait BinarySegmentTemplate
+{
+    def colorPropExtractor:BinaryColorPropertyExtractor
+    def computeScore(color1:Color, color2:Color, hist:VectorHistogram) : Tensor1 =
+    {
+        val props = colorPropExtractor(color1, color2)
+        val density = hist.evaluateAt(props)
+        Tensor1(math.log(density))
+    }
+}
+
+// A factorie-friendly way to pass VectorHistograms to the score/statistcs functions
+// in factor templates
+type VecHistVariable = RefVariable[VectorHistogram]
+
+
+//class DiscreteUnarySegmentTemplate(val colorPropExtractor:UnaryColorPropertyExtractor)
+//    extends DotTemplate2[DiscreteColorVariable, VecHistVariable] with UnarySegmentTemplate
+//{
+//}

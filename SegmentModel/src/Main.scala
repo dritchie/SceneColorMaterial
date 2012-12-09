@@ -36,8 +36,23 @@ object Main
 
     def testContrastModel()
     {
+        class MaintainObservedContrastModel(segmesh:SegmentMesh) extends ItemizedModel
+        {
+            // For each group, add a factor for each adjacent group
+            // (Deduplicate by only adding the (low, high) pair)
+            for (group1 <- segmesh.groups)
+            {
+                for (group2 <- group1.adjacencies)
+                {
+                    if (group1.index < group2.index)
+                        this += new PairwiseMaintainObservedContrastFactor(group1.color.asInstanceOf[DiscreteColorVariable],
+                                                                           group2.color.asInstanceOf[DiscreteColorVariable])
+                }
+            }
+        }
+
         val filename = "../SceneToolbox/Output/segDescription.txt"
-        val segmesh = new SegmentMesh[DiscreteColorVariable](DiscreteColorVariable, filename)
+        val segmesh = new SegmentMesh(DiscreteColorVariable, filename)
         val model = new MaintainObservedContrastModel(segmesh)
 
         // Define a color palette, use those (and only those) colors as our
@@ -54,7 +69,7 @@ object Main
         // Do inference
         val sampler = new VariableSettingsSampler[DiscreteColorVariable](model)
         val optimizer = new SamplingMaximizer(sampler)
-        optimizer.maximize(for (group <- segmesh.groups) yield group.color, 100)
+        optimizer.maximize(for (group <- segmesh.groups) yield group.color.asInstanceOf[DiscreteColorVariable], 100)
 
         // Output the result
         segmesh.saveColorAssignments("../SceneToolbox/Output/colorAssignments.txt")

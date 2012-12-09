@@ -43,7 +43,7 @@ object PatternMain {
   val inputDir = "../PatternColorizer/out/mesh"
   val outputDir = "../PatternColorizer/out/specs"
 
-  var meshes:ArrayBuffer[SegmentMesh[DiscreteColorVariable]] = new ArrayBuffer[SegmentMesh[DiscreteColorVariable]]()
+  var meshes:ArrayBuffer[SegmentMesh] = new ArrayBuffer[SegmentMesh]()
   var files:Array[File] = null
   val numBins = 10
   val random = new Random()
@@ -58,7 +58,7 @@ object PatternMain {
 
     for (f <- files)
     {
-      meshes.append(new SegmentMesh[DiscreteColorVariable](DiscreteColorVariable, f.getAbsolutePath))
+      meshes.append(new SegmentMesh(DiscreteColorVariable, f.getAbsolutePath))
     }
 
     //for now, just try using the original palette
@@ -72,7 +72,7 @@ object PatternMain {
       val segmesh = meshes(idx)
       count += 1
       //get all the other meshes
-      val trainingMeshes:Array[SegmentMesh[DiscreteColorVariable]] = {for (tidx<-meshes.indices if tidx != idx) yield meshes(tidx)}.toArray
+      val trainingMeshes:Array[SegmentMesh] = {for (tidx<-meshes.indices if tidx != idx) yield meshes(tidx)}.toArray
       val samples = getSamples(trainingMeshes)
 
 
@@ -83,7 +83,7 @@ object PatternMain {
       // Do inference
       val sampler = new VariableSettingsSampler[DiscreteColorVariable](model)
       val optimizer = new SamplingMaximizer(sampler)
-      optimizer.maximize(for (group <- segmesh.groups) yield group.color, 100)
+      optimizer.maximize(for (group <- segmesh.groups) yield group.color.asInstanceOf[DiscreteColorVariable], 100)
 
       // Output the result
       segmesh.saveColorAssignments(outputDir+"/"+files(idx).getName)
@@ -115,23 +115,23 @@ object PatternMain {
 
   }
 
-  def RandomAssignment[ColorVar<:ColorVariable](segmesh:SegmentMesh[ColorVar], palette:ColorPalette) : Seq[Color] =
+  def RandomAssignment(segmesh:SegmentMesh, palette:ColorPalette) : Seq[Color] =
   {
      segmesh.groups.map(g => palette(random.nextInt(palette.length)))
   }
 
 
 
-  def getLabels[ColorVar<:ColorVariable] = (seg:Segment[ColorVar]) => {
+  def getLabels = (seg:Segment) => {
     val list = seg.features.filter(f => f.name == "Label").map(f => f.values(0))
     list(0).toInt
   }
-  def getSizes[ColorVar<:ColorVariable] = (seg:Segment[ColorVar]) => {
+  def getSizes = (seg:Segment) => {
     val list = seg.features.filter(f => f.name == "RelativeSize").map(f => f.values(0))
     list(0)
   }
 
-  def getSamples[ColorVar<:ColorVariable](trainingMeshes:Array[SegmentMesh[ColorVar]]):TrainingSamples =
+  def getSamples(trainingMeshes:Array[SegmentMesh]):TrainingSamples =
   {
     val samples = new TrainingSamples()
 
@@ -189,7 +189,7 @@ object PatternMain {
 
   }
 
-  def buildModel(targetMesh:SegmentMesh[DiscreteColorVariable], samples:TrainingSamples): ItemizedModel =
+  def buildModel(targetMesh:SegmentMesh, samples:TrainingSamples): ItemizedModel =
   {
 
     //train the regressors
@@ -227,8 +227,8 @@ object PatternMain {
 
 
       //for each individual region in the target mesh, add a unary factor
-      model += new FeaturePriorFactor(seg.group.color, samples.lightnessRegressor(label).predictHistogram(Tensor1(size)), getLightness)
-      model += new FeaturePriorFactor(seg.group.color, samples.saturationRegressor(label).predictHistogram(Tensor1(size)), getSaturation)
+      model += new FeaturePriorFactor(seg.group.color.asInstanceOf[DiscreteColorVariable], samples.lightnessRegressor(label).predictHistogram(Tensor1(size)), getLightness)
+      model += new FeaturePriorFactor(seg.group.color.asInstanceOf[DiscreteColorVariable], samples.saturationRegressor(label).predictHistogram(Tensor1(size)), getSaturation)
 
       val neighbors = seg.adjacencies.filter(n=> n.index > seg.index)
       val vals = neighbors.map(n=> {
@@ -242,12 +242,12 @@ object PatternMain {
         if (n < label)
         {
           val distribution = samples.contrastRegressor((n, label)).predictHistogram(Tensor1(s, size))
-          model += new ContrastPriorFactor2(g.color, seg.group.color, distribution)
+          model += new ContrastPriorFactor2(g.color.asInstanceOf[DiscreteColorVariable], seg.group.color.asInstanceOf[DiscreteColorVariable], distribution)
 
         } else
         {
           val distribution = samples.contrastRegressor((label, n)).predictHistogram(Tensor1(size, s))
-          model += new ContrastPriorFactor2(seg.group.color, g.color, distribution)
+          model += new ContrastPriorFactor2(seg.group.color.asInstanceOf[DiscreteColorVariable], g.color.asInstanceOf[DiscreteColorVariable], distribution)
         }
       }
 
@@ -259,7 +259,7 @@ object PatternMain {
   }
 
   //test building the model using the vector histogram (no features)
-  def buildModelVH(targetMesh:SegmentMesh[DiscreteColorVariable], samples:TrainingSamples): ItemizedModel =
+  def buildModelVH(targetMesh:SegmentMesh, samples:TrainingSamples): ItemizedModel =
   {
     println("Building model")
 
@@ -296,8 +296,8 @@ object PatternMain {
 
 
       //for each individual region in the target mesh, add a unary factor
-      model += new FeaturePriorFactor(seg.group.color, samples.lightnessVH(label), getLightness)
-      model += new FeaturePriorFactor(seg.group.color, samples.saturationVH(label), getSaturation)
+      model += new FeaturePriorFactor(seg.group.color.asInstanceOf[DiscreteColorVariable], samples.lightnessVH(label), getLightness)
+      model += new FeaturePriorFactor(seg.group.color.asInstanceOf[DiscreteColorVariable], samples.saturationVH(label), getSaturation)
 
       val neighbors = seg.adjacencies.filter(n=> n.index > seg.index)
       val vals = neighbors.map(n=> {
@@ -311,12 +311,12 @@ object PatternMain {
         if (n < label)
         {
           val distribution = samples.contrastVH((n,label))
-          model += new ContrastPriorFactor2(g.color, seg.group.color, distribution)
+          model += new ContrastPriorFactor2(g.color.asInstanceOf[DiscreteColorVariable], seg.group.color.asInstanceOf[DiscreteColorVariable], distribution)
 
         } else
         {
           val distribution = samples.contrastVH((label, n))
-          model += new ContrastPriorFactor2(seg.group.color, g.color, distribution)
+          model += new ContrastPriorFactor2(seg.group.color.asInstanceOf[DiscreteColorVariable], g.color.asInstanceOf[DiscreteColorVariable], distribution)
         }
       }
 

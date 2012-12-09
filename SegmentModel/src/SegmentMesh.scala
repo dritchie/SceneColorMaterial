@@ -13,11 +13,11 @@ import io.Source
 import java.io.FileWriter
 
 
-class Segment[ColorVar<:ColorVariable](val index:Int, val owner:SegmentMesh[ColorVar])
+class Segment(val index:Int, val owner:SegmentMesh)
 {
     val features = new ArrayBuffer[SegmentFeature]
-    val adjacencies = new HashSet[Segment[ColorVar]]
-    var group : SegmentGroup[ColorVar] = null
+    val adjacencies = new HashSet[Segment]
+    var group : SegmentGroup = null
 }
 
 class SegmentFeature(val name:String)
@@ -25,21 +25,21 @@ class SegmentFeature(val name:String)
     val values = new GrowableDenseTensor1(0)
 }
 
-class SegmentGroup[ColorVar<:ColorVariable](val index:Int, val owner:SegmentMesh[ColorVar])
+class SegmentGroup(val index:Int, val owner:SegmentMesh)
 {
-    var color:ColorVar = null.asInstanceOf[ColorVar]
-    val members = new ArrayBuffer[Segment[ColorVar]]
-    val adjacencies = new HashSet[SegmentGroup[ColorVar]]
+    var color:ColorVariable = null
+    val members = new ArrayBuffer[Segment]
+    val adjacencies = new HashSet[SegmentGroup]
 }
 
-class SegmentMesh[ColorVar<:ColorVariable](private val gen:ColorVariableGenerator[ColorVar])
+class SegmentMesh(private val gen:ColorVariableGenerator)
 {
     /** Data members **/
-    val segments = new ArrayBuffer[Segment[ColorVar]]
-    val groups = new ArrayBuffer[SegmentGroup[ColorVar]]
+    val segments = new ArrayBuffer[Segment]
+    val groups = new ArrayBuffer[SegmentGroup]
 
     /** Constructor **/
-    def this(gen:ColorVariableGenerator[ColorVar], filename:String)
+    def this(gen:ColorVariableGenerator, filename:String)
     {
         this(gen)
 

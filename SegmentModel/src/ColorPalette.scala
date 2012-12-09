@@ -18,7 +18,7 @@ object ColorPalette
         new ColorPalette
     }
 
-    def apply[ColorVar<:ColorVariable](segmesh:SegmentMesh[ColorVar]) =
+    def apply(segmesh:SegmentMesh) =
     {
         val colors = {for (group<-segmesh.groups if (group.color.observedColor!=null))
             yield group.color.observedColor}.toArray

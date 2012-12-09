@@ -10,14 +10,15 @@ import cc.factorie._
 
 trait ColorVariable
 {
+    def group:SegmentGroup
     def observedColor:Color
     def setColor(color:Color)
     def getColor:Color
 }
 
-trait ColorVariableGenerator[V <: ColorVariable]
+trait ColorVariableGenerator
 {
-    def apply(group:SegmentGroup[V], observedColor:Color = null) : V
+    def apply(group:SegmentGroup, observedColor:Color = null) : ColorVariable
 }
 
 /*
@@ -25,7 +26,7 @@ trait ColorVariableGenerator[V <: ColorVariable]
  * (i.e. when we have a restricted palette)
  */
 
-class DiscreteColorVariable(val group:SegmentGroup[DiscreteColorVariable], val observedColor:Color = null) extends CategoricalVariable[Color] with ColorVariable
+class DiscreteColorVariable(val group:SegmentGroup, val observedColor:Color = null) extends CategoricalVariable[Color] with ColorVariable
 {
     def domain = DiscreteColorVariable.domain
     def setColor(color:Color)
@@ -35,7 +36,7 @@ class DiscreteColorVariable(val group:SegmentGroup[DiscreteColorVariable], val o
     def getColor:Color = value.category
 }
 
-object DiscreteColorVariable extends ColorVariableGenerator[DiscreteColorVariable]
+object DiscreteColorVariable extends ColorVariableGenerator
 {
     var domain : CategoricalDomain[Color] = null
 
@@ -44,7 +45,7 @@ object DiscreteColorVariable extends ColorVariableGenerator[DiscreteColorVariabl
         domain = new CategoricalDomain(colors)
     }
 
-    def apply(group:SegmentGroup[DiscreteColorVariable], observedColor:Color = null) : DiscreteColorVariable = new DiscreteColorVariable(group, observedColor)
+    def apply(group:SegmentGroup, observedColor:Color = null) : DiscreteColorVariable = new DiscreteColorVariable(group, observedColor)
 }
 
 
@@ -53,7 +54,7 @@ object DiscreteColorVariable extends ColorVariableGenerator[DiscreteColorVariabl
  * to draw from and we allow our assignments to range over the entire color space
  */
 
-class ContinuousColorVariable(val group:SegmentGroup[ContinuousColorVariable], val observedColor:Color = null) extends MutableTensorVar[Color] with ColorVariable
+class ContinuousColorVariable(val group:SegmentGroup, val observedColor:Color = null) extends MutableTensorVar[Color] with ColorVariable
 {
     def domain = TensorDomain
     def setColor(color:Color)
@@ -63,7 +64,7 @@ class ContinuousColorVariable(val group:SegmentGroup[ContinuousColorVariable], v
     def getColor = value
 }
 
-object ContinuousColorVariable extends ColorVariableGenerator[ContinuousColorVariable]
+object ContinuousColorVariable extends ColorVariableGenerator
 {
-    def apply(group:SegmentGroup[ContinuousColorVariable], observedColor:Color = null) : ContinuousColorVariable = new ContinuousColorVariable(group, observedColor)
+    def apply(group:SegmentGroup, observedColor:Color = null) : ContinuousColorVariable = new ContinuousColorVariable(group, observedColor)
 }
