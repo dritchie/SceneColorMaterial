@@ -6,21 +6,25 @@
  * To change this template use File | Settings | File Templates.
  */
 
-class ColorPalette
+import collection.mutable.ArrayBuffer
+
+class ColorPalette extends ArrayBuffer[Color]
+
+object ColorPalette
 {
-    def this(filename:String)
+    def apply(filename:String) =
     {
-        this()
         // TODO: Make this load colors from some file (possibly an Adobe .ase file?)
+        new ColorPalette
     }
 
-  //get the palette of the segment mesh
-    def this(segmesh:SegmentMesh)
+    def apply[ColorVar<:ColorVariable](segmesh:SegmentMesh[ColorVar]) =
     {
-      this()
-      colors = {for (group<-segmesh.groups if (group.color.observedColor!=null))
-                    yield group.color.observedColor}.toArray
+        val colors = {for (group<-segmesh.groups if (group.color.observedColor!=null))
+            yield group.color.observedColor}.toArray
+        val palette = new ColorPalette
+        palette ++= colors
+        palette
     }
-
-    var colors : Array[Color] = null
 }
+

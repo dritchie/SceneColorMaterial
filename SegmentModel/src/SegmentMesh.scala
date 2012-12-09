@@ -13,11 +13,11 @@ import io.Source
 import java.io.FileWriter
 
 
-class Segment(val index:Int, val owner:SegmentMesh)
+class Segment[ColorVar<:ColorVariable](val index:Int, val owner:SegmentMesh[ColorVar])
 {
     val features = new ArrayBuffer[SegmentFeature]
-    val adjacencies = new HashSet[Segment]
-    var group : SegmentGroup = null
+    val adjacencies = new HashSet[Segment[ColorVar]]
+    var group : SegmentGroup[ColorVar] = null
 }
 
 class SegmentFeature(val name:String)
@@ -25,19 +25,23 @@ class SegmentFeature(val name:String)
     val values = new GrowableDenseTensor1(0)
 }
 
-class SegmentGroup(val index:Int, val owner:SegmentMesh)
+class SegmentGroup[ColorVar<:ColorVariable](val index:Int, val owner:SegmentMesh[ColorVar])
 {
-    var color:DiscreteColorVariable = null
-    val members = new ArrayBuffer[Segment]
-    val adjacencies = new HashSet[SegmentGroup]
+    var color:ColorVar = null.asInstanceOf[ColorVar]
+    val members = new ArrayBuffer[Segment[ColorVar]]
+    val adjacencies = new HashSet[SegmentGroup[ColorVar]]
 }
 
-class SegmentMesh
+class SegmentMesh[ColorVar<:ColorVariable](private val gen:ColorVariableGenerator[ColorVar])
 {
+    /** Data members **/
+    val segments = new ArrayBuffer[Segment[ColorVar]]
+    val groups = new ArrayBuffer[SegmentGroup[ColorVar]]
+
     /** Constructor **/
-    def this(filename:String)
+    def this(gen:ColorVariableGenerator[ColorVar], filename:String)
     {
-        this()  // Invoke the primary constructor (which does nothing, in our case)
+        this(gen)
 
         val adjacencies = new ArrayBuffer[ ArrayBuffer[Int] ]
 
@@ -124,7 +128,7 @@ class SegmentMesh
                 {
                     // Assuming that colors are given in RGB
                     val c = Color.RGBColor(tokens(1).toDouble, tokens(2).toDouble, tokens(3).toDouble)
-                    newgroup.color = new DiscreteColorVariable(newgroup, c)
+                    newgroup.color = gen(newgroup, c)
                 }
                 case "Members" =>
                 {
@@ -151,7 +155,7 @@ class SegmentMesh
         val out = new FileWriter(filename)
         for (group <- groups)
         {
-            out.write(group.color.value.category.componentString() + "\n")
+            out.write(group.color.getColor.componentString + "\n")
         }
         out.close()
     }
@@ -162,7 +166,7 @@ class SegmentMesh
       //just scoring by the color difference between the observed and assigned colors of each group, weighted uniformly
       //the smaller the score, the better
       val diffs = groups.map(
-        g=>{if (g.color.observedColor==null) 0 else g.color.observedColor.distance(g.color.value.category)}
+        g=>{if (g.color.observedColor==null) 0 else g.color.observedColor.distance(g.color.getColor)}
       )
       diffs.sum/groups.length
     }
@@ -182,8 +186,4 @@ class SegmentMesh
     diffs/groups.length
 
   }
-
-    /** Data members **/
-    val segments = new ArrayBuffer[Segment]
-    val groups = new ArrayBuffer[SegmentGroup]
 }

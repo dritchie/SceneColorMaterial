@@ -6,23 +6,21 @@
  * To change this template use File | Settings | File Templates.
  */
 
+import cc.factorie.la.Tensor1
 import cc.factorie.la.DenseTensor1
 
-class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpace)
+class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpace) extends DenseTensor1(3)
 {
-    val components = new DenseTensor1(3)
-    components.update(0, c1)
-    components.update(1, c2)
-    components.update(2, c3)
+    update(0, c1)
+    update(1, c2)
+    update(2, c3)
 
-    def this(c:Color) = this(c(0), c(1), c(2), c.colorspace)
+    def this(comps:Tensor1, cspace:ColorSpace) = this(comps(0), comps(1), comps(2), cspace)
+    def this(c:Color) = this(c, c.colorspace)
+    def this(cspace:ColorSpace) = this(0.0, 0.0, 0.0, cspace)
 
-    override def toString: String = colorspace + "(" + components(0) + "," + components(1) + "," + components(2) + ")"
-    def componentString() : String = "" + components(0) + " " + components(1) + " " + components(2)
-
-    // Component access
-    // (Do a bounds check? That slows code down a lot, though...)
-    def apply(index:Int) = components(index)
+    override def toString : String = colorspace + "(" + this(0) + "," + this(1) + "," + this(2) + ")"
+    def componentString : String = "" + this(0) + " " + this(1) + " " + this(2)
 
     def colorSpace = colorspace
     def isIn(cspace:ColorSpace) = colorspace == cspace
@@ -33,10 +31,10 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
     {
         if (cspace != colorspace)
         {
-            val newcomps = (cspace.fromRGB _).tupled(colorspace.toRGB(components(0), components(1), components(2)))
-            components.update(0, newcomps._1)
-            components.update(1, newcomps._2)
-            components.update(2, newcomps._3)
+            val newcomps = (cspace.fromRGB _).tupled(colorspace.toRGB(this(0), this(1), this(2)))
+            update(0, newcomps._1)
+            update(1, newcomps._2)
+            update(2, newcomps._3)
             colorspace = cspace
         }
     }
@@ -68,7 +66,7 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
     def distance(color:Color): Double =
     {
         val c = color.copyIfNeededTo(this.colorspace)
-        colorspace.distance(this.components, c.components)
+        colorspace.distance(this, c)
     }
 }
 

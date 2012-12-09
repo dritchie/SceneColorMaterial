@@ -43,7 +43,7 @@ object PatternMain {
   val inputDir = "../PatternColorizer/out/mesh"
   val outputDir = "../PatternColorizer/out/specs"
 
-  var meshes:ArrayBuffer[SegmentMesh] = new ArrayBuffer[SegmentMesh]()
+  var meshes:ArrayBuffer[SegmentMesh[DiscreteColorVariable]] = new ArrayBuffer[SegmentMesh[DiscreteColorVariable]]()
   var files:Array[File] = null
   val numBins = 10
   val random = new Random()
@@ -58,7 +58,7 @@ object PatternMain {
 
     for (f <- files)
     {
-      meshes.append(new SegmentMesh(f.getAbsolutePath))
+      meshes.append(new SegmentMesh[DiscreteColorVariable](DiscreteColorVariable, f.getAbsolutePath))
     }
 
     //for now, just try using the original palette
@@ -72,13 +72,13 @@ object PatternMain {
       val segmesh = meshes(idx)
       count += 1
       //get all the other meshes
-      val trainingMeshes:Array[SegmentMesh] = {for (tidx<-meshes.indices if tidx != idx) yield meshes(tidx)}.toArray
+      val trainingMeshes:Array[SegmentMesh[DiscreteColorVariable]] = {for (tidx<-meshes.indices if tidx != idx) yield meshes(tidx)}.toArray
       val samples = getSamples(trainingMeshes)
 
 
       val model = buildModelVH(segmesh, samples)//buildModel(segmesh, samples) //MaintainObservedContrastModel(segmesh)
-      val palette = new ColorPalette(segmesh)
-      DiscreteColorVariable.initDomain(palette.colors)
+      val palette = ColorPalette(segmesh)
+      DiscreteColorVariable.initDomain(palette)
 
       // Do inference
       val sampler = new VariableSettingsSampler[DiscreteColorVariable](model)
@@ -115,23 +115,23 @@ object PatternMain {
 
   }
 
-  def RandomAssignment(segmesh:SegmentMesh, palette:ColorPalette):Seq[Color] =
+  def RandomAssignment[ColorVar<:ColorVariable](segmesh:SegmentMesh[ColorVar], palette:ColorPalette) : Seq[Color] =
   {
-     segmesh.groups.map(g => palette.colors(random.nextInt(palette.colors.length)))
+     segmesh.groups.map(g => palette(random.nextInt(palette.length)))
   }
 
 
 
-  def getLabels = (seg:Segment) => {
+  def getLabels[ColorVar<:ColorVariable] = (seg:Segment[ColorVar]) => {
     val list = seg.features.filter(f => f.name == "Label").map(f => f.values(0))
     list(0).toInt
   }
-  def getSizes = (seg:Segment) => {
+  def getSizes[ColorVar<:ColorVariable] = (seg:Segment[ColorVar]) => {
     val list = seg.features.filter(f => f.name == "RelativeSize").map(f => f.values(0))
     list(0)
   }
 
-  def getSamples(trainingMeshes:Array[SegmentMesh]):TrainingSamples =
+  def getSamples[ColorVar<:ColorVariable](trainingMeshes:Array[SegmentMesh[ColorVar]]):TrainingSamples =
   {
     val samples = new TrainingSamples()
 
@@ -189,7 +189,7 @@ object PatternMain {
 
   }
 
-  def buildModel(targetMesh:SegmentMesh, samples:TrainingSamples): ItemizedModel =
+  def buildModel(targetMesh:SegmentMesh[DiscreteColorVariable], samples:TrainingSamples): ItemizedModel =
   {
 
     //train the regressors
@@ -259,7 +259,7 @@ object PatternMain {
   }
 
   //test building the model using the vector histogram (no features)
-  def buildModelVH(targetMesh:SegmentMesh, samples:TrainingSamples): ItemizedModel =
+  def buildModelVH(targetMesh:SegmentMesh[DiscreteColorVariable], samples:TrainingSamples): ItemizedModel =
   {
     println("Building model")
 

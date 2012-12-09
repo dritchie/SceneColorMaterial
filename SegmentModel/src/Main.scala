@@ -37,19 +37,19 @@ object Main
     def testContrastModel()
     {
         val filename = "../SceneToolbox/Output/segDescription.txt"
-        val segmesh = new SegmentMesh(filename)
+        val segmesh = new SegmentMesh[DiscreteColorVariable](DiscreteColorVariable, filename)
         val model = new MaintainObservedContrastModel(segmesh)
 
         // Define a color palette, use those (and only those) colors as our
         // discrete color domain
         // (These colors come from ashley furniture image 11803U2)
         val palette = new ColorPalette
-        palette.colors = Array(Color.RGBColor(63.0/255.0, 40.0/255.0, 22.0/255.0),
+        palette ++= Array(Color.RGBColor(63.0/255.0, 40.0/255.0, 22.0/255.0),
                                Color.RGBColor(111.0/255.0, 159.0/255.0, 161.0/255.0),
                                Color.RGBColor(184.0/255.0, 171.0/255.0, 119.0/255.0),
                                Color.RGBColor(243.0/255.0, 236.0/255.0, 218.0/255.0),
                                Color.RGBColor(118.0/255.0, 103.0/255.0, 84.0/255.0))
-        DiscreteColorVariable.initDomain(palette.colors)
+        DiscreteColorVariable.initDomain(palette)
 
         // Do inference
         val sampler = new VariableSettingsSampler[DiscreteColorVariable](model)

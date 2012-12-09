@@ -28,7 +28,7 @@ object ColorHistogram
         {println("ColorHistogram: input colors not all in same color space")})
 
         val hist = new ColorHistogram(colorspace)
-        hist.train(for (c <- data) yield c.components, new KMeansVectorQuantizer(numBins))
+        hist.train(data, new KMeansVectorQuantizer(numBins))
         hist
     }
 }
