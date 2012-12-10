@@ -50,6 +50,7 @@ object PatternMain {
   var files:Array[File] = null
   val numBins = 10
   val random = new Random()
+  val ignoreLabels = false
 
   def main(args:Array[String])
   {
@@ -86,7 +87,7 @@ object PatternMain {
       // Do inference
       val sampler = new VariableSettingsSampler[DiscreteColorVariable](model)
       val optimizer = new SamplingMaximizer(sampler)
-      optimizer.maximize(for (group <- segmesh.groups) yield group.color.asInstanceOf[DiscreteColorVariable], 500)
+      optimizer.maximize(for (group <- segmesh.groups) yield group.color.asInstanceOf[DiscreteColorVariable], 1000)
 
       // Output the result
       segmesh.saveColorAssignments(outputDir+"/"+files(idx).getName)
@@ -194,21 +195,45 @@ object PatternMain {
 
   def buildModel(targetMesh:SegmentMesh, samples:TrainingSamples, regress:(Seq[HistogramRegressor.RegressionExample], MathUtils.DistanceMetric, VectorQuantizer, WekaHistogramRegressor)=>(HistogramRegressor)): ItemizedModel =
   {
-
     //train the regressors
     println("Start training regressors")
-    for ((l1, l2) <- samples.contrasts.keys)
-    {
-      println("step " + l1 + " " + l2)
-      val seq = samples.contrasts((l1,l2))
-      println("seq length " + seq.length)
-      samples.contrastRegressor += ((l1,l2) -> regress(seq, MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins), WekaMultiClassHistogramRegressor))
 
-    }
-    for (l <- samples.lightness.keys)
+    if (!ignoreLabels)
     {
-      samples.lightnessRegressor += l -> regress(samples.lightness(l), MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins), WekaMultiClassHistogramRegressor)
-      samples.saturationRegressor += l -> regress(samples.saturation(l), MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins), WekaMultiClassHistogramRegressor)
+      for ((l1, l2) <- samples.contrasts.keys)
+      {
+        println("step " + l1 + " " + l2)
+        var seq = samples.contrasts((l1,l2))
+        println("seq length " + seq.length)
+        samples.contrastRegressor += ((l1,l2) -> regress(seq, MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins), WekaMultiClassHistogramRegressor))
+
+      }
+      for (l <- samples.lightness.keys)
+      {
+        samples.lightnessRegressor += l -> regress(samples.lightness(l), MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins), WekaMultiClassHistogramRegressor)
+        samples.saturationRegressor += l -> regress(samples.saturation(l), MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins), WekaMultiClassHistogramRegressor)
+      }
+    } else {
+
+      val allContrasts = {for(k<-samples.contrasts.keys; v<-samples.contrasts(k)) yield v}.toArray
+      val allLightness = {for (k<-samples.lightness.keys; v<-samples.lightness(k)) yield v}.toArray
+      val allSaturation = {for (k<-samples.saturation.keys; v<-samples.saturation(k)) yield v}.toArray
+
+      val contrastRegressor = regress(allContrasts, MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins), WekaMultiClassHistogramRegressor)
+      val lightnessRegressor = regress(allLightness, MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins), WekaMultiClassHistogramRegressor)
+      val saturationRegressor = regress(allSaturation, MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins), WekaMultiClassHistogramRegressor)
+
+      for ((l1, l2) <- samples.contrasts.keys)
+      {
+        samples.contrastRegressor += ((l1,l2) -> contrastRegressor)
+      }
+      for (l <- samples.lightness.keys)
+      {
+        samples.lightnessRegressor += l -> lightnessRegressor
+        samples.saturationRegressor += l -> saturationRegressor
+      }
+
+
     }
 
     println("Done training regressors")
