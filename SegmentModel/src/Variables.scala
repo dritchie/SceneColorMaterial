@@ -8,7 +8,7 @@
 
 import cc.factorie._
 
-trait ColorVariable
+trait ColorVariable extends Variable
 {
     def group:SegmentGroup
     def observedColor:Color
