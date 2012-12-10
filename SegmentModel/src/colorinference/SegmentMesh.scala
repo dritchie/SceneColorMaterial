@@ -1,3 +1,5 @@
+package colorinference
+
 /**
  * Created with IntelliJ IDEA.
  * User: Daniel
