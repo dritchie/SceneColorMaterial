@@ -16,6 +16,7 @@ import scala.collection.mutable._
 import java.io.File
 import cc.factorie._
 import la.Tensor1
+import la.DenseTensor1
 import scala.util.Random
 
 class TrainingSamples() {
@@ -33,6 +34,149 @@ class TrainingSamples() {
    val lightnessVH = Map[Int, VectorHistogram]()
    val saturationVH = Map[Int, VectorHistogram]()
    val contrastVH = Map[(Int,Int), VectorHistogram]()
+}
+
+// This does not use labels
+class TemplateModelTraining
+{
+    type Examples = ArrayBuffer[HistogramRegressor.RegressionExample]
+    type UnaryProperty = (UnarySegmentTemplate.ColorPropertyExtractor, Examples)
+    type BinaryProperty = (BinarySegmentTemplate.ColorPropertyExtractor, Examples)
+
+    def addUnaryProperty(extractor:UnarySegmentTemplate.ColorPropertyExtractor)
+    {
+        val tup = (extractor, new Examples())
+        unary += tup
+    }
+
+    def addBinaryProperty(extractor:BinarySegmentTemplate.ColorPropertyExtractor)
+    {
+        val tup = (extractor, new Examples())
+        binary += tup
+    }
+
+    // Unary (TODO: Add more!)
+    val unary = new ArrayBuffer[UnaryProperty]()
+    // Lightness
+    addUnaryProperty((c:Color) => { Tensor1(c.copyIfNeededTo(LABColorSpace)(0)) })
+    // Saturation
+    addUnaryProperty((c:Color) => { Tensor1(c.copyIfNeededTo(HSVColorSpace)(1)) })
+
+    // Binary (TODO: Add more!)
+    val binary = new ArrayBuffer[BinaryProperty]()
+    // Contrast
+    addBinaryProperty((c1:Color, c2:Color) => { Tensor1(Color.contrast(c1, c2)) })
+
+    def this(trainingMeshes:Array[SegmentMesh])
+    {
+        this()
+
+        // TODO: Training meshes with more segments generate more samples. Eliminate this bias!
+        for (mesh <- trainingMeshes)
+        {
+            // Unary stuff
+            for (seg <- mesh.segments)
+            {
+                val fvec = getUnarySegmentRegressionFeatures(seg)
+                for (prop <- unary) { prop._2 += HistogramRegressor.RegressionExample(prop._1(seg.group.color.observedColor), fvec) }
+            }
+
+            // Binary stuff
+            for (seg1 <- mesh.segments; seg2 <- seg1.adjacencies if seg1.index < seg2.index)
+            {
+                val fvec = getBinarySegmentRegressionFeatures(seg1, seg2)
+                for (prop <- binary) { prop._2 += HistogramRegressor.RegressionExample(prop._1(seg1.group.color.observedColor,seg2.group.color.observedColor), fvec) }
+            }
+        }
+    }
+
+    def concatVectors[T<:Tensor1](vecs:Seq[T]) : Tensor1 =
+    {
+        var totaldims = 0
+        for (v <- vecs) totaldims += v.length
+        val vec = new DenseTensor1(totaldims)
+        var finalIndex = 0
+        for (v <- vecs; vi <- 0 until v.length)
+        {
+            vec(finalIndex) = v(vi)
+            finalIndex += 1
+        }
+        vec
+    }
+
+    def getUnarySegmentRegressionFeatures(seg:Segment) : Tensor1 =
+    {
+        val featureList = seg.features.filter(f => f.name != "Label").map(f => f.values)
+        concatVectors(featureList)
+    }
+
+    def getBinarySegmentRegressionFeatures(seg1:Segment, seg2:Segment) : Tensor1 =
+    {
+        val fvec1 = getUnarySegmentRegressionFeatures(seg1)
+        val fvec2 = getUnarySegmentRegressionFeatures(seg2)
+
+        // Sort by distance from the origin in feature space
+        if (fvec1.twoNormSquared < fvec2.twoNormSquared)
+            concatVectors(Array(fvec1, fvec2))
+        else
+            concatVectors(Array(fvec2, fvec1))
+
+    }
+
+    // This currently uses discrete variables and weights fixed at 1
+    // TODO: Try continuous variables and weight learning
+    def buildTemplateModel(targetMesh:SegmentMesh, bins:Int = 20) : Model =
+    {
+        println("Building template model...")
+
+        // Train regressors
+        println("Training regressors...")
+        val unaryRegressors = for (prop <- unary) yield
+            HistogramRegressor.LogisticRegression(prop._2, MathUtils.euclideanDistance, new KMeansVectorQuantizer(bins), WekaMultiClassHistogramRegressor)
+        val binaryRegressors = for (prop <- binary) yield
+            HistogramRegressor.LogisticRegression(prop._2, MathUtils.euclideanDistance, new KMeansVectorQuantizer(bins), WekaMultiClassHistogramRegressor)
+
+        // Predict histograms for every segment of the target mesh
+        println("Prediting histograms for each segment & segment-pair...")
+        val unaryHistMaps = for (prop <- unary) yield new UnarySegmentTemplate.InputData()
+        val binaryHistMaps = for (prop <- binary) yield new BinarySegmentTemplate.InputData()
+        // Unary stuff
+        for (seg <- targetMesh.segments)
+        {
+            val f = getUnarySegmentRegressionFeatures(seg)
+            for (i <- 0 until unary.length)
+                unaryHistMaps(i)(seg) = unaryRegressors(i).predictHistogram(f)
+        }
+        // Binary stuff
+        for (seg1 <- targetMesh.segments; seg2 <- seg1.adjacencies if seg1.index < seg2.index)
+        {
+            val f = getBinarySegmentRegressionFeatures(seg1, seg2)
+            for (i <- 0 until binary.length)
+            {
+                val hist = binaryRegressors(i).predictHistogram(f)
+                binaryHistMaps(i)((seg1, seg2)) = hist
+                binaryHistMaps(i)((seg2, seg1)) = hist
+            }
+        }
+
+        // Actually assemble the template model
+        println("Assembling final model...")
+        val model = new TemplateModel()
+        for (i <- 0 until unary.length)
+        {
+            val template = new DiscreteUnarySegmentTemplate(unary(i)._1, unaryHistMaps(i))
+            template.setWeight(1.0)
+            model += template
+        }
+        for (i <- 0 until binary.length)
+        {
+            val template = new DiscreteBinarySegmentTemplate(binary(i)._1, binaryHistMaps(i))
+            template.setWeight(1.0)
+            model += template
+        }
+
+        model
+    }
 }
 
 
@@ -133,6 +277,13 @@ object PatternMain {
   def getSizes = (seg:Segment) => {
     val list = seg.features.filter(f => f.name == "RelativeSize").map(f => f.values(0))
     list(0)
+  }
+
+  // Get all the features from a segment that will be used for histgoram regression
+  def getUnaryRegressionFeatures(seg:Segment) : Tensor1 =
+  {
+      // For the time being, this is just the segment size
+      Tensor1(getSizes(seg))
   }
 
   def getSamples(trainingMeshes:Array[SegmentMesh]):TrainingSamples =

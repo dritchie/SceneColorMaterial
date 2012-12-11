@@ -35,8 +35,11 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
 {
     lazy val weights = new DenseTensor1(1)
 
+
     protected def colorPropExtractor:ColorPropertyExtractor
     protected def data:InternalData
+
+    def setWeight(w:Double) { weights.update(0, w) }
 
     protected def genInternalData(input:InputData) : InternalData =
     {
@@ -113,6 +116,8 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
 
     protected def colorPropExtractor:ColorPropertyExtractor
     protected def data:InternalData
+
+    def setWeight(w:Double) { weights.update(0, w) }
 
     protected def genInternalData(input:InputData) : InternalData =
     {
