@@ -195,8 +195,15 @@ class TemplateModelTraining
     }
 
 
+    def buildUnrolledTemplateModel(targetMesh:SegmentMesh, bins:Int=20): Model =
+    {
+        println("Building non-template model...")
+        val tempModel = buildTemplateModel(targetMesh, bins)
+        tempModel.itemizedModel(for (group <- targetMesh.groups) yield group.color.asInstanceOf[DiscreteColorVariable])
+    }
 
-  def buildModel(targetMesh:SegmentMesh, bins:Int=20): Model =
+
+  def buildManualItemizedModel(targetMesh:SegmentMesh, bins:Int=20): Model =
     {
       println("Building non-template model...")
 
@@ -240,7 +247,7 @@ class TemplateModelTraining
         //TODO: there may also be an imbalance w.r.t color groups with more segments getting more weight for their preferred color, which might be ok, but also means groups with few but large segments might get shafted
         //maybe there's some way to weight the unary factors appropriately? Or maybe just weight based on relative size (withiin the factor scoring function)?
         for (i <- 0 until unary.length)
-          model += new UnaryPriorFactor(seg.group.color.asInstanceOf[DiscreteColorVariable], unaryHistMaps(i)(seg), unary(i)._1 )
+            model += new UnaryPriorFactor(seg.group.color.asInstanceOf[DiscreteColorVariable], unaryHistMaps(i)(seg), unary(i)._1 )
 
         for (n <- seg.adjacencies if seg.index < n.index)
         {
@@ -266,6 +273,11 @@ object PatternMain {
 
   def main(args:Array[String])
   {
+      // Verify that outputDir exists
+      val outputDirTestFile = new File(outputDir)
+      if (!outputDirTestFile.exists)
+          outputDirTestFile.mkdir
+
     //load all files
     files = new File(inputDir).listFiles.filter(_.getName.endsWith(".txt"))
 
@@ -334,11 +346,15 @@ object PatternMain {
 
   def TrainTestModel(segmesh:SegmentMesh, trainingMeshes:Array[SegmentMesh]):(Double,Double) =
   {
+
     //train and test on the same mesh, to see how well it fits
     //test the template model
     val trainer = new TemplateModelTraining(trainingMeshes)
-    //val model = trainer.buildTemplateModel(segmesh,numBins)
-    val model = trainer.buildModel(segmesh, numBins)
+
+    val model = trainer.buildUnrolledTemplateModel(segmesh, numBins)
+    println("Unrolled model length: " + model.factors.toSeq.length)
+    val modelManual = trainer.buildManualItemizedModel(segmesh, numBins)
+    println("Manually-constructed model length: " + modelManual.factors.toSeq.length)
 
     // set the variable domain
     val palette = ColorPalette(segmesh)
