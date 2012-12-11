@@ -18,28 +18,38 @@ import cc.factorie._
 import la.Tensor1
 import scala.util.Random
 
-class TrainingSamples() {
-  //binary features
-   val contrasts = Map[(Int,Int), ArrayBuffer[HistogramRegressor.RegressionExample]]()//ArrayBuffer[(Double, Double, Double)]]()
-   val contrastRegressor = mutable.Map[(Int,Int), HistogramRegressor]()
+object UnaryProperties extends Enumeration {
+  type Property = Value
+  val Lightness, Saturation = Value
+}
 
-  //unary features
-   val lightness = Map[Int, ArrayBuffer[HistogramRegressor.RegressionExample]]()
-   val lightnessRegressor = mutable.Map[Int, HistogramRegressor]()
-   val saturation = Map[Int, ArrayBuffer[HistogramRegressor.RegressionExample]]()
-   val saturationRegressor = mutable.Map[Int, HistogramRegressor]()
-
-   //testing the vector histogram
-   val lightnessVH = Map[Int, VectorHistogram]()
-   val saturationVH = Map[Int, VectorHistogram]()
-   val contrastVH = Map[(Int,Int), VectorHistogram]()
+object BinaryProperties extends Enumeration {
+   type Property = Value
+   val Contrast = Value
 }
 
 
-/*class ContrastDistFactor(v1:DiscreteColorVariable, v2:DiscreteColorVariable, private val cbandwidth:Double, private val sbandwidth:Double) extends Factor2(v1, v2)
-{
+class TrainingSamples() {
+  //typedefs for clarity
+  type RegressionExamples = ArrayBuffer[HistogramRegressor.RegressionExample]
+  type LabeledRegressionExamples = mutable.Map[(Int, Int), RegressionExamples]
 
-}*/
+  //labeled samples
+  val labeledBinarySamples = mutable.Map[(BinaryProperties.Property), LabeledRegressionExamples]
+  val binarySamples = mutable.Map[(BinaryProperties.Property), RegressionExamples]
+
+  //non-labeled samples
+  val labeledUnarySamples = mutable.Map[UnaryProperties.Property, LabeledRegressionExamples]
+  val unarySamples = mutable.Map[UnaryProperties.Property, RegressionExamples]
+
+  //labeled regressors
+  val labeledRegressors = mutable.Map[Int, HistogramRegressor]()
+
+  //non-labeled regressors
+  val regressors = mutable.Map[Int, HistogramRegressor]()
+
+}
+
 
 object PatternMain {
   //Just a place to test loading and evaluating patterns/images. Subject to much change
@@ -285,76 +295,6 @@ object PatternMain {
 
     model
   }
-
-  //test building the model using the vector histogram (no features)
-  def buildModelVH(targetMesh:SegmentMesh, samples:TrainingSamples): ItemizedModel =
-  {
-    println("Building model")
-
-
-    val stripFeatures = (list:ArrayBuffer[HistogramRegressor.RegressionExample]) => list.map(e => e.target).toSeq
-
-
-    //precompute the Vector Histograms
-    for (label <- samples.lightness.keys)
-    {
-        samples.lightnessVH += label -> VectorHistogram(stripFeatures(samples.lightness(label)) , MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins))
-        samples.saturationVH += label -> VectorHistogram(stripFeatures(samples.saturation(label)) , MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins))
-    }
-
-    for ((l1,l2) <- samples.contrasts.keys)
-    {
-      samples.contrastVH += (l1,l2) -> VectorHistogram(stripFeatures(samples.contrasts((l1,l2))), MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins))
-    }
-
-
-
-
-    //return a model with factors
-    val model = new ItemizedModel()
-
-    //for each pair of adjacent regions in the target mesh, add a factor for the contrast, smaller label first
-    for (seg <- targetMesh.segments)
-    {
-      val size = getSizes(seg)
-      val label = getLabels(seg)
-
-      val getLightness = (color:Color) => (color.copyTo(LABColorSpace)(0))
-      val getSaturation = (color:Color) => (color.copyTo(HSVColorSpace)(1))
-
-
-      //for each individual region in the target mesh, add a unary factor
-      model += new FeaturePriorFactor(seg.group.color.asInstanceOf[DiscreteColorVariable], samples.lightnessVH(label), getLightness)
-      model += new FeaturePriorFactor(seg.group.color.asInstanceOf[DiscreteColorVariable], samples.saturationVH(label), getSaturation)
-
-      val neighbors = seg.adjacencies.filter(n=> n.index > seg.index)
-      val vals = neighbors.map(n=> {
-        val nlabel = getLabels(n)
-        (nlabel, getSizes(n), n.group)
-      })
-
-      //create the factors
-      for ((n,s,g)<-vals)
-      {
-        if (n < label)
-        {
-          val distribution = samples.contrastVH((n,label))
-          model += new ContrastPriorFactor2(g.color.asInstanceOf[DiscreteColorVariable], seg.group.color.asInstanceOf[DiscreteColorVariable], distribution)
-
-        } else
-        {
-          val distribution = samples.contrastVH((label, n))
-          model += new ContrastPriorFactor2(seg.group.color.asInstanceOf[DiscreteColorVariable], g.color.asInstanceOf[DiscreteColorVariable], distribution)
-        }
-      }
-
-      //contrast for now, TODO: color, saturation, hue?
-
-    }
-    println("Done building model")
-    model
-  }
-
 
 
 
