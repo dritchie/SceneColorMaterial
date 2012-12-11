@@ -58,15 +58,17 @@ class TemplateModelTraining
 
         // TODO: Training meshes with more segments generate more samples. Eliminate this bias!
         //repeating the examples according to the lcm doesn't work...as the lcm turns out to be big, and we run out of heap space
-        //so we'll weight each example according to 1/numSegments or 1/numAdjacencies
+        //so we'll weight each example according to 1/numSegments or 1/numAdjacencies. Scale by 2, so we don't run into rounding errors (when Weka checks that weights add up to >=1)
 
         for (mesh <- trainingMeshes)
         {
+            val unaryWeight = 2.0/mesh.segments.length
+
             // Unary stuff
             for (seg <- mesh.segments)
             {
                 val fvec = getUnarySegmentRegressionFeatures(seg)
-                for (prop <- unary) { prop._2 += HistogramRegressor.RegressionExample(prop._1(seg.group.color.observedColor), fvec, 1.0/mesh.segments.length) }
+                for (prop <- unary) { prop._2 += HistogramRegressor.RegressionExample(prop._1(seg.group.color.observedColor), fvec, unaryWeight) }
             }
 
             //val numAdj = {for(seg1<-mesh.segments; seg2<-seg1.adjacencies if seg1.index<seg2.index) yield 1}.length //I don't know why this doesn't work..
@@ -75,15 +77,16 @@ class TemplateModelTraining
             for (seg1<-mesh.segments; seg2 <- seg1.adjacencies if seg1.index < seg2.index)
                 checkAdj+=1
 
+            val binaryWeight =  2.0/checkAdj
+
             //println("numAdj " + numAdj)
             //println("checkAdj " + checkAdj)
-
 
             // Binary stuff
             for (seg1 <- mesh.segments; seg2 <- seg1.adjacencies if seg1.index < seg2.index)
             {
                 val fvec = getBinarySegmentRegressionFeatures(seg1, seg2)
-                for (prop <- binary) { prop._2 += HistogramRegressor.RegressionExample(prop._1(seg1.group.color.observedColor,seg2.group.color.observedColor), fvec, 1.0/checkAdj) }
+                for (prop <- binary) { prop._2 += HistogramRegressor.RegressionExample(prop._1(seg1.group.color.observedColor,seg2.group.color.observedColor), fvec, binaryWeight) }
             }
         }
     }
@@ -145,6 +148,7 @@ class TemplateModelTraining
         println("Training regressors...")
         val unaryRegressors = for (prop <- unary) yield
             HistogramRegressor.LogisticRegression(prop._2, MathUtils.euclideanDistance, new KMeansVectorQuantizer(bins), WekaMultiClassHistogramRegressor)
+        println("Training binary regressors...")
         val binaryRegressors = for (prop <- binary) yield
             HistogramRegressor.LogisticRegression(prop._2, MathUtils.euclideanDistance, new KMeansVectorQuantizer(bins), WekaMultiClassHistogramRegressor)
 
@@ -257,9 +261,8 @@ object PatternMain {
 
   var meshes:ArrayBuffer[SegmentMesh] = new ArrayBuffer[SegmentMesh]()
   var files:Array[File] = null
-  val numBins = 10
+  val numBins = 5     //TODO: this dies if I set it to 10  (in KmeansQuantizer)
   val random = new Random()
-  val ignoreLabels = false
 
   def main(args:Array[String])
   {
@@ -274,6 +277,21 @@ object PatternMain {
       meshes.append(new SegmentMesh(DiscreteColorVariable, f.getAbsolutePath))
     }
 
+    var avgTScore:Double = 0
+    var randTScore:Double = 0
+    var tcount = 0
+    //test the model by training and testing on the same mesh
+    for (idx<-meshes.indices if idx<10)
+    {
+      println("Testing model on mesh " + files(idx).getName )
+      val (score, rand) = TrainTestModel(meshes(idx), Array[SegmentMesh]{meshes(idx)})
+      avgTScore += score
+      randTScore += rand
+      tcount +=1
+    }
+    avgTScore /= tcount
+    randTScore /= tcount
+
     //for now, just try using the original palette
     var avgScore:Double = 0
     var count = 0
@@ -287,54 +305,67 @@ object PatternMain {
       //get all the other meshes
       val trainingMeshes:Array[SegmentMesh] = {for (tidx<-meshes.indices if tidx != idx) yield meshes(tidx)}.toArray
 
-
-      //test the template model
-      val trainer = new TemplateModelTraining(trainingMeshes)
-      //val model = trainer.buildTemplateModel(segmesh,5)
-      val model = trainer.buildModel(segmesh, 5)
-
-      val palette = ColorPalette(segmesh)
-      DiscreteColorVariable.initDomain(palette)
-
-      // Do inference
-      println("Performing inference")
-      val sampler = new VariableSettingsSampler[DiscreteColorVariable](model)
-      val optimizer = new SamplingMaximizer(sampler)
-      optimizer.maximize(for (group <- segmesh.groups) yield group.color.asInstanceOf[DiscreteColorVariable], 1000)
+      // Evaluate assignments
+      val (score, rscore) = TrainTestModel(segmesh, trainingMeshes)
+      println(files(idx).getName+" Score: "+score)
+      avgScore += score
+      randScore += rscore
 
       // Output the result
       segmesh.saveColorAssignments(outputDir+"/"+files(idx).getName)
 
-      // Evaluate assignments
-      val score = segmesh.scoreAssignment()
-      println(files(idx).getName+" Score: "+score)
-      avgScore += score
-
-      //Evaluate random assignment (3 trials)
-      var rscore = 0.0
-      for (t <- 0 until 3)
-      {
-        val assign = RandomAssignment(segmesh, palette)
-        rscore += segmesh.scoreAssignment(assign)
-      }
-      rscore /= 3.0
-
-      println("Rand Score: " + rscore)
-
-      randScore += rscore
-
-
     }
 
-
+    println("Hold-one-out results")
     println("Average Score: " + (avgScore/count))
     println("Average Random Score: " + (randScore/count))
+
+    println("\nWhen training and testing on the same mesh..")
+    println("Average Score: " + avgTScore)
+    println("Average Random Score: " + randTScore)
 
   }
 
   def RandomAssignment(segmesh:SegmentMesh, palette:ColorPalette) : Seq[Color] =
   {
      segmesh.groups.map(g => palette(random.nextInt(palette.length)))
+  }
+
+
+  def TrainTestModel(segmesh:SegmentMesh, trainingMeshes:Array[SegmentMesh]):(Double,Double) =
+  {
+    //train and test on the same mesh, to see how well it fits
+    //test the template model
+    val trainer = new TemplateModelTraining(trainingMeshes)
+    //val model = trainer.buildTemplateModel(segmesh,numBins)
+    val model = trainer.buildModel(segmesh, numBins)
+
+    // set the variable domain
+    val palette = ColorPalette(segmesh)
+    DiscreteColorVariable.initDomain(palette)
+
+    // Do inference
+    println("Performing inference")
+    val sampler = new VariableSettingsSampler[DiscreteColorVariable](model)
+    val optimizer = new SamplingMaximizer(sampler)
+    optimizer.maximize(for (group <- segmesh.groups) yield group.color.asInstanceOf[DiscreteColorVariable], 1000)
+
+    // Evaluate assignments
+    val score = segmesh.scoreAssignment()
+    println("Score: "+score)
+
+    //Evaluate random assignment (3 trials)
+    var rscore = 0.0
+    for (t <- 0 until 3)
+    {
+      val assign = RandomAssignment(segmesh, palette)
+      rscore += segmesh.scoreAssignment(assign)
+    }
+    rscore /= 3.0
+    println("Random score: " + rscore)
+
+    (score,rscore)
+
   }
 
 }

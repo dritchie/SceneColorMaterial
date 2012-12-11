@@ -172,6 +172,7 @@ class WekaMultiClassHistogramRegressor(private val classifier:Classifier, exampl
         val trainingSet = new Instances("trainingSet", attributePrototype, examples.length)
         // Don't forget to tell it where in the attribute vector the class is!
         trainingSet.setClassIndex(attributePrototype.size - 1)
+
         // Populate training set
         for (i <- 0 until examples.length)
         {
