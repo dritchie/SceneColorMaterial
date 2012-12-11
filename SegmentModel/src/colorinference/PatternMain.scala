@@ -268,8 +268,9 @@ object PatternMain {
 
   var meshes:ArrayBuffer[SegmentMesh] = new ArrayBuffer[SegmentMesh]()
   var files:Array[File] = null
-  val numBins = 5     //TODO: this dies if I set it to 10  (in KmeansQuantizer)
+  val numBins = 5     //the maximum number of bins TODO:this dies if I set it to 10 in inference, not sure why
   val random = new Random()
+  val numIterations = 100
 
   def main(args:Array[String])
   {
@@ -364,7 +365,7 @@ object PatternMain {
     println("Performing inference")
     val sampler = new VariableSettingsSampler[DiscreteColorVariable](model)
     val optimizer = new SamplingMaximizer(sampler)
-    optimizer.maximize(for (group <- segmesh.groups) yield group.color.asInstanceOf[DiscreteColorVariable], 1000)
+    optimizer.maximize(for (group <- segmesh.groups) yield group.color.asInstanceOf[DiscreteColorVariable], numIterations)
 
     // Evaluate assignments
     val score = segmesh.scoreAssignment()

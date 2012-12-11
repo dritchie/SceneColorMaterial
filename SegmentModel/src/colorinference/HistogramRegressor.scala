@@ -70,7 +70,7 @@ abstract class HistogramRegressor(examples:Seq[HistogramRegressor.RegressionExam
     {
         assert(examples.length > 0, {println("HistogramRegressor: cannot train with 0 training examples")})
         println("Quantizing...")
-        (quantizer(for (ex <- examples) yield ex.target, metric))._1
+        (quantizer(for (ex <- examples) yield ex.target, metric, for(ex <- examples) yield ex.weight))._1
     }
 
     protected def fillBins(featureVec:Tensor1, bins:Array[Double])
