@@ -125,12 +125,13 @@ object VectorHistogram
 
 trait VectorQuantizer
 {
-    def apply(samples:Seq[Tensor1], metric:MathUtils.DistanceMetric) : (IndexedSeq[Tensor1], IndexedSeq[Int])
+    def apply(samples:Seq[Tensor1], metric:MathUtils.DistanceMetric, weights:Seq[Double]=null) : (IndexedSeq[Tensor1], IndexedSeq[Int])
 }
 
+//this doesn't take into account weights
 class UniformVectorQuantizer(private val binsPerDim:IndexedSeq[Int]) extends VectorQuantizer
 {
-    def apply(samples:Seq[Tensor1], metric:MathUtils.DistanceMetric) : (IndexedSeq[Tensor1], IndexedSeq[Int]) =
+    def apply(samples:Seq[Tensor1], metric:MathUtils.DistanceMetric, weights:Seq[Double]=null) : (IndexedSeq[Tensor1], IndexedSeq[Int]) =
     {
         assert(samples.length > 0, {println("UniformVectorQuantizer: cannot operate on 0 data points")})
 
@@ -181,17 +182,24 @@ class UniformVectorQuantizer(private val binsPerDim:IndexedSeq[Int]) extends Vec
     }
 }
 
+//takes into account weights, if provided
 class KMeansVectorQuantizer(private val numClusters:Int) extends VectorQuantizer
 {
-    def apply(samples:Seq[Tensor1], metric:MathUtils.DistanceMetric) : (IndexedSeq[Tensor1], IndexedSeq[Int]) =
+    def apply(samples:Seq[Tensor1], metric:MathUtils.DistanceMetric, weights:Seq[Double]=null) : (IndexedSeq[Tensor1], IndexedSeq[Int]) =
     {
         assert(samples.length > 0, {println("KMeansVectorQuantizer: cannot operate on 0 data points")})
+
+        //check that there's enough clusters for the number of samples
+        //assert(samples.length >= numClusters, {"KMeansVectorQuantizer: number of clusters greater than number of data points"})
+        //change number of bins according to number of samples
+
+        val actualClusters = Math.min(numClusters, samples.length)
 
         // Choose the initial quantization vectors randomly from the input samples
         val pool = new ArrayBuffer[Int]()
         pool ++= (0 until samples.length)
         val r = new Random()
-        val quantVecs = for (i <- 0 until numClusters) yield
+        val quantVecs = for (i <- 0 until actualClusters) yield
         {
             val rindex = r.nextInt(pool.length)
             val todrop = pool(rindex)
@@ -200,7 +208,7 @@ class KMeansVectorQuantizer(private val numClusters:Int) extends VectorQuantizer
         }
 
         val assignments = Array.fill[Int](samples.length)(-1)
-        val counts = new Array[Int](quantVecs.length)
+        val counts = new Array[Double](quantVecs.length)
         var converged = false
         while (!converged)
         {
@@ -214,15 +222,15 @@ class KMeansVectorQuantizer(private val numClusters:Int) extends VectorQuantizer
                 val closestIndex = MathUtils.closestVectorBruteForce(samples(i), quantVecs, metric)
                 changed |= (closestIndex != assignments(i))
                 assignments(i) = closestIndex
-                counts(closestIndex) += 1
+                counts(closestIndex) += {if (weights==null) 1.0 else weights(i)}
             }
             if (!changed) converged = true
 
-            // Update quant vectors to be average of assigned vectors
+            // Update quant vectors to be the weighted average of assigned vectors
             if (changed)
             {
                 for (i <- 0 until quantVecs.length) quantVecs(i) := 0.0
-                for (i <- 0 until samples.length) quantVecs(assignments(i)) += samples(i)
+                for (i <- 0 until samples.length) quantVecs(assignments(i)) += (samples(i) * {if (weights==null) 1.0 else weights(i)} )
                 for (i <- 0 until quantVecs.length) if (counts(i) > 0) quantVecs(i) /= counts(i)
             }
         }
