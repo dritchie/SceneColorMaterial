@@ -140,14 +140,14 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
     def unroll1(v1:ColorVar) =
     {
         // Find all neighbors of v1, yield a factor for each segment pair
-        for (seg1 <- v1.group.members; seg2 <- seg1.adjacencies)
+        for (seg1 <- v1.group.members; seg2 <- seg1.adjacencies if seg1.index < seg2.index)
             yield Factor(v1, seg2.group.color.asInstanceOf[ColorVar], data((seg1,seg2)))
     }
 
     def unroll2(v2:ColorVar) =
     {
         // Symmetric w.r.t to unroll1
-        for (seg2 <- v2.group.members; seg1 <- seg2.adjacencies)
+        for (seg2 <- v2.group.members; seg1 <- seg2.adjacencies if seg1.index < seg2.index)
             yield Factor(seg1.group.color.asInstanceOf[ColorVar], v2, data((seg1,seg2)))
     }
 

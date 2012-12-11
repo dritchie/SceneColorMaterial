@@ -199,7 +199,8 @@ class TemplateModelTraining
     {
         println("Building non-template model...")
         val tempModel = buildTemplateModel(targetMesh, bins)
-        tempModel.itemizedModel(for (group <- targetMesh.groups) yield group.color.asInstanceOf[DiscreteColorVariable])
+        val itemModel = tempModel.itemizedModel(for (group <- targetMesh.groups) yield group.color.asInstanceOf[DiscreteColorVariable])
+        itemModel
     }
 
 
@@ -352,9 +353,6 @@ object PatternMain {
     val trainer = new TemplateModelTraining(trainingMeshes)
 
     val model = trainer.buildUnrolledTemplateModel(segmesh, numBins)
-    println("Unrolled model length: " + model.factors.toSeq.length)
-    val modelManual = trainer.buildManualItemizedModel(segmesh, numBins)
-    println("Manually-constructed model length: " + modelManual.factors.toSeq.length)
 
     // set the variable domain
     val palette = ColorPalette(segmesh)
