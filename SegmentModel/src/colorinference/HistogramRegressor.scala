@@ -19,7 +19,7 @@ import neighboursearch.KDTree
 
 object HistogramRegressor
 {
-    case class RegressionExample(target:Tensor1, features:Tensor1) {}
+    case class RegressionExample(target:Tensor1, features:Tensor1, weight:Double=1) {}
 
     def KNN(examples:Seq[HistogramRegressor.RegressionExample], metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer, generator:WekaHistogramRegressor) =
     {
@@ -142,9 +142,11 @@ class WekaMultiClassHistogramRegressor(private val classifier:Classifier, exampl
     }
 
     // If trueBin = -1, then this is an 'unlabeled' instance
-    private def convertToWekaInstance(featureVec:Tensor1, trueBin:Int = -1) : Instance =
+    private def convertToWekaInstance(featureVec:Tensor1, weight:Double=1, trueBin:Int = -1) : Instance =
     {
         val instance = new Instance(attributePrototype.size)
+
+        instance.setWeight(weight)
 
         // Set feature values
         for (i <- 0 until featureVec.length)
@@ -173,7 +175,7 @@ class WekaMultiClassHistogramRegressor(private val classifier:Classifier, exampl
         // Populate training set
         for (i <- 0 until examples.length)
         {
-            val instance = convertToWekaInstance(examples(i).features, assignments(i))
+            val instance = convertToWekaInstance(examples(i).features, examples(i).weight, assignments(i))
             trainingSet.add(instance)
         }
 
@@ -230,9 +232,11 @@ class WekaBinByBinHistogramRegressor(classifier:Classifier, examples:Seq[Histogr
     }
 
     // The last three parameters are only provided during training
-    private def convertToWekaInstance(featureVec:Tensor1, trainingHist:VectorHistogram = null, bin:Int = -1, targetVec:Tensor1 = null) : Instance =
+    private def convertToWekaInstance(featureVec:Tensor1, weight:Double=1, trainingHist:VectorHistogram = null, bin:Int = -1, targetVec:Tensor1 = null) : Instance =
     {
         val instance = new Instance(attributePrototype.size)
+
+        instance.setWeight(weight)
 
         // Set feature values
         for (i <- 0 until featureVec.length)
@@ -265,7 +269,7 @@ class WekaBinByBinHistogramRegressor(classifier:Classifier, examples:Seq[Histogr
             // Populate training set
             for (i <- 0 until examples.length)
             {
-                val instance = convertToWekaInstance(examples(i).features, trainingHist, b, examples(i).target)
+                val instance = convertToWekaInstance(examples(i).features, examples(i).weight, trainingHist, b, examples(i).target)
                 trainingSet.add(instance)
             }
 

@@ -57,20 +57,33 @@ class TemplateModelTraining
         this()
 
         // TODO: Training meshes with more segments generate more samples. Eliminate this bias!
+        //repeating the examples according to the lcm doesn't work...as the lcm turns out to be big, and we run out of heap space
+        //so we'll weight each example according to 1/numSegments or 1/numAdjacencies
+
         for (mesh <- trainingMeshes)
         {
             // Unary stuff
             for (seg <- mesh.segments)
             {
                 val fvec = getUnarySegmentRegressionFeatures(seg)
-                for (prop <- unary) { prop._2 += HistogramRegressor.RegressionExample(prop._1(seg.group.color.observedColor), fvec) }
+                for (prop <- unary) { prop._2 += HistogramRegressor.RegressionExample(prop._1(seg.group.color.observedColor), fvec, 1.0/mesh.segments.length) }
             }
+
+            //val numAdj = {for(seg1<-mesh.segments; seg2<-seg1.adjacencies if seg1.index<seg2.index) yield 1}.length //I don't know why this doesn't work..
+
+            var checkAdj = 0
+            for (seg1<-mesh.segments; seg2 <- seg1.adjacencies if seg1.index < seg2.index)
+                checkAdj+=1
+
+            //println("numAdj " + numAdj)
+            //println("checkAdj " + checkAdj)
+
 
             // Binary stuff
             for (seg1 <- mesh.segments; seg2 <- seg1.adjacencies if seg1.index < seg2.index)
             {
                 val fvec = getBinarySegmentRegressionFeatures(seg1, seg2)
-                for (prop <- binary) { prop._2 += HistogramRegressor.RegressionExample(prop._1(seg1.group.color.observedColor,seg2.group.color.observedColor), fvec) }
+                for (prop <- binary) { prop._2 += HistogramRegressor.RegressionExample(prop._1(seg1.group.color.observedColor,seg2.group.color.observedColor), fvec, 1.0/checkAdj) }
             }
         }
     }
@@ -243,7 +256,7 @@ class TemplateModelTraining
     }
 }
 
-
+//Note: A lower score is better
 object PatternMain {
   //Just a place to test loading and evaluating patterns/images. Subject to much change
   val inputDir = "../PatternColorizer/out/mesh"

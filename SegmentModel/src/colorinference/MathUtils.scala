@@ -125,4 +125,8 @@ object MathUtils
     {
         if (value < min) min else if (value > max) max else value
     }
+
+  /** Greatest common denomimator and least common multiple **/
+  def gcd(a: Int, b: Int):Int=if (b==0) a.abs else gcd(b, a%b)
+  def lcm(a: Int, b: Int)=(a*b).abs/gcd(a,b)
 }
