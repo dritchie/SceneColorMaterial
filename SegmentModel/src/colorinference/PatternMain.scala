@@ -19,15 +19,6 @@ import la.Tensor1
 import la.DenseTensor1
 import scala.util.Random
 
-object UnaryProperties extends Enumeration {
-  type Property = Value
-  val Lightness, Saturation = Value
-}
-
-object BinaryProperties extends Enumeration {
-   type Property = Value
-   val Contrast = Value
-}
 
 // This does not use labels
 class TemplateModelTraining
@@ -56,6 +47,7 @@ class TemplateModelTraining
     addUnaryProperty((c:Color) => { Tensor1(c.copyIfNeededTo(HSVColorSpace)(1)) })
 
     // Binary (TODO: Add more!)
+    //TODO: the assumption for the binary properties thus far is that they're symmetric (no directionality between the variables), which is probably ok
     val binary = new ArrayBuffer[BinaryProperty]()
     // Contrast
     addBinaryProperty((c1:Color, c2:Color) => { Tensor1(Color.contrast(c1, c2)) })
@@ -116,6 +108,20 @@ class TemplateModelTraining
 
     }
 
+  //only matters if we want to explore directional binary factors
+  //i.e. smaller region to larger region has a decrease in saturation
+    def getOrderedSegments(seg1:Segment, seg2:Segment): (Segment, Segment) =
+      {
+        val fvec1 = getUnarySegmentRegressionFeatures(seg1)
+        val fvec2 = getUnarySegmentRegressionFeatures(seg2)
+
+        // Sort by distance from the origin in feature space
+        if (fvec1.twoNormSquared < fvec2.twoNormSquared)
+          (seg1, seg2)
+        else
+          (seg2, seg1)
+    }
+
     // This currently uses discrete variables and weights fixed at 1
     // TODO: Try continuous variables and weight learning
     def buildTemplateModel(targetMesh:SegmentMesh, bins:Int = 20) : Model =
@@ -130,7 +136,7 @@ class TemplateModelTraining
             HistogramRegressor.LogisticRegression(prop._2, MathUtils.euclideanDistance, new KMeansVectorQuantizer(bins), WekaMultiClassHistogramRegressor)
 
         // Predict histograms for every segment of the target mesh
-        println("Prediting histograms for each segment & segment-pair...")
+        println("Predicting histograms for each segment & segment-pair...")
         val unaryHistMaps = for (prop <- unary) yield new UnarySegmentTemplate.InputData()
         val binaryHistMaps = for (prop <- binary) yield new BinarySegmentTemplate.InputData()
         // Unary stuff
@@ -170,28 +176,64 @@ class TemplateModelTraining
 
         model
     }
-}
 
 
-class TrainingSamples() {
-  //typedefs for clarity
-  type RegressionExamples = ArrayBuffer[HistogramRegressor.RegressionExample]
-  type LabeledRegressionExamples = mutable.Map[(Int, Int), RegressionExamples]
 
-  //labeled samples
-  val labeledBinarySamples = mutable.Map[(BinaryProperties.Property), LabeledRegressionExamples]
-  val binarySamples = mutable.Map[(BinaryProperties.Property), RegressionExamples]
+  def buildModel(targetMesh:SegmentMesh, bins:Int=20): Model =
+    {
+      println("Building non-template model...")
 
-  //non-labeled samples
-  val labeledUnarySamples = mutable.Map[UnaryProperties.Property, LabeledRegressionExamples]
-  val unarySamples = mutable.Map[UnaryProperties.Property, RegressionExamples]
+      // Train regressors
+      println("Training regressors...")
+      val unaryRegressors = for (prop <- unary) yield
+        HistogramRegressor.LogisticRegression(prop._2, MathUtils.euclideanDistance, new KMeansVectorQuantizer(bins), WekaMultiClassHistogramRegressor)
+      val binaryRegressors = for (prop <- binary) yield
+        HistogramRegressor.LogisticRegression(prop._2, MathUtils.euclideanDistance, new KMeansVectorQuantizer(bins), WekaMultiClassHistogramRegressor)
 
-  //labeled regressors
-  val labeledRegressors = mutable.Map[Int, HistogramRegressor]()
+      // Predict histograms for every segment of the target mesh
+      println("Predicting histograms for each segment & segment-pair...")
+      val unaryHistMaps = for (prop <- unary) yield new UnarySegmentTemplate.InputData()
+      val binaryHistMaps = for (prop <- binary) yield new BinarySegmentTemplate.InputData()
+      // Unary stuff
+      for (seg <- targetMesh.segments)
+      {
+        val f = getUnarySegmentRegressionFeatures(seg)
+        for (i <- 0 until unary.length)
+          unaryHistMaps(i)(seg) = unaryRegressors(i).predictHistogram(f)
+      }
+      // Binary stuff
+      for (seg1 <- targetMesh.segments; seg2 <- seg1.adjacencies if seg1.index < seg2.index)
+      {
+        val f = getBinarySegmentRegressionFeatures(seg1, seg2)
+        for (i <- 0 until binary.length)
+        {
+          val hist = binaryRegressors(i).predictHistogram(f)
+          binaryHistMaps(i)((seg1, seg2)) = hist
+          binaryHistMaps(i)((seg2, seg1)) = hist
+        }
+      }
 
-  //non-labeled regressors
-  val regressors = mutable.Map[Int, HistogramRegressor]()
+     //return a model with factors
+      val model = new ItemizedModel()
 
+      //for each pair of adjacent regions in the target mesh, add a factor for the contrast, smaller label first
+      for (seg <- targetMesh.segments)
+      {
+        //add unary factors
+        //TODO: there may also be an imbalance w.r.t color groups with more segments getting more weight for their preferred color, which might be ok, but also means groups with few but large segments might get shafted
+        //maybe there's some way to weight the unary factors appropriately? Or maybe just weight based on relative size (withiin the factor scoring function)?
+        for (i <- 0 until unary.length)
+          model += new UnaryPriorFactor(seg.group.color.asInstanceOf[DiscreteColorVariable], unaryHistMaps(i)(seg), unary(i)._1 )
+
+        for (n <- seg.adjacencies if seg.index < n.index)
+        {
+          for (i<-0 until binary.length)
+            model += new BinaryPriorFactor(seg.group.color.asInstanceOf[DiscreteColorVariable], n.group.color.asInstanceOf[DiscreteColorVariable], binaryHistMaps(i)((seg,n)), binary(i)._1)
+        }
+      }
+
+      model
+    }
 }
 
 
@@ -231,14 +273,18 @@ object PatternMain {
       count += 1
       //get all the other meshes
       val trainingMeshes:Array[SegmentMesh] = {for (tidx<-meshes.indices if tidx != idx) yield meshes(tidx)}.toArray
-      val samples = getSamples(trainingMeshes)
 
 
-      val model = buildModel(segmesh, samples, HistogramRegressor.KNN)//buildModel(segmesh, samples) //MaintainObservedContrastModel(segmesh)
+      //test the template model
+      val trainer = new TemplateModelTraining(trainingMeshes)
+      //val model = trainer.buildTemplateModel(segmesh,5)
+      val model = trainer.buildModel(segmesh, 5)
+
       val palette = ColorPalette(segmesh)
       DiscreteColorVariable.initDomain(palette)
 
       // Do inference
+      println("Performing inference")
       val sampler = new VariableSettingsSampler[DiscreteColorVariable](model)
       val optimizer = new SamplingMaximizer(sampler)
       optimizer.maximize(for (group <- segmesh.groups) yield group.color.asInstanceOf[DiscreteColorVariable], 1000)
@@ -277,176 +323,5 @@ object PatternMain {
   {
      segmesh.groups.map(g => palette(random.nextInt(palette.length)))
   }
-
-
-
-  def getLabels = (seg:Segment) => {
-    val list = seg.features.filter(f => f.name == "Label").map(f => f.values(0))
-    list(0).toInt
-  }
-  def getSizes = (seg:Segment) => {
-    val list = seg.features.filter(f => f.name == "RelativeSize").map(f => f.values(0))
-    list(0)
-  }
-
-  // Get all the features from a segment that will be used for histgoram regression
-  def getUnaryRegressionFeatures(seg:Segment) : Tensor1 =
-  {
-      // For the time being, this is just the segment size
-      Tensor1(getSizes(seg))
-  }
-
-  def getSamples(trainingMeshes:Array[SegmentMesh]):TrainingSamples =
-  {
-    val samples = new TrainingSamples()
-
-    for (mesh <- trainingMeshes)
-    {
-      for (seg <- mesh.segments)
-      {
-        val label = getLabels(seg)
-        val size = getSizes(seg)
-
-        //get labels and contrast for adjacent elements of a higher index, so we don't double count
-        //list of tuples (label1, label2, contrast)
-        val neighbors = seg.adjacencies.filter(n => n.index > seg.index)
-        val vals = neighbors.map(n => {
-          val nlabel = getLabels(n)
-          (nlabel, getSizes(n), Color.contrast(n.group.color.observedColor, seg.group.color.observedColor) )
-        })
-
-
-        //add samples to the dictionary. Tuple, order smaller label first
-        for ((n,s,c) <- vals)
-        {
-
-          if (!samples.contrasts.contains((Math.min(n, label), Math.max(n, label))))
-            samples.contrasts += ((Math.min(n, label),Math.max(n, label)) -> new ArrayBuffer[HistogramRegressor.RegressionExample]())
-
-           if (n < label)
-             samples.contrasts((n,label)) += HistogramRegressor.RegressionExample(Tensor1(c), Tensor1(s,size)) //((s, size, c))
-          else
-             samples.contrasts((label,n)) += HistogramRegressor.RegressionExample(Tensor1(c), Tensor1(size, s))//((size, s, c))
-
-        }
-
-        //get unary features, use consistent color space?
-        val lab = seg.group.color.observedColor.copyTo(LABColorSpace)
-        val lightness = lab(0)
-        val hsv = seg.group.color.observedColor.copyTo(HSVColorSpace)
-        val saturation = hsv(1)
-
-        if (!samples.lightness.contains(label))
-          samples.lightness += label -> new ArrayBuffer[HistogramRegressor.RegressionExample]
-        if (!samples.saturation.contains(label))
-          samples.saturation += label -> new ArrayBuffer[HistogramRegressor.RegressionExample]
-
-        samples.lightness(label) += HistogramRegressor.RegressionExample(Tensor1(lightness), Tensor1(size))
-        samples.saturation(label) += HistogramRegressor.RegressionExample(Tensor1(saturation), Tensor1(size))
-
-      }
-    }
-
-
-
-
-    samples
-
-  }
-
-  def buildModel(targetMesh:SegmentMesh, samples:TrainingSamples, regress:(Seq[HistogramRegressor.RegressionExample], MathUtils.DistanceMetric, VectorQuantizer, WekaHistogramRegressor)=>(HistogramRegressor)): ItemizedModel =
-  {
-    //train the regressors
-    println("Start training regressors")
-
-    if (!ignoreLabels)
-    {
-      for ((l1, l2) <- samples.contrasts.keys)
-      {
-        println("step " + l1 + " " + l2)
-        var seq = samples.contrasts((l1,l2))
-        println("seq length " + seq.length)
-        samples.contrastRegressor += ((l1,l2) -> regress(seq, MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins), WekaMultiClassHistogramRegressor))
-
-      }
-      for (l <- samples.lightness.keys)
-      {
-        samples.lightnessRegressor += l -> regress(samples.lightness(l), MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins), WekaMultiClassHistogramRegressor)
-        samples.saturationRegressor += l -> regress(samples.saturation(l), MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins), WekaMultiClassHistogramRegressor)
-      }
-    } else {
-
-      val allContrasts = {for(k<-samples.contrasts.keys; v<-samples.contrasts(k)) yield v}.toArray
-      val allLightness = {for (k<-samples.lightness.keys; v<-samples.lightness(k)) yield v}.toArray
-      val allSaturation = {for (k<-samples.saturation.keys; v<-samples.saturation(k)) yield v}.toArray
-
-      val contrastRegressor = regress(allContrasts, MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins), WekaMultiClassHistogramRegressor)
-      val lightnessRegressor = regress(allLightness, MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins), WekaMultiClassHistogramRegressor)
-      val saturationRegressor = regress(allSaturation, MathUtils.euclideanDistance, new KMeansVectorQuantizer(numBins), WekaMultiClassHistogramRegressor)
-
-      for ((l1, l2) <- samples.contrasts.keys)
-      {
-        samples.contrastRegressor += ((l1,l2) -> contrastRegressor)
-      }
-      for (l <- samples.lightness.keys)
-      {
-        samples.lightnessRegressor += l -> lightnessRegressor
-        samples.saturationRegressor += l -> saturationRegressor
-      }
-
-
-    }
-
-    println("Done training regressors")
-
-
-
-
-    //return a model with factors
-    val model = new ItemizedModel()
-
-    //for each pair of adjacent regions in the target mesh, add a factor for the contrast, smaller label first
-    for (seg <- targetMesh.segments)
-    {
-      val size = getSizes(seg)
-      val label = getLabels(seg)
-
-      val getLightness = (color:Color) => (color.copyTo(LABColorSpace)(0))
-      val getSaturation = (color:Color) => (color.copyTo(HSVColorSpace)(1))
-
-
-      //for each individual region in the target mesh, add a unary factor
-      model += new FeaturePriorFactor(seg.group.color.asInstanceOf[DiscreteColorVariable], samples.lightnessRegressor(label).predictHistogram(Tensor1(size)), getLightness)
-      model += new FeaturePriorFactor(seg.group.color.asInstanceOf[DiscreteColorVariable], samples.saturationRegressor(label).predictHistogram(Tensor1(size)), getSaturation)
-
-      val neighbors = seg.adjacencies.filter(n=> n.index > seg.index)
-      val vals = neighbors.map(n=> {
-        val nlabel = getLabels(n)
-        (nlabel, getSizes(n), n.group)
-      })
-
-      //create the factors
-      for ((n,s,g)<-vals)
-      {
-        if (n < label)
-        {
-          val distribution = samples.contrastRegressor((n, label)).predictHistogram(Tensor1(s, size))
-          model += new ContrastPriorFactor2(g.color.asInstanceOf[DiscreteColorVariable], seg.group.color.asInstanceOf[DiscreteColorVariable], distribution)
-
-        } else
-        {
-          val distribution = samples.contrastRegressor((label, n)).predictHistogram(Tensor1(size, s))
-          model += new ContrastPriorFactor2(seg.group.color.asInstanceOf[DiscreteColorVariable], g.color.asInstanceOf[DiscreteColorVariable], distribution)
-        }
-      }
-
-      //contrast for now, TODO: color, saturation, hue?
-
-    }
-
-    model
-  }
-
-
 
 }
