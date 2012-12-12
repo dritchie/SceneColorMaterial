@@ -59,9 +59,7 @@ class TargetComplementarityFactor(v1:DiscreteColorVariable, v2:DiscreteColorVari
 {
     def score(val1:DiscreteColorVariable#Value, val2:DiscreteColorVariable#Value) =
     {
-        val hue1 = val1.category.copyIfNeededTo(HSVColorSpace)(0)
-        val hue2 = val2.category.copyIfNeededTo(HSVColorSpace)(0)
-        val complementarity = math.abs(hue1 - hue2)
+        val complementarity = Color.hueComplementarity(val1.category, val2.category)
         MathUtils.logGaussianKernel(complementarity, target, bandwidth)
     }
 }

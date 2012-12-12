@@ -85,6 +85,22 @@ object Color
         val l2 = col2.luminance()
         math.abs(l1 - l2) / (0.5 * (l1 + l2))
     }
+
+    def hueComplementarity(col1:Color, col2:Color) : Double =
+    {
+        val hue1 = col1.copyIfNeededTo(HSVColorSpace)(0)
+        val hue2 = col2.copyIfNeededTo(HSVColorSpace)(0)
+        val hueabsdiff = math.abs(hue1 - hue2)
+        math.min(hueabsdiff, 360 - hueabsdiff)
+    }
+
+    def relativeSaturation(col1:Color, col2:Color) : Double =
+    {
+        val sat1 = col1.copyIfNeededTo(HSVColorSpace)(1)
+        val sat2 = col2.copyIfNeededTo(HSVColorSpace)(1)
+        math.abs((sat1 - sat2) / (0.5 * (sat1 + sat2)))
+    }
+
 }
 
 

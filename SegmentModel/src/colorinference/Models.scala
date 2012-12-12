@@ -77,7 +77,7 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
     }
 }
 
-class DiscreteUnarySegmentTemplate(protected val colorPropExtractor:UnarySegmentTemplate.ColorPropertyExtractor,
+class DiscreteUnarySegmentTemplate(val name:String, protected val colorPropExtractor:UnarySegmentTemplate.ColorPropertyExtractor,
                                    inputData:UnarySegmentTemplate.InputData)
     extends DotTemplate2[DiscreteColorVariable, SegmentTemplate.DataVariable] with UnarySegmentTemplate[DiscreteColorVariable]
 {
@@ -89,7 +89,7 @@ class DiscreteUnarySegmentTemplate(protected val colorPropExtractor:UnarySegment
     }
 }
 
-class ContinuousUnarySegmentTemplate(protected val colorPropExtractor:UnarySegmentTemplate.ColorPropertyExtractor,
+class ContinuousUnarySegmentTemplate(val name:String, protected val colorPropExtractor:UnarySegmentTemplate.ColorPropertyExtractor,
                                      inputData:UnarySegmentTemplate.InputData)
     extends DotTemplate2[ContinuousColorVariable, SegmentTemplate.DataVariable] with UnarySegmentTemplate[ContinuousColorVariable]
 {
@@ -161,7 +161,7 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
     }
 }
 
-class DiscreteBinarySegmentTemplate(protected val colorPropExtractor:BinarySegmentTemplate.ColorPropertyExtractor,
+class DiscreteBinarySegmentTemplate(val name:String, protected val colorPropExtractor:BinarySegmentTemplate.ColorPropertyExtractor,
                                    inputData:BinarySegmentTemplate.InputData)
     extends DotTemplate3[DiscreteColorVariable, DiscreteColorVariable, SegmentTemplate.DataVariable] with BinarySegmentTemplate[DiscreteColorVariable]
 {
@@ -173,7 +173,7 @@ class DiscreteBinarySegmentTemplate(protected val colorPropExtractor:BinarySegme
     }
 }
 
-class ContinuousBinarySegmentTemplate(protected val colorPropExtractor:BinarySegmentTemplate.ColorPropertyExtractor,
+class ContinuousBinarySegmentTemplate(val name:String, protected val colorPropExtractor:BinarySegmentTemplate.ColorPropertyExtractor,
                                      inputData:BinarySegmentTemplate.InputData)
     extends DotTemplate3[ContinuousColorVariable, ContinuousColorVariable, SegmentTemplate.DataVariable] with BinarySegmentTemplate[ContinuousColorVariable]
 {
