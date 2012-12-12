@@ -205,18 +205,29 @@ class KMeansVectorQuantizer(private val numClusters:Int) extends VectorQuantizer
 
         // We can only deal with as many clusters as we have (unique) samples
         // TODO: Make this look at the number of *unique* samples (based on vector values, not pointer equality)
-        val actualClusters = Math.min(numClusters, samples.length)
+
+        //check number of unique samples
+        val uniqSamples = samples.foldLeft(ArrayBuffer[Tensor1]())((sofar,elem)=>{
+          if (sofar.exists(s => (s-elem).twoNorm==0))
+            sofar
+          else {
+            sofar += elem
+            sofar
+          }
+        })
+
+        val actualClusters = Math.min(numClusters, uniqSamples.length)
 
         // Choose the initial quantization vectors randomly from the input samples
         val pool = new ArrayBuffer[Int]()
-        pool ++= (0 until samples.length)
+        pool ++= (0 until uniqSamples.length)
         val r = new Random()
         val quantVecs = for (i <- 0 until actualClusters) yield
         {
             val rindex = r.nextInt(pool.length)
             val todrop = pool(rindex)
             pool -= todrop
-            samples(todrop).copy
+            uniqSamples(todrop).copy
         }
 
         val assignments = Array.fill[Int](samples.length)(-1)

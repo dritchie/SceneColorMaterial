@@ -321,7 +321,6 @@ object PatternMain {
 
       // Evaluate assignments
       val (score, rscore) = TrainTestModel(segmesh, trainingMeshes)
-      println(files(idx).getName+" Score: "+score)
       avgScore += score
       randScore += rscore
 
