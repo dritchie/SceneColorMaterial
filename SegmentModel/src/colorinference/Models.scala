@@ -14,49 +14,48 @@ import cc.factorie.la.Tensor1
 import cc.factorie.la.DenseTensor1
 import collection.mutable.HashMap
 
-
-object SegmentTemplate
+object ModelConfigOptions
 {
-    // Sticking data in a variable is a factorie design pattern for making that data available
-    // to factors for computing suff stats / scores
-    type DataVariable = RefVariable[VectorHistogram]
+    val doSizeWeighting = true
 }
 
-trait UnarySegmentTemplateTypes
+object UnarySegmentTemplate
 {
     type ColorPropertyExtractor = Color => Tensor1
-    type InputData = HashMap[Segment, VectorHistogram]
-    protected type InternalData = HashMap[Segment, SegmentTemplate.DataVariable]
+    case class Datum(seg:Segment, hist:VectorHistogram)
+    type InputData = Seq[Datum]
+    type DatumVariable = RefVariable[Datum]
+    protected type InternalData = HashMap[Segment, DatumVariable]
 }
 
-object UnarySegmentTemplate extends UnarySegmentTemplateTypes
-
-trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar, SegmentTemplate.DataVariable] with UnarySegmentTemplateTypes
+trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar, UnarySegmentTemplate.DatumVariable]
 {
-    lazy val weights = new DenseTensor1(1)
+    import UnarySegmentTemplate._
 
+    lazy val weights = new DenseTensor1(1)
 
     protected def colorPropExtractor:ColorPropertyExtractor
     protected def data:InternalData
 
     def setWeight(w:Double) { weights.update(0, w) }
 
-    protected def genInternalData(input:InputData) : InternalData =
+    protected def genInternalData(input:InputData) =
     {
         val output = new InternalData()
-        for ((k, v) <- input)
-        {
-            val tup = (k, new SegmentTemplate.DataVariable(v))
-            output += tup
-        }
+        for (datum <- input)
+            output(datum.seg) = new DatumVariable(datum)
         output
     }
 
-    protected def computeStatistics(color:Color, hist:VectorHistogram) : Tensor1  =
+    protected def computeStatistics(color:Color, datum:Datum) : Tensor1  =
     {
         val props = colorPropExtractor(color)
-        val density = hist.evaluateAt(props)
-        val logDensity = MathUtils.safeLog(density)
+        val density = datum.hist.evaluateAt(props)
+        var logDensity = MathUtils.safeLog(density)
+        // Weight by relative size so that groups with tons of little segments don't get
+        // unfairly emphasized
+        if (ModelConfigOptions.doSizeWeighting)
+            logDensity *= datum.seg.size
         Tensor1(logDensity)
     }
 
@@ -71,7 +70,7 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
 
     // This will never be called, since the DataVariable never changes
 
-    def unroll2(v2:SegmentTemplate.DataVariable) =
+    def unroll2(v2:DatumVariable) =
     {
         Nil
     }
@@ -79,11 +78,13 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
 
 class DiscreteUnarySegmentTemplate(val name:String, protected val colorPropExtractor:UnarySegmentTemplate.ColorPropertyExtractor,
                                    inputData:UnarySegmentTemplate.InputData)
-    extends DotTemplate2[DiscreteColorVariable, SegmentTemplate.DataVariable] with UnarySegmentTemplate[DiscreteColorVariable]
+    extends DotTemplate2[DiscreteColorVariable, UnarySegmentTemplate.DatumVariable] with UnarySegmentTemplate[DiscreteColorVariable]
 {
+    import UnarySegmentTemplate._
+
     protected val data = genInternalData(inputData)
 
-    override def statistics(v1:DiscreteColorVariable#Value, v2:SegmentTemplate.DataVariable#Value) : Tensor =
+    override def statistics(v1:DiscreteColorVariable#Value, v2:DatumVariable#Value) : Tensor =
     {
         computeStatistics(v1.category, v2)
     }
@@ -91,11 +92,13 @@ class DiscreteUnarySegmentTemplate(val name:String, protected val colorPropExtra
 
 class ContinuousUnarySegmentTemplate(val name:String, protected val colorPropExtractor:UnarySegmentTemplate.ColorPropertyExtractor,
                                      inputData:UnarySegmentTemplate.InputData)
-    extends DotTemplate2[ContinuousColorVariable, SegmentTemplate.DataVariable] with UnarySegmentTemplate[ContinuousColorVariable]
+    extends DotTemplate2[ContinuousColorVariable, UnarySegmentTemplate.DatumVariable] with UnarySegmentTemplate[ContinuousColorVariable]
 {
+    import UnarySegmentTemplate._
+
     protected val data = genInternalData(inputData)
 
-    override def statistics(v1:ContinuousColorVariable#Value, v2:SegmentTemplate.DataVariable#Value) : Tensor =
+    override def statistics(v1:ContinuousColorVariable#Value, v2:DatumVariable#Value) : Tensor =
     {
         computeStatistics(v1, v2)
     }
@@ -103,17 +106,19 @@ class ContinuousUnarySegmentTemplate(val name:String, protected val colorPropExt
 
 
 
-trait BinarySegmentTemplateTypes
+object BinarySegmentTemplate
 {
     type ColorPropertyExtractor = (Color, Color) => Tensor1
-    type InputData = HashMap[(Segment ,Segment), VectorHistogram]
-    protected type InternalData = HashMap[(Segment ,Segment), SegmentTemplate.DataVariable]
+    case class Datum(seg1:Segment, seg2:Segment, hist:VectorHistogram)
+    type InputData = Seq[Datum]
+    type DatumVariable = RefVariable[Datum]
+    protected type InternalData = HashMap[(Segment,Segment), DatumVariable]
 }
 
-object BinarySegmentTemplate extends BinarySegmentTemplateTypes
-
-trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorVar, ColorVar, SegmentTemplate.DataVariable] with BinarySegmentTemplateTypes
+trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorVar, ColorVar, BinarySegmentTemplate.DatumVariable]
 {
+    import BinarySegmentTemplate._
+
     lazy val weights = new DenseTensor1(1)
 
     protected def colorPropExtractor:ColorPropertyExtractor
@@ -124,19 +129,22 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
     protected def genInternalData(input:InputData) : InternalData =
     {
         val output = new InternalData()
-        for ((k, v) <- input)
-        {
-            val tup = (k, new SegmentTemplate.DataVariable(v))
-            output += tup
-        }
+        for (datum <- input)
+            output((datum.seg1, datum.seg2)) = new DatumVariable(datum)
         output
     }
 
-    protected def computeStatistics(color1:Color, color2:Color, hist:VectorHistogram) : Tensor1  =
+    protected def computeStatistics(color1:Color, color2:Color, datum:Datum) : Tensor1  =
     {
         val props = colorPropExtractor(color1, color2)
-        val density = hist.evaluateAt(props)
-        val logDensity = MathUtils.safeLog(density)
+        val density = datum.hist.evaluateAt(props)
+        var logDensity = MathUtils.safeLog(density)
+        // Again, weight by size. This formula should make the total weight sum to 1
+        if (ModelConfigOptions.doSizeWeighting)
+        {
+            val sizew  = (datum.seg1.size / datum.seg1.adjacencies.size) + (datum.seg2.size / datum.seg2.adjacencies.size)
+            logDensity *= sizew
+        }
         Tensor1(logDensity)
     }
 
@@ -155,7 +163,7 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
     }
 
     // This will never be called, since the DataVariable never changes
-    def unroll3(v3:SegmentTemplate.DataVariable) =
+    def unroll3(v3:DatumVariable) =
     {
         Nil
     }
@@ -163,11 +171,13 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
 
 class DiscreteBinarySegmentTemplate(val name:String, protected val colorPropExtractor:BinarySegmentTemplate.ColorPropertyExtractor,
                                    inputData:BinarySegmentTemplate.InputData)
-    extends DotTemplate3[DiscreteColorVariable, DiscreteColorVariable, SegmentTemplate.DataVariable] with BinarySegmentTemplate[DiscreteColorVariable]
+    extends DotTemplate3[DiscreteColorVariable, DiscreteColorVariable, BinarySegmentTemplate.DatumVariable] with BinarySegmentTemplate[DiscreteColorVariable]
 {
+    import BinarySegmentTemplate._
+
     protected val data = genInternalData(inputData)
 
-    override def statistics(v1:DiscreteColorVariable#Value, v2:DiscreteColorVariable#Value, v3:SegmentTemplate.DataVariable#Value) : Tensor =
+    override def statistics(v1:DiscreteColorVariable#Value, v2:DiscreteColorVariable#Value, v3:DatumVariable#Value) : Tensor =
     {
         computeStatistics(v1.category, v2.category, v3)
     }
@@ -175,11 +185,13 @@ class DiscreteBinarySegmentTemplate(val name:String, protected val colorPropExtr
 
 class ContinuousBinarySegmentTemplate(val name:String, protected val colorPropExtractor:BinarySegmentTemplate.ColorPropertyExtractor,
                                      inputData:BinarySegmentTemplate.InputData)
-    extends DotTemplate3[ContinuousColorVariable, ContinuousColorVariable, SegmentTemplate.DataVariable] with BinarySegmentTemplate[ContinuousColorVariable]
+    extends DotTemplate3[ContinuousColorVariable, ContinuousColorVariable, BinarySegmentTemplate.DatumVariable] with BinarySegmentTemplate[ContinuousColorVariable]
 {
+    import BinarySegmentTemplate._
+
     protected val data = genInternalData(inputData)
 
-    override def statistics(v1:ContinuousColorVariable#Value, v2:ContinuousColorVariable#Value, v3:SegmentTemplate.DataVariable#Value) : Tensor =
+    override def statistics(v1:ContinuousColorVariable#Value, v2:ContinuousColorVariable#Value, v3:DatumVariable#Value) : Tensor =
     {
         computeStatistics(v1, v2, v3)
     }

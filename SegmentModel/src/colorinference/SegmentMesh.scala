@@ -10,21 +10,27 @@ package colorinference
 
 import collection.mutable.ArrayBuffer
 import collection.mutable.HashSet
-import cc.factorie.la.GrowableDenseTensor1
+import collection.mutable.HashMap
+import cc.factorie.la.Tensor1
 import io.Source
 import java.io.FileWriter
+import collection.mutable
 
 
 class Segment(val index:Int, val owner:SegmentMesh)
 {
-    val features = new ArrayBuffer[SegmentFeature]
+    val features = new mutable.HashMap[String, Tensor1]
     val adjacencies = new HashSet[Segment]
     var group : SegmentGroup = null
-}
 
-class SegmentFeature(val name:String)
-{
-    val values = new GrowableDenseTensor1(0)
+    // Quick-access to features that are accessed frequently
+    // in inference inner loop
+    var size:Double = 0.0
+
+    def extractQuickAccessFeatures()
+    {
+        size = features("RelativeSize")(0)
+    }
 }
 
 class SegmentGroup(val index:Int, val owner:SegmentMesh)
@@ -32,6 +38,13 @@ class SegmentGroup(val index:Int, val owner:SegmentMesh)
     var color:ColorVariable = null
     val members = new ArrayBuffer[Segment]
     val adjacencies = new HashSet[SegmentGroup]
+//    val features = new mutable.HashMap[String, Tensor1]
+//
+//    // Extracts features from its member segments
+//    def extractFeatures()
+//    {
+//        //
+//    }
 }
 
 class SegmentMesh(private val gen:ColorVariableGenerator)
@@ -100,18 +113,19 @@ class SegmentMesh(private val gen:ColorVariableGenerator)
                 }
                 case "SegmentEnd" =>
                 {
+                    newseg.extractQuickAccessFeatures()
                     segments += newseg
                     return
                 }
                 case _ =>
                 {
-                    val feature = new SegmentFeature(tokens(0))
-                    feature.values.ensureDimensions(tokens.length-1)
+                    val featureName = tokens(0)
+                    val featureVals = Tensor1(tokens.length-1)
                     for (i <- 1 until tokens.length)
                     {
-                        feature.values.update(i-1, tokens(i).toDouble)
+                        featureVals.update(i-1, tokens(i).toDouble)
                     }
-                    newseg.features += feature
+                    newseg.features(featureName) = featureVals
                 }
             }
         }

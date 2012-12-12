@@ -75,28 +75,28 @@ class ColorHistogramPriorFactor(v:DiscreteColorVariable, private val hist:ColorH
         MathUtils.safeLog(hist.evaluateAt(c))
     }
 }
-
-class BinaryPriorFactor(v1:DiscreteColorVariable, v2:DiscreteColorVariable, protected val hist:VectorHistogram, val func:(Color,Color)=>Tensor1) extends Factor2(v1,v2)
-{
-  def score(val1:DiscreteColorVariable#Value, val2:DiscreteColorVariable#Value) =
-  {
-    val c = func(val1.category, val2.category)
-      MathUtils.safeLog(hist.evaluateAt(c))
-  }
-
-  // This is necessary to keep factorie from thinking that two of these factors with the same variables are the same factor
-  override def equalityPrerequisite : AnyRef = this.hist
-
-}
-
-class UnaryPriorFactor(v1:DiscreteColorVariable, protected val hist:VectorHistogram, val func:(Color=>Tensor1)) extends Factor1(v1)
-{
-  def score(val1:DiscreteColorVariable#Value) =
-  {
-    val c = func(val1.category)
-      MathUtils.safeLog(hist.evaluateAt(c))
-  }
-
-  // This is necessary to keep factorie from thinking that two of these factors with the same variables are the same factor
-  override def equalityPrerequisite : AnyRef = this.hist
-}
+//
+//class BinaryPriorFactor(v1:DiscreteColorVariable, v2:DiscreteColorVariable, protected val hist:VectorHistogram, val func:(Color,Color)=>Tensor1) extends Factor2(v1,v2)
+//{
+//  def score(val1:DiscreteColorVariable#Value, val2:DiscreteColorVariable#Value) =
+//  {
+//    val c = func(val1.category, val2.category)
+//      MathUtils.safeLog(hist.evaluateAt(c))
+//  }
+//
+//  // This is necessary to keep factorie from thinking that two of these factors with the same variables are the same factor
+//  override def equalityPrerequisite : AnyRef = this.hist
+//
+//}
+//
+//class UnaryPriorFactor(v1:DiscreteColorVariable, protected val hist:VectorHistogram, val func:(Color=>Tensor1)) extends Factor1(v1)
+//{
+//  def score(val1:DiscreteColorVariable#Value) =
+//  {
+//    val c = func(val1.category)
+//      MathUtils.safeLog(hist.evaluateAt(c))
+//  }
+//
+//  // This is necessary to keep factorie from thinking that two of these factors with the same variables are the same factor
+//  override def equalityPrerequisite : AnyRef = this.hist
+//}

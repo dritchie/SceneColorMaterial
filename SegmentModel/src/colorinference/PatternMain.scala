@@ -24,34 +24,36 @@ import scala.util.Random
 class TemplateModelTraining
 {
     type Examples = ArrayBuffer[HistogramRegressor.RegressionExample]
-    case class UnaryProperty(name:String, extractor:UnarySegmentTemplate.ColorPropertyExtractor)
+    case class UnaryProperty(name:String, extractor:UnarySegmentTemplate.ColorPropertyExtractor, quant:VectorQuantizer)
     {
         val examples = new Examples
     }
-    case class BinaryProperty(name:String, extractor:BinarySegmentTemplate.ColorPropertyExtractor)
+    case class BinaryProperty(name:String, extractor:BinarySegmentTemplate.ColorPropertyExtractor, quant:VectorQuantizer)
     {
         val examples = new Examples
     }
 
+    private val uniformQuant10 = new UniformVectorQuantizer(Array(10))
+
     /* Unary color properties */
     val unary = new ArrayBuffer[UnaryProperty]()
-    unary += UnaryProperty("Lightness", (c:Color) => { Tensor1(c.copyIfNeededTo(LABColorSpace)(0)) })
-    unary += UnaryProperty("Saturation", (c:Color) => { Tensor1(c.copyIfNeededTo(HSVColorSpace)(1)) })
+    unary += UnaryProperty("Lightness", (c:Color) => { Tensor1(c.copyIfNeededTo(LABColorSpace)(0)) }, uniformQuant10)
+    unary += UnaryProperty("Saturation", (c:Color) => { Tensor1(c.copyIfNeededTo(HSVColorSpace)(1)) }, uniformQuant10)
 
     /* Binary color properties */
     //TODO: the assumption for the binary properties thus far is that they're symmetric (no directionality between the variables), which is probably ok
     val binary = new ArrayBuffer[BinaryProperty]()
-    binary += BinaryProperty("Contrast", (c1:Color, c2:Color) => { Tensor1(Color.contrast(c1, c2)) })
-    binary += BinaryProperty("Hue Complementarity", (c1:Color, c2:Color) => { Tensor1(Color.hueComplementarity(c1, c2)) })
-    binary += BinaryProperty("Relative Saturation", (c1:Color, c2:Color) => { Tensor1(Color.relativeSaturation(c1, c2)) })
+    binary += BinaryProperty("Contrast", (c1:Color, c2:Color) => { Tensor1(Color.contrast(c1, c2)) }, uniformQuant10)
+    binary += BinaryProperty("Hue Complementarity", (c1:Color, c2:Color) => { Tensor1(Color.hueComplementarity(c1, c2)) }, uniformQuant10)
+    binary += BinaryProperty("Relative Saturation", (c1:Color, c2:Color) => { Tensor1(Color.relativeSaturation(c1, c2)) }, uniformQuant10)
 
     def this(trainingMeshes:Array[SegmentMesh])
     {
         this()
 
-        // TODO: Training meshes with more segments generate more samples. Eliminate this bias!
-        //repeating the examples according to the lcm doesn't work...as the lcm turns out to be big, and we run out of heap space
-        //so we'll weight each example according to 1/numSegments or 1/numAdjacencies. Scale by 2, so we don't run into rounding errors (when Weka checks that weights add up to >=1)
+        // Training meshes with more segments generate more samples. Here we eliminate that bias
+        // repeating the examples according to the lcm doesn't work...as the lcm turns out to be big, and we run out of heap space
+        // so we'll weight each example according to 1/numSegments or 1/numAdjacencies. Scale by 2, so we don't run into rounding errors (when Weka checks that weights add up to >=1)
 
         for (mesh <- trainingMeshes)
         {
@@ -64,16 +66,11 @@ class TemplateModelTraining
                 for (prop <- unary) { prop.examples += HistogramRegressor.RegressionExample(prop.extractor(seg.group.color.observedColor), fvec, unaryWeight) }
             }
 
-            //val numAdj = {for(seg1<-mesh.segments; seg2<-seg1.adjacencies if seg1.index<seg2.index) yield 1}.length //I don't know why this doesn't work..
-
             var checkAdj = 0
             for (seg1<-mesh.segments; seg2 <- seg1.adjacencies if seg1.index < seg2.index)
                 checkAdj+=1
 
             val binaryWeight =  2.0/checkAdj
-
-            //println("numAdj " + numAdj)
-            //println("checkAdj " + checkAdj)
 
             // Binary stuff
             for (seg1 <- mesh.segments; seg2 <- seg1.adjacencies if seg1.index < seg2.index)
@@ -84,7 +81,7 @@ class TemplateModelTraining
         }
     }
 
-    def concatVectors[T<:Tensor1](vecs:Seq[T]) : Tensor1 =
+    def concatVectors[T<:Tensor1](vecs:collection.Iterable[T]) : Tensor1 =
     {
         var totaldims = 0
         for (v <- vecs) totaldims += v.length
@@ -100,7 +97,7 @@ class TemplateModelTraining
 
     def getUnarySegmentRegressionFeatures(seg:Segment) : Tensor1 =
     {
-        val featureList = seg.features.filter(f => f.name != "Label").map(f => f.values)
+        val featureList = seg.features.filterKeys(name => name != "Label").values
         concatVectors(featureList)
     }
 
@@ -133,28 +130,28 @@ class TemplateModelTraining
 
     // This currently uses discrete variables and weights fixed at 1
     // TODO: Try continuous variables and weight learning
-    def buildTemplateModel(targetMesh:SegmentMesh, bins:Int = 20) : Model =
+    def buildTemplateModel(targetMesh:SegmentMesh) : Model =
     {
         println("Building template model...")
 
         // Train regressors
         println("Training regressors...")
         val unaryRegressors = for (prop <- unary) yield
-            HistogramRegressor.LogisticRegression(prop.examples, MathUtils.euclideanDistance, new KMeansVectorQuantizer(bins), WekaMultiClassHistogramRegressor)
+            HistogramRegressor.LogisticRegression(prop.examples, MathUtils.euclideanDistance, prop.quant, WekaMultiClassHistogramRegressor)
         println("Training binary regressors...")
         val binaryRegressors = for (prop <- binary) yield
-            HistogramRegressor.LogisticRegression(prop.examples, MathUtils.euclideanDistance, new KMeansVectorQuantizer(bins), WekaMultiClassHistogramRegressor)
+            HistogramRegressor.LogisticRegression(prop.examples, MathUtils.euclideanDistance, prop.quant, WekaMultiClassHistogramRegressor)
 
         // Predict histograms for every segment of the target mesh
         println("Predicting histograms for each segment & segment-pair...")
-        val unaryHistMaps = for (prop <- unary) yield new UnarySegmentTemplate.InputData()
-        val binaryHistMaps = for (prop <- binary) yield new BinarySegmentTemplate.InputData()
+        val unaryData = for (prop <- unary) yield new ArrayBuffer[UnarySegmentTemplate.Datum]
+        val binaryData = for (prop <- binary) yield new ArrayBuffer[BinarySegmentTemplate.Datum]
         // Unary stuff
         for (seg <- targetMesh.segments)
         {
             val f = getUnarySegmentRegressionFeatures(seg)
             for (i <- 0 until unary.length)
-                unaryHistMaps(i)(seg) = unaryRegressors(i).predictHistogram(f)
+                unaryData(i) += UnarySegmentTemplate.Datum(seg, unaryRegressors(i).predictHistogram(f))
         }
         // Binary stuff
         for (seg1 <- targetMesh.segments; seg2 <- seg1.adjacencies if seg1.index < seg2.index)
@@ -163,8 +160,8 @@ class TemplateModelTraining
             for (i <- 0 until binary.length)
             {
                 val hist = binaryRegressors(i).predictHistogram(f)
-                binaryHistMaps(i)((seg1, seg2)) = hist
-                binaryHistMaps(i)((seg2, seg1)) = hist
+                binaryData(i) += BinarySegmentTemplate.Datum(seg1, seg2, hist)
+                binaryData(i) += BinarySegmentTemplate.Datum(seg2, seg1, hist)
             }
         }
 
@@ -173,84 +170,18 @@ class TemplateModelTraining
         val model = new TemplateModel()
         for (i <- 0 until unary.length)
         {
-            val template = new DiscreteUnarySegmentTemplate(unary(i).name, unary(i).extractor, unaryHistMaps(i))
+            val template = new DiscreteUnarySegmentTemplate(unary(i).name, unary(i).extractor, unaryData(i))
             template.setWeight(1.0)
             model += template
         }
         for (i <- 0 until binary.length)
         {
-            val template = new DiscreteBinarySegmentTemplate(binary(i).name, binary(i).extractor, binaryHistMaps(i))
+            val template = new DiscreteBinarySegmentTemplate(binary(i).name, binary(i).extractor, binaryData(i))
             template.setWeight(1.0)
             model += template
         }
 
         model
-    }
-
-
-    def buildUnrolledTemplateModel(targetMesh:SegmentMesh, bins:Int=20): Model =
-    {
-        println("Building non-template model...")
-        val tempModel = buildTemplateModel(targetMesh, bins)
-        val itemModel = tempModel.itemizedModel(for (group <- targetMesh.groups) yield group.color.asInstanceOf[DiscreteColorVariable])
-        itemModel
-    }
-
-
-  def buildManualItemizedModel(targetMesh:SegmentMesh, bins:Int=20): Model =
-    {
-      println("Building non-template model...")
-
-      // Train regressors
-      println("Training regressors...")
-      val unaryRegressors = for (prop <- unary) yield
-        HistogramRegressor.LogisticRegression(prop.examples, MathUtils.euclideanDistance, new KMeansVectorQuantizer(bins), WekaMultiClassHistogramRegressor)
-      val binaryRegressors = for (prop <- binary) yield
-        HistogramRegressor.LogisticRegression(prop.examples, MathUtils.euclideanDistance, new KMeansVectorQuantizer(bins), WekaMultiClassHistogramRegressor)
-
-      // Predict histograms for every segment of the target mesh
-      println("Predicting histograms for each segment & segment-pair...")
-      val unaryHistMaps = for (prop <- unary) yield new UnarySegmentTemplate.InputData()
-      val binaryHistMaps = for (prop <- binary) yield new BinarySegmentTemplate.InputData()
-      // Unary stuff
-      for (seg <- targetMesh.segments)
-      {
-        val f = getUnarySegmentRegressionFeatures(seg)
-        for (i <- 0 until unary.length)
-          unaryHistMaps(i)(seg) = unaryRegressors(i).predictHistogram(f)
-      }
-      // Binary stuff
-      for (seg1 <- targetMesh.segments; seg2 <- seg1.adjacencies if seg1.index < seg2.index)
-      {
-        val f = getBinarySegmentRegressionFeatures(seg1, seg2)
-        for (i <- 0 until binary.length)
-        {
-          val hist = binaryRegressors(i).predictHistogram(f)
-          binaryHistMaps(i)((seg1, seg2)) = hist
-          binaryHistMaps(i)((seg2, seg1)) = hist
-        }
-      }
-
-     //return a model with factors
-      val model = new ItemizedModel()
-
-      //for each pair of adjacent regions in the target mesh, add a factor for the contrast, smaller label first
-      for (seg <- targetMesh.segments)
-      {
-        //add unary factors
-        //TODO: there may also be an imbalance w.r.t color groups with more segments getting more weight for their preferred color, which might be ok, but also means groups with few but large segments might get shafted
-        //maybe there's some way to weight the unary factors appropriately? Or maybe just weight based on relative size (withiin the factor scoring function)?
-        for (i <- 0 until unary.length)
-            model += new UnaryPriorFactor(seg.group.color.asInstanceOf[DiscreteColorVariable], unaryHistMaps(i)(seg), unary(i).extractor )
-
-        for (n <- seg.adjacencies if seg.index < n.index)
-        {
-          for (i<-0 until binary.length)
-            model += new BinaryPriorFactor(seg.group.color.asInstanceOf[DiscreteColorVariable], n.group.color.asInstanceOf[DiscreteColorVariable], binaryHistMaps(i)((seg,n)), binary(i).extractor)
-        }
-      }
-
-      model
     }
 }
 
@@ -262,7 +193,6 @@ object PatternMain {
 
   var meshes:ArrayBuffer[SegmentMesh] = new ArrayBuffer[SegmentMesh]()
   var files:Array[File] = null
-  val numBins = 10     //the maximum number of bins
   val random = new Random()
   val numIterations = 100
 
@@ -346,8 +276,7 @@ object PatternMain {
 
     val trainer = new TemplateModelTraining(trainingMeshes)
 
-    val model = trainer.buildTemplateModel(segmesh, numBins)
-    //val model = trainer.buildManualItemizedModel(segmesh, numBins)
+    val model = trainer.buildTemplateModel(segmesh)
 
     // Do inference
     println("Performing inference")
