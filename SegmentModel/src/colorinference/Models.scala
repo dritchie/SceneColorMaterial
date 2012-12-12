@@ -56,7 +56,8 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
     {
         val props = colorPropExtractor(color)
         val density = hist.evaluateAt(props)
-        Tensor1(math.log(density))
+        val logDensity = MathUtils.safeLog(density)
+        Tensor1(logDensity)
     }
 
     def unroll1(v1:ColorVar) =
@@ -69,6 +70,7 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
     }
 
     // This will never be called, since the DataVariable never changes
+
     def unroll2(v2:SegmentTemplate.DataVariable) =
     {
         Nil
@@ -134,7 +136,8 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
     {
         val props = colorPropExtractor(color1, color2)
         val density = hist.evaluateAt(props)
-        Tensor1(math.log(density))
+        val logDensity = MathUtils.safeLog(density)
+        Tensor1(logDensity)
     }
 
     def unroll1(v1:ColorVar) =

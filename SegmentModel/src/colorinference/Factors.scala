@@ -74,7 +74,7 @@ class ColorHistogramPriorFactor(v:DiscreteColorVariable, private val hist:ColorH
     def score(v:DiscreteColorVariable#Value) =
     {
         val c = v.category.copyIfNeededTo(hist.colorspace)
-        math.log(hist.evaluateAt(c))
+        MathUtils.safeLog(hist.evaluateAt(c))
     }
 }
 
@@ -83,7 +83,7 @@ class BinaryPriorFactor(v1:DiscreteColorVariable, v2:DiscreteColorVariable, prot
   def score(val1:DiscreteColorVariable#Value, val2:DiscreteColorVariable#Value) =
   {
     val c = func(val1.category, val2.category)
-    math.log(hist.evaluateAt(c))
+      MathUtils.safeLog(hist.evaluateAt(c))
   }
 
   // This is necessary to keep factorie from thinking that two of these factors with the same variables are the same factor
@@ -96,7 +96,7 @@ class UnaryPriorFactor(v1:DiscreteColorVariable, protected val hist:VectorHistog
   def score(val1:DiscreteColorVariable#Value) =
   {
     val c = func(val1.category)
-    math.log(hist.evaluateAt(c))
+      MathUtils.safeLog(hist.evaluateAt(c))
   }
 
   // This is necessary to keep factorie from thinking that two of these factors with the same variables are the same factor

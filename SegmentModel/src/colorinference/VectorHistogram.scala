@@ -79,7 +79,9 @@ class VectorHistogram(private val metric:MathUtils.DistanceMetric)
             val freq = bins(i)
             val d = metric(point, centroid)
             val sigma = bandwidths(i)
-            sum += freq * MathUtils.gaussianDistribution(d, sigma)
+            val gauss = MathUtils.gaussianDistribution(d, sigma)
+            val totalterm = freq * gauss
+            sum += totalterm
         }
         sum / bins.length
     }
@@ -126,6 +128,16 @@ object VectorHistogram
 trait VectorQuantizer
 {
     def apply(samples:Seq[Tensor1], metric:MathUtils.DistanceMetric, weights:Seq[Double]=null) : (IndexedSeq[Tensor1], IndexedSeq[Int])
+
+    protected def sanityCheckResult(centroids:IndexedSeq[Tensor1])
+    {
+        // Make sure there are no NaNs
+        for (v <- centroids; i <- 0 until v.length) assert(v(i) == v(i), {println("VectorQuantizer: NaNs in final quantization vectors")})
+
+        // Make sure there are no co-located centroids
+        for (i <- 0 until centroids.length-1; j <- i+1 until centroids.length)
+            assert((centroids(i) - centroids(j)).twoNormSquared != 0.0, {println("VectorQuantizer: Detected co-located final quantization vectors")})
+    }
 }
 
 //this doesn't take into account weights
@@ -178,6 +190,8 @@ class UniformVectorQuantizer(private val binsPerDim:IndexedSeq[Int]) extends Vec
             assignments(i) = MathUtils.closestVectorBruteForce(samples(i), centroids, metric)
         }
 
+        sanityCheckResult(centroids)
+
         (centroids, assignments)
     }
 }
@@ -189,10 +203,8 @@ class KMeansVectorQuantizer(private val numClusters:Int) extends VectorQuantizer
     {
         assert(samples.length > 0, {println("KMeansVectorQuantizer: cannot operate on 0 data points")})
 
-        //check that there's enough clusters for the number of samples
-        //assert(samples.length >= numClusters, {"KMeansVectorQuantizer: number of clusters greater than number of data points"})
-        //change number of bins according to number of samples
-
+        // We can only deal with as many clusters as we have (unique) samples
+        // TODO: Make this look at the number of *unique* samples (based on vector values, not pointer equality)
         val actualClusters = Math.min(numClusters, samples.length)
 
         // Choose the initial quantization vectors randomly from the input samples
@@ -234,6 +246,8 @@ class KMeansVectorQuantizer(private val numClusters:Int) extends VectorQuantizer
                 for (i <- 0 until quantVecs.length) if (counts(i) > 0) quantVecs(i) /= counts(i)
             }
         }
+
+        sanityCheckResult(quantVecs)
 
         (quantVecs, assignments)
     }

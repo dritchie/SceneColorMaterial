@@ -80,10 +80,13 @@ abstract class HistogramRegressor(examples:Seq[HistogramRegressor.RegressionExam
         val bins = new Array[Double](centroids.length)
         fillBins(featureVec, bins)
 
-        // Normalize bins
+        // Normalize bins (also do a sanity check)
         var totalmass = 0.0
-        for (i <- 0 until bins.length)
-            totalmass += bins(i)
+        for (b <- bins)
+        {
+            assert(b == b, {println("HistogramRegressor - NaNs in predicted bins")})
+            totalmass += b
+        }
         if (totalmass > 0.0)
             for (i <- 0 until bins.length) bins(i) /= totalmass
 

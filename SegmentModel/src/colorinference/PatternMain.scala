@@ -269,7 +269,7 @@ object PatternMain {
 
   var meshes:ArrayBuffer[SegmentMesh] = new ArrayBuffer[SegmentMesh]()
   var files:Array[File] = null
-  val numBins = 5     //the maximum number of bins TODO:this dies if I set it to 10 in inference, not sure why
+  val numBins = 10     //the maximum number of bins TODO:this dies if I set it to 10 in inference, not sure why
   val random = new Random()
   val numIterations = 100
 
@@ -348,16 +348,14 @@ object PatternMain {
 
   def TrainTestModel(segmesh:SegmentMesh, trainingMeshes:Array[SegmentMesh]):(Double,Double) =
   {
+      // set the variable domain
+      val palette = ColorPalette(segmesh)
+      DiscreteColorVariable.initDomain(palette)
 
-    //train and test on the same mesh, to see how well it fits
-    //test the template model
     val trainer = new TemplateModelTraining(trainingMeshes)
 
-    val model = trainer.buildUnrolledTemplateModel(segmesh, numBins)
-
-    // set the variable domain
-    val palette = ColorPalette(segmesh)
-    DiscreteColorVariable.initDomain(palette)
+    val model = trainer.buildTemplateModel(segmesh, numBins)
+    //val model = trainer.buildManualItemizedModel(segmesh, numBins)
 
     // Do inference
     println("Performing inference")
