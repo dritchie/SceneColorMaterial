@@ -15,6 +15,7 @@ import java.io.File
 import cc.factorie._
 import la.Tensor1
 import scala.util.Random
+import cc.factorie.DiffList
 
 
 object ModelTraining
@@ -140,15 +141,15 @@ object PatternMain {
     var avgTScore:Double = 0
     var randTScore:Double = 0
     var tcount = 0
-//    //test the model by training and testing on the same mesh
-//    for (idx<-meshes.indices if idx<10)
-//    {
-//      println("Testing model on mesh " + files(idx).getName )
-//      val (score, rand) = TrainTestModel(meshes(idx), Array[SegmentMesh]{meshes(idx)})
-//      avgTScore += score
-//      randTScore += rand
-//      tcount +=1
-//    }
+    //test the model by training and testing on the same mesh
+    /*for (idx<-meshes.indices if idx<5)
+    {
+      println("Testing model on mesh " + files(idx).getName )
+      val (score, rand) = TrainTestModel(meshes(idx), Array[SegmentMesh]{meshes(idx)})
+      avgTScore += score
+      randTScore += rand
+      tcount +=1
+    }*/
     avgTScore /= tcount
     randTScore /= tcount
 
@@ -202,9 +203,13 @@ object PatternMain {
 
     // Do inference
     println("Performing inference")
-    val sampler = new VariableSettingsSampler[DiscreteColorVariable](model)
+    /*val sampler = new VariableSettingsSampler[DiscreteColorVariable](model)
     val optimizer = new SamplingMaximizer(sampler)
-    optimizer.maximize(for (group <- segmesh.groups) yield group.color.asInstanceOf[DiscreteColorVariable], numIterations)
+    optimizer.maximize(for (group <- segmesh.groups) yield group.color.asInstanceOf[DiscreteColorVariable], numIterations)*/
+
+    ExhaustiveSearch.allCombinations(segmesh, model)
+
+    //ExhaustiveSearch.allPermutations(segmesh, model)
 
     // Evaluate assignments
     val score = segmesh.scoreAssignment()
@@ -221,6 +226,131 @@ object PatternMain {
     println("Random score: " + rscore)
 
     (score,rscore)
+
+  }
+
+}
+//TODO: incorporate this more nicely with  Factorie?
+//There are some ugly type casts here...hopefully some way to fix
+object ExhaustiveSearch
+{
+
+  //from: http://stackoverflow.com/questions/1070859/listing-combinations-with-repetitions-in-scala
+  def mycomb[T](n: Int, l: List[T]): List[List[T]] =
+    n match {
+      case 0 => List(List())
+      case _ => for(el <- l;
+                    sl <- mycomb(n-1, l dropWhile { _ != el } ))
+      yield el :: sl
+    }
+
+  def comb[T](n: Int, l: List[T]): List[List[T]] = mycomb(n, l.distinct)
+
+  def allCombinations(mesh:SegmentMesh, model:Model)
+  {
+    println("Starting exhaustive search through all combos")
+
+    val numVals = DiscreteColorVariable.domain.size
+    val vars = mesh.groups.map(g => g.color)
+    val allCombs = comb[Int](vars.size, (0 until numVals).toList)
+    var iters = 0
+
+    for (c <- allCombs; p <- c.permutations)
+      iters += 1
+
+    println("Number of combinations: "+iters)
+
+    var bestScore = Double.NegativeInfinity
+    var currIter = 0
+    val itemizedModel = model.itemizedModel(vars)
+    for (c <- allCombs; p<-c.permutations)
+    {
+      if (currIter % 500 == 0) println("Current iteration ..." + currIter)
+      currIter += 1
+      //create the new assignment
+      //TODO: learn DiffLists
+      val assignment = new HashMapAssignment(vars)
+      for (i <- mesh.groups.indices)
+      {
+        assignment.update(mesh.groups(i).color.asInstanceOf[DiscreteColorVariable], DiscreteColorVariable.domain(p(i)))
+      }
+      //TODO: this is ugly
+      for (f <- itemizedModel.factors)
+      {
+         f.variables.foreach{ e => e match {
+           case(v:UnarySegmentTemplate.DatumVariable) => assignment.update(v, v.value)
+           case(b:BinarySegmentTemplate.DatumVariable) => assignment.update(b, b.value)
+           case _ => null
+         }}
+      }
+
+
+      val currScore = model.assignmentScore(vars, assignment)
+      if (currScore > bestScore)
+      {
+          //set the assignment
+          for (i <- mesh.groups.indices)
+          {
+            mesh.groups(i).color.setColor(DiscreteColorVariable.domain.category(p(i)))
+          }
+          bestScore = currScore
+      }
+
+    }
+
+  }
+
+
+  def allPermutations(mesh:SegmentMesh, model:Model)
+  {
+
+    println("Starting exhaustive search through all permutation")
+     val numVals = DiscreteColorVariable.domain.size
+     val vars = mesh.groups.map(g => g.color)
+      assert(numVals==vars.size, "allPermutations: Number of variables is not equal to domain!")
+
+     val allPerms = (0 until numVals).toList.permutations.toList
+
+     println("Number of permutations " + allPerms.length)
+     var currIter = 0
+     var bestScore = Double.NegativeInfinity
+
+    val itemizedModel = model.itemizedModel(vars)
+
+    for (p <- allPerms)
+    {
+      if (currIter % 10 == 0) println("Current iteration ..." + currIter)
+      currIter += 1
+      //create the new assignment
+      val assignment = new HashMapAssignment(vars)
+      for (i <- mesh.groups.indices)
+      {
+        assignment.update(mesh.groups(i).color.asInstanceOf[DiscreteColorVariable], DiscreteColorVariable.domain(p(i)))
+      }
+
+      for (f <- itemizedModel.factors)
+      {
+        f.variables.foreach{ e => e match {
+          case(v:UnarySegmentTemplate.DatumVariable) => assignment.update(v, v.value)
+          case(b:BinarySegmentTemplate.DatumVariable) => assignment.update(b, b.value)
+          case _ => null
+        }}
+      }
+
+
+      val currScore = model.assignmentScore(vars, assignment)
+      if (currScore > bestScore)
+      {
+        //set the assignment
+        for (i <- mesh.groups.indices)
+        {
+          mesh.groups(i).color.setColor(DiscreteColorVariable.domain.category(p(i)))
+        }
+        bestScore = currScore
+
+      }
+
+    }
 
   }
 

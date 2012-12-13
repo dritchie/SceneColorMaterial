@@ -83,7 +83,10 @@ object Color
     {
         val l1 = col1.luminance()
         val l2 = col2.luminance()
-        math.abs(l1 - l2) / (0.5 * (l1 + l2) + 1e-10)
+        //math.abs(l1 - l2) / (0.5 * (l1 + l2) + 1e-10)
+
+        //normalize by max luminance diff, which is 1
+        math.abs(l1-l2)
     }
 
     def hueComplementarity(col1:Color, col2:Color) : Double =
@@ -98,7 +101,10 @@ object Color
     {
         val sat1 = col1.copyIfNeededTo(HSVColorSpace)(1)
         val sat2 = col2.copyIfNeededTo(HSVColorSpace)(1)
-        math.abs(sat1 - sat2) / (0.5 * (sat1 + sat2) + 1e-10)
+       // math.abs(sat1 - sat2) / (0.5 * (sat1 + sat2) + 1e-10)
+
+        //normalize by max posible saturation diff, which is 1
+        math.abs(sat1-sat2)
     }
 
 }
