@@ -113,10 +113,10 @@ namespace Engine
             }
         }
 
-        private bool inBounds(int x, int y, int width, int height)
+       /* private bool inBounds(int x, int y, int width, int height)
         {
             return x >= 0 && x < width && y >= 0 && y < height;
-        }
+        }*/
 
         private int ClosestColorIndex(CIELAB color, List<CIELAB> palette)
         {
@@ -200,7 +200,7 @@ namespace Engine
 
                         foreach (Point p in oneCompare[c])
                         {
-                            if (inBounds(p.X, p.Y, width, height))
+                            if (Util.InBounds(p.X, p.Y, width, height))
                             {
                                 CIELAB rc = ClosestColor(image[p.X, p.Y], palette.lab);
                                 //check if in the set
@@ -220,7 +220,7 @@ namespace Engine
                         foreach (Point p in otherCompare[c])
                         {
                             
-                            if (inBounds(p.X, p.Y, width, height))
+                            if (Util.InBounds(p.X, p.Y, width, height))
                             {
                                 CIELAB rc = ClosestColor(image[p.X, p.Y], palette.lab);
                                 //check if in the set
@@ -261,7 +261,7 @@ namespace Engine
                                 int x = i + dx;
                                 int y = j + dy;
                                 double weight = (dx == 0 && dy == 0) ? 4 : 1;
-                                if (inBounds(x, y, width, height))
+                                if (Util.InBounds(x, y, width, height))
                                 {
                                     int bestc = ClosestColorIndex(image[x, y], palette.lab);
                                     scores[bestc] -= weight;
@@ -321,7 +321,7 @@ namespace Engine
                             int x = i + dx;
                             int y = j + dy;
                             double weight = (dx == 0 && dy == 0) ? 4 : 1;
-                            if (inBounds(x, y, width, height))
+                            if (Util.InBounds(x, y, width, height))
                             {
                                 int bestc = ClosestColorIndex(image[x, y], palette.lab);
                                 scores[bestc] -= weight;
@@ -378,7 +378,7 @@ namespace Engine
                             int x = i + dx;
                             int y = j + dy;
                             double weight = (dx == 0 && dy==0)? 4:1;
-                            if (inBounds(x,y,width,height))
+                            if (Util.InBounds(x,y,width,height))
                             {
                                 for (int c = 0; c < palette.colors.Count(); c++)
                                 {
