@@ -157,7 +157,7 @@ object PatternMain {
     var count = 0
     var randScore:Double = 0
 
-    for (idx <- meshes.indices if idx < 50)
+    for (idx <- meshes.indices if idx < 10)
     {
       println("Testing mesh " + idx)
       val segmesh = meshes(idx)
