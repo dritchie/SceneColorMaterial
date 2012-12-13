@@ -5,6 +5,10 @@ using System.Text;
 using Engine;
 using System.Drawing;
 using System.IO;
+using Emgu.CV;
+using Emgu.Util;
+using Emgu.CV.Structure;
+
 
 namespace PatternColorizer
 {
@@ -17,6 +21,11 @@ namespace PatternColorizer
         {
             name = n;
             values = new List<Double>();
+        }
+        public SegmentFeature(String n, List<Double> v)
+        {
+            name = n;
+            values = new List<Double>(v);
         }
     }
 
@@ -56,6 +65,7 @@ namespace PatternColorizer
         private List<SegmentGroup> groups;
         int imageWidth = 0;
         int imageHeight = 0;
+        int[,] assignments;
 
         public SegmentMesh(ColorTemplate template)
         {
@@ -74,7 +84,7 @@ namespace PatternColorizer
 
             UnionFind<Color> uf = new UnionFind<Color>((a, b) => (a.GetHashCode() == b.GetHashCode()));
             Bitmap image = template.DebugQuantization();
-            int[,] assignments = uf.ConnectedComponentsNoiseRemoval(Util.BitmapToArray(image));
+            assignments = uf.ConnectedComponentsNoiseRemoval(Util.BitmapToArray(image));
             
 
             Dictionary<int, Segment> idToSegment = new Dictionary<int, Segment>();
@@ -154,7 +164,7 @@ namespace PatternColorizer
             
             //label the color group with the largest segment as a background element
             //label all segments in the color group as a background (?), unless it is noise
-            //0-noise, 1-background, 2-foreground
+            //001-noise, 010-background, 100-foreground
             double largestSize = 0;
             int segIdx = -1;
             
@@ -171,7 +181,7 @@ namespace PatternColorizer
             int groupId = segments[segIdx].groupId;
 
             SegmentFeature bg = new SegmentFeature("Label");
-            bg.values.Add(1);
+            bg.values = new List<Double>{0, 1, 0};
             foreach (int idx in groups[groupId].members)
             {
                 if (segments[idx].assignmentId >=0)
@@ -179,10 +189,10 @@ namespace PatternColorizer
             }
 
             SegmentFeature noise = new SegmentFeature("Label");
-            noise.values.Add(0);
+            noise.values = new List<Double>{0, 0, 1};
 
             SegmentFeature fg = new SegmentFeature("Label");
-            fg.values.Add(2);
+            fg.values = new List<Double> { 1, 0, 0 };
 
             foreach (Segment s in segments)
             {
@@ -194,6 +204,11 @@ namespace PatternColorizer
 
         }
 
+        private double Dist(PointF a, PointF b)
+        {
+            return Math.Sqrt(Math.Pow(a.X-b.X,2) + Math.Pow(a.Y-b.Y,2));
+        }
+
         public void ComputeFeatures(Segment s)
         {
             //Add the relative size
@@ -201,6 +216,81 @@ namespace PatternColorizer
             f.values.Add(s.points.Count() / (double)(imageWidth * imageHeight));
             s.features.Add(f);
 
+            //normalize the points (relative to the image center (0,0))
+            PointF[] normalizedPoints = s.points.Select<Point, PointF>(p => new PointF(-0.5f+(float)p.X /imageWidth, -0.5f+(float)p.Y /imageHeight) ).ToArray<PointF>();
+
+            //Add the relative centroid 
+            double cX = 0;
+            double cY = 0;
+            foreach (PointF p in normalizedPoints)
+            {
+                cX += p.X;
+                cY += p.Y;
+            }
+            cX /= normalizedPoints.Count();
+            cY /= normalizedPoints.Count();
+            s.features.Add(new SegmentFeature("RelativeCentroid", new List<double>{cX, cY}));
+
+
+            //Radial distance
+            s.features.Add(new SegmentFeature("RadialDistance", new List<double>{Math.Sqrt(cX*cX+cY*cY)}));
+
+
+            //Normalized Discrete Compactness http://www.m-hikari.com/imf-password2009/25-28-2009/bribiescaIMF25-28-2009.pdf
+            //Find the segment id
+            Point sp = s.points.First();
+            int sidx = assignments[sp.X, sp.Y];
+            
+            //count number of perimeter edges
+            int perimeter = 0;
+            foreach (Point p in s.points)
+            {
+                for (int i = -1; i <= 1; i++)
+                {
+                    for (int j = -1; j <= 1; j++)
+                    {
+                        if (Math.Abs(i) == Math.Abs(j))
+                            continue;
+                        if (Util.InBounds(p.X + i, p.Y + j, imageWidth, imageHeight) && assignments[p.X + i, p.Y + j] != sidx)
+                            perimeter++;
+                    }
+                }
+            }
+            int n = s.points.Count();
+            double CD = (4.0 * n - perimeter) / 2;
+            double CDmin = n - 1;
+            double CDmax = (4 * n - 4 * Math.Sqrt(n)) / 2;
+            double CDN = (CD - CDmin) / (CDmax - CDmin);
+            s.features.Add(new SegmentFeature("NormalizedDiscreteCompactness", new List<double> { CDN }));
+
+
+            //Add elongation (width/length normalized between 0-square to 1-long http://hal.archives-ouvertes.fr/docs/00/44/60/37/PDF/ARS-Journal-SurveyPatternRecognition.pdf         
+            PointF[] points = s.points.Select<Point, PointF>(p => new PointF(p.X, p.Y)).ToArray<PointF>();
+            Emgu.CV.Structure.MCvBox2D box = Emgu.CV.PointCollection.MinAreaRect(points);
+
+            PointF[] vertices = box.GetVertices();
+            double elongation = 1 - Math.Min(box.size.Width + 1, box.size.Height + 1) / Math.Max(box.size.Width + 1, box.size.Height + 1);
+            s.features.Add(new SegmentFeature("Elongation", new List<double>{elongation}));
+
+
+            //Add Hu shape moments, invariant to translation, scale, and rotation (not sure what each measure refers to intuitively though, or if there is an intuitive analog)
+            //They may also do badly on noisy data however. See: http://hal.archives-ouvertes.fr/docs/00/44/60/37/PDF/ARS-Journal-SurveyPatternRecognition.pdf (called Invariant Moments)
+
+            Bitmap regionBitmap = new Bitmap(imageWidth, imageHeight);
+            Graphics g = Graphics.FromImage(regionBitmap);
+            g.FillRectangle(new SolidBrush(Color.Black), 0, 0, imageWidth, imageHeight);
+            foreach (Point p in s.points)
+            {
+                regionBitmap.SetPixel(p.X, p.Y, Color.White);
+            }
+
+            Emgu.CV.Image<Gray, byte> region = new Emgu.CV.Image<Gray, byte>(regionBitmap);
+
+            MCvMoments moment = region.GetMoments(true);
+            MCvHuMoments hu = moment.GetHuMoment();
+            s.features.Add(new SegmentFeature("HuMoments", new List<double> {hu.hu1, hu.hu2, hu.hu3,hu.hu4,hu.hu5, hu.hu6, hu.hu7 }));
+            region.Dispose();
+            regionBitmap.Dispose();
         }
 
 
