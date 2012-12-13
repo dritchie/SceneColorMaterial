@@ -19,32 +19,57 @@ object ModelConfigOptions
     val doSizeWeighting = true
 }
 
+/** All the templates we define will have this trait **/
+trait ColorInferenceTemplate
+{
+    def conditionOn(mesh:SegmentMesh)
+}
+
+/** This is the top-level model that we use for everything.
+  * Templates are added to this thing.
+   */
+class ColorInferenceModel extends TemplateModel
+{
+    def conditionOn(mesh:SegmentMesh)
+    {
+        for (t <- this.templates)
+            t.asInstanceOf[ColorInferenceTemplate].conditionOn(mesh)
+    }
+}
+
 object UnarySegmentTemplate
 {
     type ColorPropertyExtractor = Color => Tensor1
     case class Datum(seg:Segment, hist:VectorHistogram)
-    type InputData = Seq[Datum]
     type DatumVariable = RefVariable[Datum]
-    protected type InternalData = HashMap[Segment, DatumVariable]
+    protected type Data = HashMap[Segment, DatumVariable]
 }
 
-trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar, UnarySegmentTemplate.DatumVariable]
+trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar, UnarySegmentTemplate.DatumVariable] with ColorInferenceTemplate
 {
     import UnarySegmentTemplate._
 
     lazy val weights = new DenseTensor1(1)
 
     protected def colorPropExtractor:ColorPropertyExtractor
-    protected def data:InternalData
+    protected def regressor:HistogramRegressor
+    protected val data = new Data
 
     def setWeight(w:Double) { weights.update(0, w) }
 
-    protected def genInternalData(input:InputData) =
+    def conditionOn(mesh:SegmentMesh)
     {
-        val output = new InternalData()
-        for (datum <- input)
-            output(datum.seg) = new DatumVariable(datum)
-        output
+        data.clear()
+        for (seg <- mesh.segments)
+        {
+            val f = Segment.getUnaryRegressionFeatures(seg)
+            data(seg) = new DatumVariable(Datum(seg, regressor.predictHistogram(f)))
+        }
+    }
+
+    protected def trainRegressor(property:ModelTraining#UnarySegmentProperty) : HistogramRegressor =
+    {
+        HistogramRegressor.LogisticRegression(property.examples, MathUtils.euclideanDistance, property.quant, WekaMultiClassHistogramRegressor)
     }
 
     protected def computeStatistics(color:Color, datum:Datum) : Tensor1  =
@@ -76,13 +101,13 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
     }
 }
 
-class DiscreteUnarySegmentTemplate(val name:String, protected val colorPropExtractor:UnarySegmentTemplate.ColorPropertyExtractor,
-                                   inputData:UnarySegmentTemplate.InputData)
+class DiscreteUnarySegmentTemplate(property:ModelTraining#UnarySegmentProperty)
     extends DotTemplate2[DiscreteColorVariable, UnarySegmentTemplate.DatumVariable] with UnarySegmentTemplate[DiscreteColorVariable]
 {
     import UnarySegmentTemplate._
 
-    protected val data = genInternalData(inputData)
+    protected val colorPropExtractor = property.extractor
+    protected val regressor = trainRegressor(property)
 
     override def statistics(v1:DiscreteColorVariable#Value, v2:DatumVariable#Value) : Tensor =
     {
@@ -90,13 +115,13 @@ class DiscreteUnarySegmentTemplate(val name:String, protected val colorPropExtra
     }
 }
 
-class ContinuousUnarySegmentTemplate(val name:String, protected val colorPropExtractor:UnarySegmentTemplate.ColorPropertyExtractor,
-                                     inputData:UnarySegmentTemplate.InputData)
+class ContinuousUnarySegmentTemplate(property:ModelTraining#UnarySegmentProperty)
     extends DotTemplate2[ContinuousColorVariable, UnarySegmentTemplate.DatumVariable] with UnarySegmentTemplate[ContinuousColorVariable]
 {
     import UnarySegmentTemplate._
 
-    protected val data = genInternalData(inputData)
+    protected val colorPropExtractor = property.extractor
+    protected val regressor = trainRegressor(property)
 
     override def statistics(v1:ContinuousColorVariable#Value, v2:DatumVariable#Value) : Tensor =
     {
@@ -110,28 +135,35 @@ object BinarySegmentTemplate
 {
     type ColorPropertyExtractor = (Color, Color) => Tensor1
     case class Datum(seg1:Segment, seg2:Segment, hist:VectorHistogram)
-    type InputData = Seq[Datum]
     type DatumVariable = RefVariable[Datum]
-    protected type InternalData = HashMap[(Segment,Segment), DatumVariable]
+    protected type Data = HashMap[(Segment,Segment), DatumVariable]
 }
 
-trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorVar, ColorVar, BinarySegmentTemplate.DatumVariable]
+trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorVar, ColorVar, BinarySegmentTemplate.DatumVariable] with ColorInferenceTemplate
 {
     import BinarySegmentTemplate._
 
     lazy val weights = new DenseTensor1(1)
 
     protected def colorPropExtractor:ColorPropertyExtractor
-    protected def data:InternalData
+    protected def regressor:HistogramRegressor
+    protected val data = new Data
 
     def setWeight(w:Double) { weights.update(0, w) }
 
-    protected def genInternalData(input:InputData) : InternalData =
+    def conditionOn(mesh:SegmentMesh)
     {
-        val output = new InternalData()
-        for (datum <- input)
-            output((datum.seg1, datum.seg2)) = new DatumVariable(datum)
-        output
+        data.clear()
+        for (seg1 <- mesh.segments; seg2 <- seg1.adjacencies if seg1.index < seg2.index)
+        {
+            val f = Segment.getBinaryRegressionFeatures(seg1, seg2)
+            data((seg1, seg2)) = new DatumVariable(Datum(seg1, seg2, regressor.predictHistogram(f)))
+        }
+    }
+
+    protected def trainRegressor(property:ModelTraining#BinarySegmentProperty) : HistogramRegressor =
+    {
+        HistogramRegressor.LogisticRegression(property.examples, MathUtils.euclideanDistance, property.quant, WekaMultiClassHistogramRegressor)
     }
 
     protected def computeStatistics(color1:Color, color2:Color, datum:Datum) : Tensor1  =
@@ -169,13 +201,13 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
     }
 }
 
-class DiscreteBinarySegmentTemplate(val name:String, protected val colorPropExtractor:BinarySegmentTemplate.ColorPropertyExtractor,
-                                   inputData:BinarySegmentTemplate.InputData)
+class DiscreteBinarySegmentTemplate(property:ModelTraining#BinarySegmentProperty)
     extends DotTemplate3[DiscreteColorVariable, DiscreteColorVariable, BinarySegmentTemplate.DatumVariable] with BinarySegmentTemplate[DiscreteColorVariable]
 {
     import BinarySegmentTemplate._
 
-    protected val data = genInternalData(inputData)
+    protected val colorPropExtractor = property.extractor
+    protected val regressor = trainRegressor(property)
 
     override def statistics(v1:DiscreteColorVariable#Value, v2:DiscreteColorVariable#Value, v3:DatumVariable#Value) : Tensor =
     {
@@ -183,13 +215,13 @@ class DiscreteBinarySegmentTemplate(val name:String, protected val colorPropExtr
     }
 }
 
-class ContinuousBinarySegmentTemplate(val name:String, protected val colorPropExtractor:BinarySegmentTemplate.ColorPropertyExtractor,
-                                     inputData:BinarySegmentTemplate.InputData)
+class ContinuousBinarySegmentTemplate(property:ModelTraining#BinarySegmentProperty)
     extends DotTemplate3[ContinuousColorVariable, ContinuousColorVariable, BinarySegmentTemplate.DatumVariable] with BinarySegmentTemplate[ContinuousColorVariable]
 {
     import BinarySegmentTemplate._
 
-    protected val data = genInternalData(inputData)
+    protected val colorPropExtractor = property.extractor
+    protected val regressor = trainRegressor(property)
 
     override def statistics(v1:ContinuousColorVariable#Value, v2:ContinuousColorVariable#Value, v3:DatumVariable#Value) : Tensor =
     {

@@ -131,6 +131,20 @@ object MathUtils
         math.log(value + 1e-10)
     }
 
+    def concatVectors[T<:Tensor1](vecs:collection.Iterable[T]) : Tensor1 =
+    {
+        var totaldims = 0
+        for (v <- vecs) totaldims += v.length
+        val vec = new DenseTensor1(totaldims)
+        var finalIndex = 0
+        for (v <- vecs; vi <- 0 until v.length)
+        {
+            vec(finalIndex) = v(vi)
+            finalIndex += 1
+        }
+        vec
+    }
+
   /** Greatest common denomimator and least common multiple **/
   def gcd(a: Int, b: Int):Int=if (b==0) a.abs else gcd(b, a%b)
   def lcm(a: Int, b: Int)=(a*b).abs/gcd(a,b)

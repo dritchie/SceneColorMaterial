@@ -32,6 +32,39 @@ class Segment(val index:Int, val owner:SegmentMesh)
         size = features("RelativeSize")(0)
     }
 }
+object Segment
+{
+    def getUnaryRegressionFeatures(seg:Segment) : Tensor1 =
+    {
+        val featureList = seg.features.filterKeys(name => name != "Label").values
+        MathUtils.concatVectors(featureList)
+    }
+
+    def getBinaryRegressionFeatures(seg1:Segment, seg2:Segment) : Tensor1 =
+    {
+        val fvec1 = getUnaryRegressionFeatures(seg1)
+        val fvec2 = getUnaryRegressionFeatures(seg2)
+
+        // Sort by distance from the origin in feature space
+        if (fvec1.twoNormSquared < fvec2.twoNormSquared)
+            MathUtils.concatVectors(Array(fvec1, fvec2))
+        else
+            MathUtils.concatVectors(Array(fvec2, fvec1))
+
+    }
+
+    def orderSegmentsByFeatures(seg1:Segment, seg2:Segment): (Segment, Segment) =
+    {
+        val fvec1 = getUnaryRegressionFeatures(seg1)
+        val fvec2 = getUnaryRegressionFeatures(seg2)
+
+        // Sort by distance from the origin in feature space
+        if (fvec1.twoNormSquared < fvec2.twoNormSquared)
+            (seg1, seg2)
+        else
+            (seg2, seg1)
+    }
+}
 
 class SegmentGroup(val index:Int, val owner:SegmentMesh)
 {
