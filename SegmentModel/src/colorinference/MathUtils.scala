@@ -148,4 +148,17 @@ object MathUtils
   /** Greatest common denomimator and least common multiple **/
   def gcd(a: Int, b: Int):Int=if (b==0) a.abs else gcd(b, a%b)
   def lcm(a: Int, b: Int)=(a*b).abs/gcd(a,b)
+
+
+  /** All Combinations. from: http://stackoverflow.com/questions/1070859/listing-combinations-with-repetitions-in-scala **/
+  def mycomb[T](n: Int, l: List[T]): List[List[T]] =
+    n match {
+      case 0 => List(List())
+      case _ => for(el <- l;
+                    sl <- mycomb(n-1, l dropWhile { _ != el } ))
+      yield el :: sl
+    }
+
+  def comb[T](n: Int, l: List[T]): List[List[T]] = mycomb(n, l.distinct)
+
 }

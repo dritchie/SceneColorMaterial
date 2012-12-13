@@ -191,6 +191,37 @@ object PatternMain {
      segmesh.groups.map(g => palette(random.nextInt(palette.length)))
   }
 
+  def SetRandomPermutation(mesh:SegmentMesh)
+  {
+    // set the variable domain
+    val palette = ColorPalette(mesh)
+    DiscreteColorVariable.initDomain(palette)
+
+    val numVals = DiscreteColorVariable.domain.size
+    val allPerms = (0 until numVals).toList.permutations.toList
+    val randP = allPerms(random.nextInt(allPerms.length))
+
+    for (i <- mesh.groups.indices)
+    {
+      mesh.groups(i).color.setColor(DiscreteColorVariable.domain.category(randP(i)))
+    }
+
+  }
+
+  def SetRandomCombination(mesh:SegmentMesh)
+  {
+    // set the variable domain
+    val palette = ColorPalette(mesh)
+    DiscreteColorVariable.initDomain(palette)
+
+    val assignment = mesh.groups.map(g => random.nextInt(palette.length))
+
+    for (i <- mesh.groups.indices)
+    {
+      mesh.groups(i).color.setColor(DiscreteColorVariable.domain.category(assignment(i)))
+    }
+  }
+
 
   def TrainTestModel(segmesh:SegmentMesh, trainingMeshes:Array[SegmentMesh]):(Double,Double) =
   {
@@ -235,24 +266,13 @@ object PatternMain {
 object ExhaustiveSearch
 {
 
-  //from: http://stackoverflow.com/questions/1070859/listing-combinations-with-repetitions-in-scala
-  def mycomb[T](n: Int, l: List[T]): List[List[T]] =
-    n match {
-      case 0 => List(List())
-      case _ => for(el <- l;
-                    sl <- mycomb(n-1, l dropWhile { _ != el } ))
-      yield el :: sl
-    }
-
-  def comb[T](n: Int, l: List[T]): List[List[T]] = mycomb(n, l.distinct)
-
   def allCombinations(mesh:SegmentMesh, model:Model)
   {
     println("Starting exhaustive search through all combos")
 
     val numVals = DiscreteColorVariable.domain.size
     val vars = mesh.groups.map(g => g.color)
-    val allCombs = comb[Int](vars.size, (0 until numVals).toList)
+    val allCombs = MathUtils.comb[Int](vars.size, (0 until numVals).toList)
     var iters = 0
 
     for (c <- allCombs; p <- c.permutations)
