@@ -17,7 +17,6 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="scala-library" level="project" />
     <orderEntry type="library" name="factorie-1.0.0-M2" level="project" />
-    <orderEntry type="library" name="jnisvmlight" level="project" />
     <orderEntry type="library" name="weka" level="project" />
   </component>
 </module>
