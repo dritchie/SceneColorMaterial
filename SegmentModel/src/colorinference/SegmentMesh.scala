@@ -12,6 +12,7 @@ import collection.mutable.ArrayBuffer
 import collection.mutable.HashSet
 import collection.mutable.HashMap
 import cc.factorie.la.Tensor1
+import cc.factorie.la.DenseTensor1
 import io.Source
 import java.io.FileWriter
 import collection.mutable
@@ -154,7 +155,8 @@ class SegmentMesh(private val gen:ColorVariableGenerator)
                 case _ =>
                 {
                     val featureName = tokens(0)
-                    val featureVals = Tensor1((for (i<- 0 until tokens.length-1) yield 0.0):_*)
+                    val featureVals = new DenseTensor1(tokens.length-1)
+
                     for (i <- 1 until tokens.length)
                     {
                         featureVals.update(i-1, tokens(i).toDouble)
