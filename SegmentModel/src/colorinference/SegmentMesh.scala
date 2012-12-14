@@ -36,7 +36,8 @@ object Segment
 {
     def getUnaryRegressionFeatures(seg:Segment) : Tensor1 =
     {
-        val featureList = seg.features.filterKeys(name => name != "Label").values
+        val blockList = Set("HuMoments","RelativeCentroid")
+        val featureList = seg.features.filterKeys(name => !blockList.contains(name)).values
         MathUtils.concatVectors(featureList)
     }
 
@@ -153,7 +154,7 @@ class SegmentMesh(private val gen:ColorVariableGenerator)
                 case _ =>
                 {
                     val featureName = tokens(0)
-                    val featureVals = Tensor1(tokens.length-1)
+                    val featureVals = Tensor1((for (i<- 0 until tokens.length-1) yield 0.0):_*)
                     for (i <- 1 until tokens.length)
                     {
                         featureVals.update(i-1, tokens(i).toDouble)
