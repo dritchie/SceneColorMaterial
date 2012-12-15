@@ -9,7 +9,6 @@ package colorinference
  */
 
 import cc.factorie.la.Tensor1
-import jnisvmlight._
 import weka.classifiers.`lazy`.{LWL, IBk}
 import weka.classifiers.Classifier
 import weka.classifiers.functions.supportVector.RBFKernel
