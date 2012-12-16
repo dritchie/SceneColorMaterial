@@ -20,6 +20,21 @@ import cc.factorie.DiffList
 
 object ModelTraining
 {
+    /* Color properties */
+
+    // Segment - unary
+    def lightness(c:Color) = Tensor1(c.copyIfNeededTo(LABColorSpace)(0))
+    def saturation(c:Color) = Tensor1(c.copyIfNeededTo(HSVColorSpace)(1))
+
+    // Segment - binary
+    def contrast(c1:Color, c2:Color) = Tensor1(Color.contrast(c1, c2))
+    def hueComplementarity(c1:Color, c2:Color) = Tensor1(Color.hueComplementarity(c1, c2))
+    def relativeSaturation(c1:Color, c2:Color) = Tensor1(Color.relativeSaturation(c1, c2))
+
+
+    /* Quantizers */
+    val uniformQuant10 = new UniformVectorQuantizer(Array(10))
+
     def apply(trainingMeshes:Array[SegmentMesh]) : ColorInferenceModel =
     {
         val training = new ModelTraining
@@ -39,21 +54,26 @@ class ModelTraining
     {
         val examples = new Examples
     }
+    case class ColorGroupProperty(name:String, extractor:ColorGroupTemplate.ColorPropertyExtractor, quant:VectorQuantizer)
+    {
+        val examples = new Examples
+    }
 
-    /* Quantizers */
-    private val uniformQuant10 = new UniformVectorQuantizer(Array(10))
+    /* Unary segment properties */
+    val unarySegProps = new ArrayBuffer[UnarySegmentProperty]()
+    unarySegProps += UnarySegmentProperty("Lightness", ModelTraining.lightness, ModelTraining.uniformQuant10)
+    unarySegProps += UnarySegmentProperty("Saturation", ModelTraining.saturation, ModelTraining.uniformQuant10)
 
-    /* Unary color properties */
-    val unary = new ArrayBuffer[UnarySegmentProperty]()
-    unary += UnarySegmentProperty("Lightness", (c:Color) => { Tensor1(c.copyIfNeededTo(LABColorSpace)(0)) }, uniformQuant10)
-    unary += UnarySegmentProperty("Saturation", (c:Color) => { Tensor1(c.copyIfNeededTo(HSVColorSpace)(1)) }, uniformQuant10)
-
-    /* Binary color properties */
+    /* Binary segment properties */
     // The assumption for the binary properties thus far is that they're symmetric (no directionality between the variables), which is probably ok
-    val binary = new ArrayBuffer[BinarySegmentProperty]()
-    binary += BinarySegmentProperty("Contrast", (c1:Color, c2:Color) => { Tensor1(Color.contrast(c1, c2)) }, uniformQuant10)
-    binary += BinarySegmentProperty("Hue Complementarity", (c1:Color, c2:Color) => { Tensor1(Color.hueComplementarity(c1, c2)) }, uniformQuant10)
-    binary += BinarySegmentProperty("Relative Saturation", (c1:Color, c2:Color) => { Tensor1(Color.relativeSaturation(c1, c2)) }, uniformQuant10)
+    val binarySegProps = new ArrayBuffer[BinarySegmentProperty]()
+    binarySegProps += BinarySegmentProperty("Contrast", ModelTraining.contrast, ModelTraining.uniformQuant10)
+    binarySegProps += BinarySegmentProperty("Hue Complementarity", ModelTraining.hueComplementarity, ModelTraining.uniformQuant10)
+    binarySegProps += BinarySegmentProperty("Relative Saturation", ModelTraining.relativeSaturation, ModelTraining.uniformQuant10)
+
+    /* Color group properties */
+    val groupProps = new ArrayBuffer[ColorGroupProperty]()
+    // TODO: Add some group properties
 
     def train(trainingMeshes:Array[SegmentMesh]) : ColorInferenceModel =
     {
@@ -66,11 +86,11 @@ class ModelTraining
         {
             val unaryWeight = 2.0/mesh.segments.length
 
-            // Unary stuff
+            // Unary segment properties
             for (seg <- mesh.segments)
             {
                 val fvec = Segment.getUnaryRegressionFeatures(seg)
-                for (prop <- unary) { prop.examples += HistogramRegressor.RegressionExample(prop.extractor(seg.group.color.observedColor), fvec, unaryWeight) }
+                for (prop <- unarySegProps) { prop.examples += HistogramRegressor.RegressionExample(prop.extractor(seg.group.color.observedColor), fvec, unaryWeight) }
             }
 
             var checkAdj = 0
@@ -79,25 +99,39 @@ class ModelTraining
 
             val binaryWeight =  2.0/checkAdj
 
-            // Binary stuff
+            // Binary segment properties
             for (seg1 <- mesh.segments; seg2 <- seg1.adjacencies if seg1.index < seg2.index)
             {
                 val fvec = Segment.getBinaryRegressionFeatures(seg1, seg2)
-                for (prop <- binary) { prop.examples += HistogramRegressor.RegressionExample(prop.extractor(seg1.group.color.observedColor,seg2.group.color.observedColor), fvec, binaryWeight) }
+                for (prop <- binarySegProps) { prop.examples += HistogramRegressor.RegressionExample(prop.extractor(seg1.group.color.observedColor,seg2.group.color.observedColor), fvec, binaryWeight) }
+            }
+
+            // Group properties
+            // TODO: Should these training examples be weighted like the ones above? I think it's probably unnecessary.
+            for (group <- mesh.groups)
+            {
+                val fvec = SegmentGroup.getRegressionFeatures(group)
+                for (prop <- groupProps) { prop.examples += HistogramRegressor.RegressionExample(prop.extractor(group.color.observedColor), fvec)}
             }
         }
 
         /** Construct model **/
         val model = new ColorInferenceModel
-        for (i <- 0 until unary.length)
+        for (i <- 0 until unarySegProps.length)
         {
-            val template = new DiscreteUnarySegmentTemplate(unary(i))
+            val template = new DiscreteUnarySegmentTemplate(unarySegProps(i))
             template.setWeight(1.0)
             model += template
         }
-        for (i <- 0 until binary.length)
+        for (i <- 0 until binarySegProps.length)
         {
-            val template = new DiscreteBinarySegmentTemplate(binary(i))
+            val template = new DiscreteBinarySegmentTemplate(binarySegProps(i))
+            template.setWeight(1.0)
+            model += template
+        }
+        for (i <- 0 until groupProps.length)
+        {
+            val template = new DiscreteColorGroupTemplate(groupProps(i))
             template.setWeight(1.0)
             model += template
         }

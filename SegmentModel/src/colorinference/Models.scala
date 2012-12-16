@@ -14,14 +14,13 @@ import cc.factorie.la.Tensor1
 import cc.factorie.la.DenseTensor1
 import collection.mutable.HashMap
 
-object ModelConfigOptions
-{
-    val doSizeWeighting = true
-}
 
 /** All the templates we define will have this trait **/
 trait ColorInferenceTemplate
 {
+    lazy val weights = new DenseTensor1(1)
+    def setWeight(w:Double) { weights.update(0, w) }
+
     def conditionOn(mesh:SegmentMesh)
 }
 
@@ -49,13 +48,9 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
 {
     import UnarySegmentTemplate._
 
-    lazy val weights = new DenseTensor1(1)
-
     protected def colorPropExtractor:ColorPropertyExtractor
     protected def regressor:HistogramRegressor
     protected val data = new Data
-
-    def setWeight(w:Double) { weights.update(0, w) }
 
     def conditionOn(mesh:SegmentMesh)
     {
@@ -79,8 +74,7 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
         var logDensity = MathUtils.safeLog(density)
         // Weight by relative size so that groups with tons of little segments don't get
         // unfairly emphasized
-        if (ModelConfigOptions.doSizeWeighting)
-            logDensity *= datum.seg.size
+        logDensity *= datum.seg.size
         Tensor1(logDensity)
     }
 
@@ -143,13 +137,9 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
 {
     import BinarySegmentTemplate._
 
-    lazy val weights = new DenseTensor1(1)
-
     protected def colorPropExtractor:ColorPropertyExtractor
     protected def regressor:HistogramRegressor
     protected val data = new Data
-
-    def setWeight(w:Double) { weights.update(0, w) }
 
     def conditionOn(mesh:SegmentMesh)
     {
@@ -172,11 +162,8 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
         val density = datum.hist.evaluateAt(props)
         var logDensity = MathUtils.safeLog(density)
         // Again, weight by size. This formula should make the total weight sum to 1
-        if (ModelConfigOptions.doSizeWeighting)
-        {
-            val sizew  = (datum.seg1.size / datum.seg1.adjacencies.size) + (datum.seg2.size / datum.seg2.adjacencies.size)
-            logDensity *= sizew
-        }
+        val sizew  = (datum.seg1.size / datum.seg1.adjacencies.size) + (datum.seg2.size / datum.seg2.adjacencies.size)
+        logDensity *= sizew
         Tensor1(logDensity)
     }
 
@@ -229,3 +216,84 @@ class ContinuousBinarySegmentTemplate(property:ModelTraining#BinarySegmentProper
     }
 }
 
+
+
+object ColorGroupTemplate
+{
+    type ColorPropertyExtractor = Color => Tensor1
+    case class Datum(group:SegmentGroup, hist:VectorHistogram)
+    type DatumVariable = RefVariable[Datum]
+    protected type Data = HashMap[SegmentGroup, DatumVariable]
+}
+
+trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar, ColorGroupTemplate.DatumVariable] with ColorInferenceTemplate
+{
+    import ColorGroupTemplate._
+
+    protected def colorPropExtractor:ColorPropertyExtractor
+    protected def regressor:HistogramRegressor
+    protected val data = new Data
+
+    def conditionOn(mesh:SegmentMesh)
+    {
+        data.clear()
+        for (group <- mesh.groups)
+        {
+            val f = SegmentGroup.getRegressionFeatures(group)
+            data(group) = new DatumVariable(Datum(group, regressor.predictHistogram(f)))
+        }
+    }
+
+    protected def trainRegressor(property:ModelTraining#ColorGroupProperty) : HistogramRegressor =
+    {
+        HistogramRegressor.LogisticRegression(property.examples, MathUtils.euclideanDistance, property.quant, WekaMultiClassHistogramRegressor)
+    }
+
+    protected def computeStatistics(color:Color, datum:Datum) : Tensor1  =
+    {
+        val props = colorPropExtractor(color)
+        val density = datum.hist.evaluateAt(props)
+        val logDensity = MathUtils.safeLog(density)
+        // TODO: Some form of size weighting? I don't think it's needed...
+        Tensor1(logDensity)
+    }
+
+    def unroll1(v1:ColorVar) =
+    {
+        Factor(v1, data(v1.group))
+    }
+
+    // This will never be called, since the DataVariable never changes
+    def unroll2(v2:DatumVariable) =
+    {
+        Nil
+    }
+}
+
+class DiscreteColorGroupTemplate(property:ModelTraining#ColorGroupProperty)
+    extends DotTemplate2[DiscreteColorVariable, ColorGroupTemplate.DatumVariable] with ColorGroupTemplate[DiscreteColorVariable]
+{
+    import ColorGroupTemplate._
+
+    protected val colorPropExtractor = property.extractor
+    protected val regressor = trainRegressor(property)
+
+    override def statistics(v1:DiscreteColorVariable#Value, v2:DatumVariable#Value) : Tensor =
+    {
+        computeStatistics(v1.category, v2)
+    }
+}
+
+class ContinuousColorGroupTemplate(property:ModelTraining#ColorGroupProperty)
+    extends DotTemplate2[ContinuousColorVariable, ColorGroupTemplate.DatumVariable] with ColorGroupTemplate[ContinuousColorVariable]
+{
+    import ColorGroupTemplate._
+
+    protected val colorPropExtractor = property.extractor
+    protected val regressor = trainRegressor(property)
+
+    override def statistics(v1:ContinuousColorVariable#Value, v2:DatumVariable#Value) : Tensor =
+    {
+        computeStatistics(v1, v2)
+    }
+}

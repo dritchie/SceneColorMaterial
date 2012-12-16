@@ -12,17 +12,17 @@ using Emgu.CV.Structure;
 
 namespace PatternColorizer
 {
-    class SegmentFeature
+    class NamedFeature
     {
         public String name;
         public List<Double> values;
 
-        public SegmentFeature(String n)
+        public NamedFeature(String n)
         {
             name = n;
             values = new List<Double>();
         }
-        public SegmentFeature(String n, List<Double> v)
+        public NamedFeature(String n, List<Double> v)
         {
             name = n;
             values = new List<Double>(v);
@@ -32,7 +32,7 @@ namespace PatternColorizer
     class Segment
     {
         public SortedSet<int> adjacencies;
-        public List<SegmentFeature> features;
+        public List<NamedFeature> features;
         public List<Point> points;
         public int groupId;
         public int assignmentId;
@@ -40,22 +40,23 @@ namespace PatternColorizer
         public Segment(int id)
         {
             adjacencies = new SortedSet<int>();
-            features = new List<SegmentFeature>();
+            features = new List<NamedFeature>();
             points = new List<Point>();
             assignmentId = id;
         }
-
     }
 
     class SegmentGroup
     {
         public SortedSet<int> members;
+        public List<NamedFeature> features;
         public Color observed;
 
         public SegmentGroup(Color c)
         {
             observed = c;
             members = new SortedSet<int>();
+            features = new List<NamedFeature>();
         }
     }
 
@@ -156,6 +157,11 @@ namespace PatternColorizer
                 ComputeFeatures(s);
             }
 
+            foreach (SegmentGroup g in groups)
+            {
+                ComputeFeatures(g);
+            }
+
         }
 
         public void ClassifySegments()
@@ -180,7 +186,7 @@ namespace PatternColorizer
 
             int groupId = segments[segIdx].groupId;
 
-            SegmentFeature bg = new SegmentFeature("Label");
+            NamedFeature bg = new NamedFeature("Label");
             bg.values = new List<Double>{0, 1, 0};
             foreach (int idx in groups[groupId].members)
             {
@@ -188,10 +194,10 @@ namespace PatternColorizer
                     segments[idx].features.Add(bg);
             }
 
-            SegmentFeature noise = new SegmentFeature("Label");
+            NamedFeature noise = new NamedFeature("Label");
             noise.values = new List<Double>{0, 0, 1};
 
-            SegmentFeature fg = new SegmentFeature("Label");
+            NamedFeature fg = new NamedFeature("Label");
             fg.values = new List<Double> { 1, 0, 0 };
 
             foreach (Segment s in segments)
@@ -212,28 +218,16 @@ namespace PatternColorizer
         public void ComputeFeatures(Segment s)
         {
             //Add the relative size
-            SegmentFeature f = new SegmentFeature("RelativeSize");
+            NamedFeature f = new NamedFeature("RelativeSize");
             f.values.Add(s.points.Count() / (double)(imageWidth * imageHeight));
             s.features.Add(f);
 
-            //normalize the points (relative to the image center (0,0))
-            PointF[] normalizedPoints = s.points.Select<Point, PointF>(p => new PointF(-0.5f+(float)p.X /imageWidth, -0.5f+(float)p.Y /imageHeight) ).ToArray<PointF>();
-
-            //Add the relative centroid 
-            double cX = 0;
-            double cY = 0;
-            foreach (PointF p in normalizedPoints)
-            {
-                cX += p.X;
-                cY += p.Y;
-            }
-            cX /= normalizedPoints.Count();
-            cY /= normalizedPoints.Count();
-            s.features.Add(new SegmentFeature("RelativeCentroid", new List<double>{cX, cY}));
+            PointF c = NormalizedCentroid(s);
+            s.features.Add(new NamedFeature("RelativeCentroid", new List<double>{c.X, c.Y}));
 
 
             //Radial distance
-            s.features.Add(new SegmentFeature("RadialDistance", new List<double>{Math.Sqrt(cX*cX+cY*cY)}));
+            s.features.Add(new NamedFeature("RadialDistance", new List<double>{Math.Sqrt(c.X*c.X+c.Y*c.Y)}));
 
 
             //Normalized Discrete Compactness http://www.m-hikari.com/imf-password2009/25-28-2009/bribiescaIMF25-28-2009.pdf
@@ -261,7 +255,7 @@ namespace PatternColorizer
             double CDmin = n - 1;
             double CDmax = (4 * n - 4 * Math.Sqrt(n)) / 2;
             double CDN = (CD - CDmin) / (CDmax - CDmin);
-            s.features.Add(new SegmentFeature("NormalizedDiscreteCompactness", new List<double> { CDN }));
+            s.features.Add(new NamedFeature("NormalizedDiscreteCompactness", new List<double> { CDN }));
 
 
             //Add elongation (width/length normalized between 0-square to 1-long http://hal.archives-ouvertes.fr/docs/00/44/60/37/PDF/ARS-Journal-SurveyPatternRecognition.pdf         
@@ -270,7 +264,7 @@ namespace PatternColorizer
 
             PointF[] vertices = box.GetVertices();
             double elongation = 1 - Math.Min(box.size.Width + 1, box.size.Height + 1) / Math.Max(box.size.Width + 1, box.size.Height + 1);
-            s.features.Add(new SegmentFeature("Elongation", new List<double>{elongation}));
+            s.features.Add(new NamedFeature("Elongation", new List<double>{elongation}));
 
 
             //Add Hu shape moments, invariant to translation, scale, and rotation (not sure what each measure refers to intuitively though, or if there is an intuitive analog)
@@ -288,9 +282,105 @@ namespace PatternColorizer
 
             MCvMoments moment = region.GetMoments(true);
             MCvHuMoments hu = moment.GetHuMoment();
-            s.features.Add(new SegmentFeature("HuMoments", new List<double> {hu.hu1, hu.hu2, hu.hu3,hu.hu4,hu.hu5, hu.hu6, hu.hu7 }));
+            s.features.Add(new NamedFeature("HuMoments", new List<double> {hu.hu1, hu.hu2, hu.hu3,hu.hu4,hu.hu5, hu.hu6, hu.hu7 }));
             region.Dispose();
             regionBitmap.Dispose();
+        }
+
+        public PointF NormalizedCentroid(Segment s)
+        {
+            //normalize the points (relative to the image center (0,0))
+            PointF[] normalizedPoints = s.points.Select<Point, PointF>(p => new PointF(-0.5f + (float)p.X / imageWidth, -0.5f + (float)p.Y / imageHeight)).ToArray<PointF>();
+
+            //Add the relative centroid 
+            float cX = 0;
+            float cY = 0;
+            foreach (PointF p in normalizedPoints)
+            {
+                cX += p.X;
+                cY += p.Y;
+            }
+            cX /= normalizedPoints.Count();
+            cY /= normalizedPoints.Count();
+            return new PointF(cX, cY);
+        }
+
+        public void ComputeFeatures(SegmentGroup g)
+        {
+            double imarea = (double)(imageWidth * imageHeight);
+
+            // Amount of the image this group takes up
+            NamedFeature sizef = new NamedFeature("RelativeSize");
+            int size = 0;
+            foreach (int i in g.members)
+            {
+                Segment s = segments[i];
+                size += s.points.Count();
+            }
+            sizef.values.Add(size / imarea);
+            g.features.Add(sizef);
+
+            // (Normalized) number of segments in the group
+            NamedFeature numsegf = new NamedFeature("NormalizedNumSegs");
+            numsegf.values.Add(g.members.Count() / (double)(segments.Count()));
+            g.features.Add(numsegf);
+
+            // min, max, mean, stddev segment size
+            int minsegsize, maxsegsize, segsizesum;
+            minsegsize = Int32.MaxValue;
+            maxsegsize = 0;
+            segsizesum = 0;
+            foreach (int i in g.members)
+            {
+                int s = segments[i].points.Count;
+                minsegsize = Math.Min(s, minsegsize);
+                maxsegsize = Math.Max(s, maxsegsize);
+                segsizesum += s;
+            }
+            double meansegsize = ((double)segsizesum) / g.members.Count;
+            double stddevsegsize = 0;
+            foreach (int i in g.members)
+            {
+                int s = segments[i].points.Count;
+                double diff = (s - meansegsize);
+                stddevsegsize += (diff * diff);
+            }
+            stddevsegsize /= g.members.Count;
+            NamedFeature segsizestatsf = new NamedFeature("SegmentSizeStatistics");
+            segsizestatsf.values.Add(minsegsize / imarea);
+            segsizestatsf.values.Add(maxsegsize / imarea);
+            segsizestatsf.values.Add(meansegsize / imarea);
+            segsizestatsf.values.Add(stddevsegsize / imarea);
+            g.features.Add(segsizestatsf);
+
+            // "spread" - covariance of segment centroids
+            PointF meanc = new PointF(0, 0);
+            foreach (int i in g.members)
+            {
+                PointF c = NormalizedCentroid(segments[i]);
+                meanc.X += c.X;
+                meanc.Y += c.Y;
+            }
+            meanc.X /= g.members.Count;
+            meanc.Y /= g.members.Count;
+            double[,] covar = new double[,] { { 0, 0 }, { 0, 0 } };
+            foreach (int i in g.members)
+            {
+                PointF c = NormalizedCentroid(segments[i]);
+                float x = c.X - meanc.X;
+                float y = c.Y - meanc.Y;
+                covar[0, 0] += x * x;
+                covar[0, 1] += x * y;
+                covar[1, 0] += x * y;
+                covar[1, 1] += y * y;
+            }
+            covar[0, 0] /= g.members.Count;
+            covar[0, 1] /= g.members.Count;
+            covar[1, 0] /= g.members.Count;
+            covar[1, 1] /= g.members.Count;
+            NamedFeature spreadf = new NamedFeature("SegmentSpread",
+                new List<double>{covar[0,0], covar[0,1], covar[1,0], covar[1,1]});
+            g.features.Add(spreadf);
         }
 
 
@@ -302,7 +392,7 @@ namespace PatternColorizer
             {
                 lines.Add("SegmentBegin");
 
-                foreach (SegmentFeature f in s.features)
+                foreach (NamedFeature f in s.features)
                 {
                     lines.Add(f.name + " " + String.Join(" ", f.values.Select<Double,String>((d)=>d.ToString()).ToArray<String>()));
                 }
@@ -316,6 +406,10 @@ namespace PatternColorizer
             foreach (SegmentGroup g in groups)
             {
                 lines.Add("GroupBegin");
+                foreach (NamedFeature f in g.features)
+                {
+                    lines.Add(f.name + " " + String.Join(" ", f.values.Select<Double, String>((d) => d.ToString()).ToArray<String>()));
+                }
                 lines.Add("ObservedColor " + g.observed.R / 255.0 + " " + g.observed.G / 255.0 + " " + g.observed.B / 255.0);
                 lines.Add("Members " + String.Join(" ", g.members.Select<int,String>(d=>d.ToString()).ToArray<String>()));
                 lines.Add("GroupEnd");
