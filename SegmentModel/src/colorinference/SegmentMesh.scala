@@ -71,15 +71,18 @@ object Segment
 class SegmentGroup(val index:Int, val owner:SegmentMesh)
 {
     var color:ColorVariable = null
+    val features = new mutable.HashMap[String, Tensor1]
     val members = new ArrayBuffer[Segment]
     val adjacencies = new HashSet[SegmentGroup]
-//    val features = new mutable.HashMap[String, Tensor1]
-//
-//    // Extracts features from its member segments
-//    def extractFeatures()
-//    {
-//        //
-//    }
+}
+object SegmentGroup
+{
+    def getRegressionFeatures(seg:SegmentGroup) : Tensor1 =
+    {
+        val blockList = Set[String]()
+        val featureList = seg.features.filterKeys(name => !blockList.contains(name)).values
+        MathUtils.concatVectors(featureList)
+    }
 }
 
 class SegmentMesh(private val gen:ColorVariableGenerator)
@@ -197,6 +200,16 @@ class SegmentMesh(private val gen:ColorVariableGenerator)
                     return
                 }
                 case _ =>
+                {
+                    val featureName = tokens(0)
+                    val featureVals = new DenseTensor1(tokens.length-1)
+
+                    for (i <- 1 until tokens.length)
+                    {
+                        featureVals.update(i-1, tokens(i).toDouble)
+                    }
+                    newgroup.features(featureName) = featureVals
+                }
             }
         }
     }
