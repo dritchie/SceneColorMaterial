@@ -12,17 +12,17 @@ import cc.factorie._
 import la.Tensor1
 
 /**
- * Factor that enforces that the contrast between two colors should be similar to the observed contrast between
+ * Factor that enforces that the luminanceContrast between two colors should be similar to the observed luminanceContrast between
  * their owner groups
  */
 class PairwiseMaintainObservedContrastFactor(v1:DiscreteColorVariable, v2:DiscreteColorVariable) extends Factor2(v1,v2)
 {
     private val sigma = 0.2     // I just made this up
-    private val targetContrast = Color.contrast(v1.observedColor, v2.observedColor)
+    private val targetContrast = Color.luminanceContrast(v1.observedColor, v2.observedColor)
 
     def score(val1:DiscreteColorVariable#Value, val2:DiscreteColorVariable#Value) =
     {
-        val contrast = Color.contrast(val1.category, val2.category)
+        val contrast = Color.luminanceContrast(val1.category, val2.category)
         // This is intended to be a gaussian, but we don't exponentiate it because factorie operates in log space
         -math.abs(contrast - targetContrast) / sigma
     }
@@ -50,7 +50,7 @@ class TargetContrastFactor(v1:DiscreteColorVariable, v2:DiscreteColorVariable, p
 {
     def score(val1:DiscreteColorVariable#Value, val2:DiscreteColorVariable#Value) =
     {
-        val contrast = Color.contrast(val1.category, val2.category)
+        val contrast = Color.luminanceContrast(val1.category, val2.category)
         MathUtils.logGaussianKernel(contrast, target, bandwidth)
     }
 }
@@ -59,7 +59,7 @@ class TargetComplementarityFactor(v1:DiscreteColorVariable, v2:DiscreteColorVari
 {
     def score(val1:DiscreteColorVariable#Value, val2:DiscreteColorVariable#Value) =
     {
-        val complementarity = Color.hueComplementarity(val1.category, val2.category)
+        val complementarity = Color.hueAngle(val1.category, val2.category)
         MathUtils.logGaussianKernel(complementarity, target, bandwidth)
     }
 }
