@@ -15,7 +15,7 @@ import java.io.File
 import cc.factorie._
 import la.Tensor1
 import scala.util.Random
-import cc.factorie.DiffList
+import java.io.FileWriter
 
 
 object ModelTraining
@@ -114,6 +114,7 @@ object PatternMain {
   //Just a place to test loading and evaluating patterns/images. Subject to much change
   val inputDir = "../PatternColorizer/out/mesh"
   val outputDir = "../PatternColorizer/out/specs"
+  val visDir = "../PatternColorizer/out/vis"
 
   var meshes:ArrayBuffer[SegmentMesh] = new ArrayBuffer[SegmentMesh]()
   var files:Array[File] = null
@@ -122,10 +123,15 @@ object PatternMain {
 
   def main(args:Array[String])
   {
-      // Verify that outputDir exists
-      val outputDirTestFile = new File(outputDir)
-      if (!outputDirTestFile.exists)
-          outputDirTestFile.mkdir
+    // Verify that outputDir exists
+    val outputDirTestFile = new File(outputDir)
+    if (!outputDirTestFile.exists)
+        outputDirTestFile.mkdir
+
+    // Verify that visDir exists
+    val visDirTestFile = new File(visDir)
+    if (!visDirTestFile.exists)
+      visDirTestFile.mkdir
 
     //load all files
     files = new File(inputDir).listFiles.filter(_.getName.endsWith(".txt"))
@@ -141,11 +147,24 @@ object PatternMain {
     var avgTScore:Double = 0
     var randTScore:Double = 0
     var tcount = 0
-    //test the model by training and testing on the same mesh
+    //test the model by training and testing on the same mesh, plus a few other meshes
     /*for (idx<-meshes.indices if idx<5)
     {
       println("Testing model on mesh " + files(idx).getName )
-      val (score, rand) = TrainTestModel(meshes(idx), Array[SegmentMesh]{meshes(idx)})
+      val trainingMeshes:ArrayBuffer[SegmentMesh] = ArrayBuffer[SegmentMesh]{meshes(idx)}
+
+      //pick 4 more random meshes (different)
+      val pool = ArrayBuffer[Int]()
+      pool ++= (0 until meshes.indices.length)
+      pool -= idx
+      while (trainingMeshes.length < 3)
+      {
+        val todrop = pool(random.nextInt(pool.length))
+        trainingMeshes += meshes(todrop)
+        pool -= todrop
+      }
+
+      val (score, rand) = TrainTestModel(meshes(idx), trainingMeshes.toArray)
       avgTScore += score
       randTScore += rand
       tcount +=1
@@ -222,12 +241,39 @@ object PatternMain {
     }
   }
 
+  /** Visualization output methods **/
+  def OutputAllPermutations(segmesh:SegmentMesh, trainingMeshes:Array[SegmentMesh], filename:String)
+  {
+    //output all the permutations in order of score, indicate which one is the original
+    val palette = ColorPalette(segmesh)
+    DiscreteColorVariable.initDomain(palette)
+
+    val model = ModelTraining(trainingMeshes)
+    model.conditionOn(segmesh)
+
+    val numVals = DiscreteColorVariable.domain.size
+    val allPerms = (0 until numVals).toList.permutations.toList
+
+
+
+
+
+
+
+    val out = new FileWriter(filename)
+    for (group <- segmesh.groups)
+    {
+      out.write(group.color.getColor.componentString + "\n")
+    }
+    out.close()
+
+  }
 
   def TrainTestModel(segmesh:SegmentMesh, trainingMeshes:Array[SegmentMesh]):(Double,Double) =
   {
-      // set the variable domain
-      val palette = ColorPalette(segmesh)
-      DiscreteColorVariable.initDomain(palette)
+    // set the variable domain
+    val palette = ColorPalette(segmesh)
+    DiscreteColorVariable.initDomain(palette)
 
     val model = ModelTraining(trainingMeshes)
     model.conditionOn(segmesh)
@@ -238,9 +284,9 @@ object PatternMain {
     val optimizer = new SamplingMaximizer(sampler)
     optimizer.maximize(for (group <- segmesh.groups) yield group.color.asInstanceOf[DiscreteColorVariable], numIterations)*/
 
-    ExhaustiveSearch.allCombinations(segmesh, model)
+    //ExhaustiveSearch.allCombinations(segmesh, model)
 
-    //ExhaustiveSearch.allPermutations(segmesh, model)
+    ExhaustiveSearch.allPermutations(segmesh, model)
 
     // Evaluate assignments
     val score = segmesh.scoreAssignment()
