@@ -83,8 +83,8 @@ class ModelTraining
 
     /* Color group properties */
     val groupProps = new ArrayBuffer[ColorGroupProperty]()
-//    groupProps += ColorGroupProperty("Lightness", ModelTraining.lightness, ModelTraining.uniformQuant10)
-//    groupProps += ColorGroupProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.uniformQuant10)
+    groupProps += ColorGroupProperty("Lightness", ModelTraining.lightness, ModelTraining.uniformQuant10)
+    groupProps += ColorGroupProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.uniformQuant10)
 
     def train(trainingMeshes:Array[SegmentMesh]) : ColorInferenceModel =
     {
@@ -351,6 +351,7 @@ object ExhaustiveSearch
          f.variables.foreach{ e => e match {
            case(v:UnarySegmentTemplate.DatumVariable) => assignment.update(v, v.value)
            case(b:BinarySegmentTemplate.DatumVariable) => assignment.update(b, b.value)
+           case (g:ColorGroupTemplate.DatumVariable) => assignment.update(g, g.value)
            case _ => null
          }}
       }
@@ -404,6 +405,7 @@ object ExhaustiveSearch
         f.variables.foreach{ e => e match {
           case(v:UnarySegmentTemplate.DatumVariable) => assignment.update(v, v.value)
           case(b:BinarySegmentTemplate.DatumVariable) => assignment.update(b, b.value)
+          case (g:ColorGroupTemplate.DatumVariable) => assignment.update(g, g.value)
           case _ => null
         }}
       }
