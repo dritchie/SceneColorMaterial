@@ -20,11 +20,14 @@ import java.io.FileWriter
 
 object ModelTraining
 {
+    val namingModel = new ColorNamingModel("../c3_data.json")
+
     /* Color properties */
 
     // Unary
     def colorfulness(c:Color) = Tensor1(c.colorfulness)
     def lightness(c:Color) = Tensor1(c.copyIfNeededTo(LABColorSpace)(0))
+    def nameSaliency(c:Color) = Tensor1(namingModel.saliency(c))
 //    def saturation(c:Color) = Tensor1(c.copyIfNeededTo(HSVColorSpace)(1))
 
     // Binary
@@ -32,6 +35,7 @@ object ModelTraining
     def chromaDifference(c1:Color, c2:Color) = Tensor1(Color.chromaDifference(c1, c2))
     def relativeColorfulness(c1:Color, c2:Color) = Tensor1(Color.relativeColorfulness(c1, c2))
     def relativeLightness(c1:Color, c2:Color) = Tensor1(Color.relativeLightness(c1, c2))
+    def nameSimilarity(c1:Color, c2:Color) = Tensor1(namingModel.cosineSimilarity(c1, c2))
 //    def luminanceContrast(c1:Color, c2:Color) = Tensor1(Color.luminanceContrast(c1, c2))
 //    def hueComplementarity(c1:Color, c2:Color) = Tensor1(Color.hueAngle(c1, c2))
 //    def relativeSaturation(c1:Color, c2:Color) = Tensor1(Color.relativeSaturation(c1, c2))
@@ -68,6 +72,7 @@ class ModelTraining
     val unarySegProps = new ArrayBuffer[UnarySegmentProperty]()
     unarySegProps += UnarySegmentProperty("Lightness", ModelTraining.lightness, ModelTraining.uniformQuant10)
     unarySegProps += UnarySegmentProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.uniformQuant10)
+    unarySegProps += UnarySegmentProperty("Name Saliency", ModelTraining.nameSaliency, ModelTraining.uniformQuant10)
 //    unarySegProps += UnarySegmentProperty("Saturation", ModelTraining.saturation, ModelTraining.uniformQuant10)
 
     /* Binary segment properties */
@@ -77,6 +82,7 @@ class ModelTraining
     binarySegProps += BinarySegmentProperty("Chroma Difference", ModelTraining.chromaDifference, ModelTraining.uniformQuant10)
     binarySegProps += BinarySegmentProperty("Relative Colorfulness", ModelTraining.relativeColorfulness, ModelTraining.uniformQuant10)
     binarySegProps += BinarySegmentProperty("Relative Lightness", ModelTraining.relativeLightness, ModelTraining.uniformQuant10)
+    binarySegProps += BinarySegmentProperty("Name Similarity", ModelTraining.nameSimilarity, ModelTraining.uniformQuant10)
 //    binarySegProps += BinarySegmentProperty("Luminance Contrast", ModelTraining.luminanceContrast, ModelTraining.uniformQuant10)
 //    binarySegProps += BinarySegmentProperty("Hue Complementarity", ModelTraining.hueComplementarity, ModelTraining.uniformQuant10)
 //    binarySegProps += BinarySegmentProperty("Relative Saturation", ModelTraining.relativeSaturation, ModelTraining.uniformQuant10)
@@ -85,6 +91,7 @@ class ModelTraining
     val groupProps = new ArrayBuffer[ColorGroupProperty]()
     groupProps += ColorGroupProperty("Lightness", ModelTraining.lightness, ModelTraining.uniformQuant10)
     groupProps += ColorGroupProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.uniformQuant10)
+    groupProps += ColorGroupProperty("Name Saliency", ModelTraining.nameSaliency, ModelTraining.uniformQuant10)
 
     def train(trainingMeshes:Array[SegmentMesh]) : ColorInferenceModel =
     {

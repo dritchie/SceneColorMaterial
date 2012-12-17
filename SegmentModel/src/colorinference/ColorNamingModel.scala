@@ -56,13 +56,13 @@ class ColorNamingModel(c3JsonFile:String)
         colorRowSums = for (w <- 0 until terms.length) yield
         {
             var sum = 0
-            for (c <- 0 until colors.length) sum += counts(c, w)
+            for (c <- 0 until colors.length) sum += counts(c, w).toInt
             sum
         }
         termColSums = for (c <- 0 until colors.length) yield
         {
             var sum = 0
-            for (w <- 0 until terms.length) sum += counts(c, w)
+            for (w <- 0 until terms.length) sum += counts(c, w).toInt
             sum
         }
 
@@ -72,7 +72,7 @@ class ColorNamingModel(c3JsonFile:String)
             var sum = 0
             for (w <- 0 until terms.length)
             {
-                val count = counts(c, w)
+                val count = counts(c, w).toInt
                 sum += count*count
             }
             math.sqrt(sum)
@@ -116,7 +116,7 @@ class ColorNamingModel(c3JsonFile:String)
 
     private def saliency(c:Int) : Double =
     {
-        var sum = 0
+        var sum = 0.0
         for (w <- 0 until terms.length)
         {
             val p = pwc(w, c)
@@ -131,18 +131,18 @@ class ColorNamingModel(c3JsonFile:String)
         saliency(c)
     }
 
-    private def cosineDistance(c1:Int, c2:Int) : Double =
+    private def cosineSimilarity(c1:Int, c2:Int) : Double =
     {
-        var sum = 0
+        var sum = 0.0
         for (w <- 0 until terms.length)
             sum += counts(c1, w) * counts(c2, w)
         sum / math.max(rowNorms(c1)*rowNorms(c2), 1)
     }
 
-    def cosineDistance(color1:Color, color2:Color) : Double =
+    def cosineSimilarity(color1:Color, color2:Color) : Double =
     {
         val c1 = bin(color1.copyIfNeededTo(LABColorSpace))
         val c2 = bin(color2.copyIfNeededTo(LABColorSpace))
-        cosineDistance(c1, c2)
+        cosineSimilarity(c1, c2)
     }
 }
