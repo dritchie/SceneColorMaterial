@@ -99,7 +99,8 @@ object Color
 
 
     // For the time being, this is just Delta E.
-    // TODO: Replace this with something more correct e.g. CIEDE2000?
+    // TODO: Replace this with something more state-of-the-art e.g. CIEDE2000?
+    // TODO: Or, threshold distance once it gets very big (as the measure is no longer meaningful for huge differences)?
     // See http://en.wikipedia.org/wiki/Color_difference
     def perceptualDifference(col1:Color, col2:Color) : Double =
     {
