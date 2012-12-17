@@ -207,7 +207,25 @@ object PatternMain {
     var randTScore:Double = 0
     var tcount = 0
 
-    for (idx <- meshes.indices if idx<8)
+    //list of patterns to consider
+    val patterns = Array(
+      296605,
+      244833,
+      231386,
+      447439,
+      499194,
+      506633,
+      789577,
+      304986,
+      243893,
+      220077,
+      500393,
+      508162,
+      515691,
+      798455)
+
+    for (idx <- meshes.indices
+         if (patterns.contains(files(idx).getName().replace(".txt","").toInt)))
     {
 
       val trainingMeshes:Array[SegmentMesh] = {for (tidx<-meshes.indices if tidx != idx) yield meshes(tidx)}.toArray
@@ -221,7 +239,8 @@ object PatternMain {
       model.conditionOn(meshes(idx))
 
 
-      OutputHistograms(meshes(idx), model, hfilename)
+      val patternId = files(idx).getName().replace(".txt","").toInt
+      OutputHistograms(meshes(idx), model, hfilename, patternId)
       OutputAllPermutations(meshes(idx), model, palette, vfilename)
 
     }
@@ -320,14 +339,14 @@ object PatternMain {
   }
 
   /** Visualization output methods **/
-  def OutputHistograms(mesh:SegmentMesh, model:ColorInferenceModel, filename:String)
+  def OutputHistograms(mesh:SegmentMesh, model:ColorInferenceModel, filename:String, patternId:Int)
   {
     //output the histograms in a csv format
     //TODO: output group marginals
     //TODO: current format may not work for histograms greater than 1D
     //TODO: add more summary items?
     val out = new FileWriter(filename)
-    out.write("\"factortype\",\"property\",\"ids\",\"bin\",\"value\",\"smoothed\"\n")
+    out.write("\"pattern\",\"factortype\",\"property\",\"ids\",\"bin\",\"value\",\"smoothed\"\n")
 
     val summary:ArrayBuffer[SummaryItem] = model.getSummary
 
@@ -343,9 +362,9 @@ object PatternMain {
       var idx = 0
       for (c <- centroids)
       {
-        out.write("\""+name +"\",\""+prop+"\",\""+ ids.mkString("-")+"\","+c.mkString("-")+","+hist.evaluateAt(c)+",\"true\"\n")
+        out.write("\""+patternId+"\",\""+name +"\",\""+prop+"\",\""+ ids.mkString("-")+"\","+c.mkString("-")+","+hist.evaluateAt(c)+",\"true\"\n")
 
-        out.write("\""+name +"\",\""+prop+"\",\""+ ids.mkString("-")+"\","+c.mkString("-")+","+bins(idx)++",\"false\"\n")
+        out.write("\""+patternId+"\",\""+name +"\",\""+prop+"\",\""+ ids.mkString("-")+"\","+c.mkString("-")+","+bins(idx)++",\"false\"\n")
         idx += 1
       }
     }

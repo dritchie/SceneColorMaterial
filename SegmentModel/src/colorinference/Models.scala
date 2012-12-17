@@ -16,7 +16,7 @@ import collection.mutable.{ArrayBuffer, HashMap}
 import scala.Array
 
 
-class SummaryItem(val ttype:String, val propname:String, val ids:Array[Int], val hist:VectorHistogram)
+class SummaryItem(val ttype:String, val propname:String, val ids:Array[String], val hist:VectorHistogram)
 
 
 /** All the templates we define will have this trait **/
@@ -81,7 +81,7 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
 
     def summarize():Array[SummaryItem] =
     {
-      val items = data.keys.map(s => new SummaryItem("unarysegment", propName, Array(s.index), data(s).value.hist))
+      val items = data.keys.map(s => new SummaryItem("unarysegment", propName, Array("s"+s.index), data(s).value.hist))
 
       items.toArray
     }
@@ -181,7 +181,7 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
 
   def summarize():Array[SummaryItem] =
   {
-    val items = data.keys.map(s => new SummaryItem("binarysegment", propName, Array(s._1.index, s._2.index), data(s).value.hist))
+    val items = data.keys.map(s => new SummaryItem("binarysegment", propName, Array("s"+s._1.index, "s"+s._2.index), data(s).value.hist))
 
     items.toArray
   }
@@ -285,7 +285,7 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
 
     def summarize():Array[SummaryItem] =
     {
-      val items = data.keys.map(g => new SummaryItem("unarygroup", propName, Array(g.index), data(g).value.hist))
+      val items = data.keys.map(g => new SummaryItem("unarygroup", propName, Array("g"+g.index), data(g).value.hist))
 
       items.toArray
     }

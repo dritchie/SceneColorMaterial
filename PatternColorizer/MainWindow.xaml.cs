@@ -370,6 +370,105 @@ namespace PatternColorizer
             }
         }
 
+        private void RenderPreviews()
+        {
+            //render the segment previews for the visualization
+            Directory.CreateDirectory(Path.Combine(outdir, "\\previews\\"));
+
+            //read in the patterns and save out their layers
+            String[] files = System.IO.Directory.GetFiles(System.IO.Path.Combine(imagedir));
+
+            int hpadding = 30;
+
+            foreach (String f in files)
+            {
+
+                Bitmap image = new Bitmap(f);
+                String basename = new FileInfo(f).Name;
+                PaletteData palette = palettes[basename];
+
+                ColorTemplate template = new ColorTemplate(image, palette);
+                SegmentMesh mesh = new SegmentMesh(template);
+
+                //create a pattern directory
+                String patternDir = Path.Combine(outdir, "previews", Util.ConvertFileName(basename, "",""));
+                Directory.CreateDirectory(patternDir);
+
+                //for each segment, pair of adjacent segments, and group, output a preview image
+                List<Segment> segs = mesh.getSegments();
+                List<SegmentGroup> groups = mesh.getGroups();
+
+                Bitmap original = template.DebugQuantization();
+
+                Bitmap previewBase = new Bitmap(original.Width*2+hpadding, original.Height);
+                //draw the original image on the right
+                Graphics g = Graphics.FromImage(previewBase);
+                g.DrawImage(original, original.Width+hpadding, 0);
+                
+                //draw a grayscaled image on the left
+                for (int i = 0; i < original.Width; i++)
+                {
+                    for (int j = 0; j < original.Height; j++)
+                    {
+                        int gray = (int)Math.Round(255*original.GetPixel(i, j).GetBrightness());
+                        previewBase.SetPixel(i,j, Color.FromArgb(gray, gray, gray));
+                    }
+                }
+ 
+                //color in orange and blue
+
+                for (int i = 0; i < segs.Count(); i++)
+                {
+                    Bitmap unary = new Bitmap(previewBase);
+                    foreach (var p in segs[i].points)
+                        unary.SetPixel(p.X, p.Y, Color.Orange);
+                    unary.Save(Path.Combine(patternDir, "s" + i + ".png"));
+
+                    foreach (int j in segs[i].adjacencies)
+                    {
+                        if (j > i)
+                        {
+                            Bitmap binary = new Bitmap(unary);
+
+                            Segment neighbor = segs[j];
+                            foreach (var p in neighbor.points)
+                                binary.SetPixel(p.X, p.Y, Color.ForestGreen);
+
+                            binary.Save(Path.Combine(patternDir, "s" + i + "-s" + j + ".png"));
+                            binary.Dispose();
+                            
+                        }
+                    }
+                    unary.Dispose();
+                }
+
+
+                for (int i = 0; i < groups.Count(); i++)
+                {
+                    Bitmap group = new Bitmap(previewBase);
+                    foreach (int j in groups[i].members)
+                    {
+                        Segment member = segs[j];
+
+                        //color in the points
+                        foreach (var p in member.points)
+                            group.SetPixel(p.X, p.Y, Color.Orange);
+                    }
+                    group.Save(Path.Combine(patternDir, "g" + i + ".png"));
+                    group.Dispose();
+                }
+
+
+                original.Dispose();
+                previewBase.Dispose();
+
+            }
+
+
+
+
+        }
+
 
 
 
@@ -381,6 +480,12 @@ namespace PatternColorizer
         private void VisPermutations_Click(object sender, RoutedEventArgs e)
         {
             Vis();
+        }
+
+
+        private void RenderPreview_Click(object sender, RoutedEventArgs e)
+        {
+            RenderPreviews();
         }
 
     }

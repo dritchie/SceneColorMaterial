@@ -62,11 +62,12 @@ namespace PatternColorizer
 
     class SegmentMesh
     {
-        private List<Segment> segments;
-        private List<SegmentGroup> groups;
+        public List<Segment> segments;
+        public List<SegmentGroup> groups;
         int imageWidth = 0;
         int imageHeight = 0;
         int[,] assignments;
+
 
         public SegmentMesh(ColorTemplate template)
         {
@@ -163,6 +164,17 @@ namespace PatternColorizer
             }
 
         }
+
+        public List<Segment> getSegments()
+        {
+            return segments;
+        }
+
+        public List<SegmentGroup> getGroups()
+        {
+            return groups;
+        }
+
 
         public void ClassifySegments()
         {
