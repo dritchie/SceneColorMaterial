@@ -200,15 +200,22 @@ object PatternMain {
     var randTScore:Double = 0
     var tcount = 0
 
-    for (idx <- meshes.indices if idx<15)
+    for (idx <- meshes.indices if idx<8)
     {
 
       val trainingMeshes:Array[SegmentMesh] = {for (tidx<-meshes.indices if tidx != idx) yield meshes(tidx)}.toArray
       val hfilename = histDir + "/"+files(idx).getName()
       val vfilename = visDir + "/"+files(idx).getName()
 
-      OutputHistograms(meshes(idx), trainingMeshes.toArray, hfilename)
-      OutputAllPermutations(meshes(idx), trainingMeshes.toArray, vfilename)
+      val palette = ColorPalette(meshes(idx))
+      DiscreteColorVariable.initDomain(palette)
+
+      val model = ModelTraining(trainingMeshes)
+      model.conditionOn(meshes(idx))
+
+
+      OutputHistograms(meshes(idx), model, hfilename)
+      OutputAllPermutations(meshes(idx), model, palette, vfilename)
 
     }
     //test the model by training and testing on the same mesh, plus a few other meshes
@@ -306,18 +313,10 @@ object PatternMain {
   }
 
   /** Visualization output methods **/
-  def OutputHistograms(mesh:SegmentMesh, trainingMeshes:Array[SegmentMesh], filename:String)
+  def OutputHistograms(mesh:SegmentMesh, model:ColorInferenceModel, filename:String)
   {
     //output the histograms in a csv format
     //TODO: output group marginals
-
-    val palette = ColorPalette(mesh)
-    DiscreteColorVariable.initDomain(palette)
-
-    val model = ModelTraining(trainingMeshes)
-    model.conditionOn(mesh)
-
-    //headings
     //TODO: current format may not work for histograms greater than 1D
     //TODO: add more summary items?
     val out = new FileWriter(filename)
@@ -337,7 +336,7 @@ object PatternMain {
       var idx = 0
       for (c <- centroids)
       {
-        out.write("\""+name +"\",\""+prop+"\",\""+ ids.mkString("-")+"\","+c.mkString("-")+","+hist.evaluateAt(c)+",\"true\"\"\n")
+        out.write("\""+name +"\",\""+prop+"\",\""+ ids.mkString("-")+"\","+c.mkString("-")+","+hist.evaluateAt(c)+",\"true\"\n")
 
         out.write("\""+name +"\",\""+prop+"\",\""+ ids.mkString("-")+"\","+c.mkString("-")+","+bins(idx)++",\"false\"\n")
         idx += 1
@@ -348,15 +347,9 @@ object PatternMain {
   }
 
 
-  def OutputAllPermutations(mesh:SegmentMesh, trainingMeshes:Array[SegmentMesh], filename:String)
+  def OutputAllPermutations(mesh:SegmentMesh, model:ColorInferenceModel, palette:ColorPalette, filename:String)
   {
     //output all the permutations in order of score, indicate which one is the original
-    val palette = ColorPalette(mesh)
-    DiscreteColorVariable.initDomain(palette)
-
-    val model = ModelTraining(trainingMeshes)
-    model.conditionOn(mesh)
-
     val numVals = DiscreteColorVariable.domain.size
     val vars = mesh.groups.map(g => g.color)
     val allPerms = (0 until numVals).toList.permutations.toList

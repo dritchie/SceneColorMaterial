@@ -298,8 +298,6 @@ namespace PatternColorizer
                         } else if (line.StartsWith("Score"))
                         {
                             //add the result to the visualization
-                            score = Double.Parse(line.Split(' ')[1]);
-                            orig = Boolean.Parse(line.Split(' ')[2]);
                             x = (nresult % ncol)*iwidth;
                             y = (nresult / ncol)*iheight;
 
@@ -309,9 +307,13 @@ namespace PatternColorizer
                                 g.DrawImage(result, x, y, iwidth-padding, iheight-padding);
 
                                 String label = String.Format("{0:0.00}", score);
+                                Color color = Color.Black;
                                 if (orig)
+                                {
                                     label += ", ***";
-                                g.DrawString(label, font, new SolidBrush(Color.Black), x, y + iheight-padding); 
+                                    color = Color.Red;
+                                }
+                                g.DrawString(label, font, new SolidBrush(color), x, y + iheight-padding); 
 
                                 result.Dispose();
 
@@ -320,6 +322,8 @@ namespace PatternColorizer
 
                                 nresult++;
                             }
+                            score = Double.Parse(line.Split(' ')[1]);
+                            orig = Boolean.Parse(line.Split(' ')[2]);
                         }
                         else
                         {
@@ -339,12 +343,16 @@ namespace PatternColorizer
 
                         Bitmap result = template.SolidColor(data, slotToColor);
                         g.DrawImage(result, x, y, iwidth - padding, iheight - padding);
+                        Color color = Color.Black;
 
                         String label = String.Format("{0:0.00}", score);
                         if (orig)
+                        {
                             label += ", ***";
+                            color = Color.Red;
+                        }
 
-                        g.DrawString(label, font, new SolidBrush(Color.Black), x, y + iheight - padding);
+                        g.DrawString(label, font, new SolidBrush(color), x, y + iheight - padding);
 
                         result.Dispose();
 

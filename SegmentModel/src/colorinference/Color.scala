@@ -81,7 +81,7 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
         // This one is supposedly a little bit more in line with
         // human perception (percentage of total color stimulus that
         // is due to chroma)
-        math.sqrt(chromaSq) / math.sqrt(chromaSq + lightness*lightness)
+        math.sqrt(chromaSq) / math.max(math.sqrt(chromaSq + lightness*lightness), MathUtils.epsilon)
     }
 
     def distance(color:Color): Double =
@@ -96,6 +96,7 @@ object Color
     def RGBColor(c1:Double, c2:Double, c3:Double) = new Color(c1, c2, c3, RGBColorSpace)
     def HSVColor(c1:Double, c2:Double, c3:Double) = new Color(c1, c2, c3, HSVColorSpace)
     def LABColor(c1:Double, c2:Double, c3:Double) = new Color(c1, c2, c3, LABColorSpace)
+
 
     // For the time being, this is just Delta E.
     // TODO: Replace this with something more correct e.g. CIEDE2000?
@@ -118,7 +119,7 @@ object Color
         val adiff = c2(1) - c1(1)
         val bdiff = c2(2) - c1(2)
         val chromaDiffSq = adiff*adiff + bdiff*bdiff
-        chromaDiffSq / (chromaDiffSq + ldiff*ldiff)
+        chromaDiffSq / Math.max((chromaDiffSq + ldiff*ldiff), MathUtils.epsilon)
     }
 
     // A more perceptually-relevant contrast measure

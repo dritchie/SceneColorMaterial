@@ -12,6 +12,8 @@ import cc.factorie.la.{DenseTensor1, Tensor1}
 
 object MathUtils
 {
+    /**constants**/
+    val epsilon = 0.00001
     /** Gaussians **/
 
     def logGaussianKernel(arg:Double, sigma:Double) : Double = -(arg*arg) / (2*sigma*sigma)
