@@ -70,6 +70,16 @@ class VectorHistogram(private val metric:MathUtils.DistanceMetric)
         estimateBandwidths()
     }
 
+    def getCentroids:IndexedSeq[Tensor1] =
+    {
+      centroids
+    }
+
+    def getBins:IndexedSeq[Double] =
+    {
+      bins
+    }
+
     def evaluateAt(point:Tensor1) : Double =
     {
         var sum = 0.0

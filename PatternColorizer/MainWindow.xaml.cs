@@ -235,9 +235,144 @@ namespace PatternColorizer
             }
         }
 
+
+        private void Vis()
+        {
+            Directory.CreateDirectory(outdir + "\\viscolor\\");
+
+            Directory.CreateDirectory(outdir + "\\vis\\");
+
+            //read in the patterns and save out their layers
+            String[] files = System.IO.Directory.GetFiles(System.IO.Path.Combine(imagedir));
+
+            foreach (String f in files)
+            {
+
+                Bitmap image = new Bitmap(f);
+                String basename = new FileInfo(f).Name;
+                PaletteData palette = palettes[basename];
+
+                ColorTemplate template = new ColorTemplate(image, palette);
+
+                //Read the vis permutation description if available
+                String specs = Path.Combine(outdir, "vis", Util.ConvertFileName(basename, "", ".txt"));
+
+
+                int[] slotToColor = new int[template.NumSlots()];
+                for (int i = 0; i < slotToColor.Count(); i++)
+                    slotToColor[i] = i;
+
+                Bitmap vis = null;
+                Graphics g = null;
+
+                if (File.Exists(specs))
+                {
+                    String[] lines = File.ReadAllLines(specs);
+
+                    PaletteData data = new PaletteData();
+                    
+                    //read the score and if it's the original or not
+                    double score = 0;
+                    bool orig = false;
+
+                    int nresult = 0;
+                    int y = 0;
+                    int x = 0;
+                    int ncol = 10;
+                    int iwidth = 100;
+                    int iheight = 100;
+                    int padding = 15;
+                    Font font = new Font("Arial", 8);
+
+                    foreach (String line in lines)
+                    {
+                        if (line.StartsWith("Count"))
+                        {
+                            int count = Int32.Parse(line.Split(' ').Last());
+
+                            //initialize the result image
+                            int nrow = (int)Math.Round(count / ncol + 0.5);
+                            vis = new Bitmap(ncol*iwidth, nrow*iheight);
+                            g = Graphics.FromImage(vis);
+
+                        } else if (line.StartsWith("Score"))
+                        {
+                            //add the result to the visualization
+                            score = Double.Parse(line.Split(' ')[1]);
+                            orig = Boolean.Parse(line.Split(' ')[2]);
+                            x = (nresult % ncol)*iwidth;
+                            y = (nresult / ncol)*iheight;
+
+                            if (data.colors.Count() > 0)
+                            {
+                                Bitmap result = template.SolidColor(data, slotToColor);
+                                g.DrawImage(result, x, y, iwidth-padding, iheight-padding);
+
+                                String label = String.Format("{0:0.00}", score);
+                                if (orig)
+                                    label += ", ***";
+                                g.DrawString(label, font, new SolidBrush(Color.Black), x, y + iheight-padding); 
+
+                                result.Dispose();
+
+                                data.colors.Clear();
+                                data.lab.Clear();
+
+                                nresult++;
+                            }
+                        }
+                        else
+                        {
+                            //rgb floats
+                            int[] fields = line.Split(new string[] { " " }, StringSplitOptions.RemoveEmptyEntries).Select<String, int>(s => ((int)(Math.Round(double.Parse(s) * 255)))).ToArray<int>();
+                            Color color = Color.FromArgb(fields[0], fields[1], fields[2]);
+                            data.colors.Add(color);
+                            data.lab.Add(Util.RGBtoLAB(color));
+                        }
+                    }
+
+                    //save the last image
+                    if (data.colors.Count() > 0)
+                    {
+                        x = (nresult % ncol) * iwidth;
+                        y = (nresult / ncol) * iheight;
+
+                        Bitmap result = template.SolidColor(data, slotToColor);
+                        g.DrawImage(result, x, y, iwidth - padding, iheight - padding);
+
+                        String label = String.Format("{0:0.00}", score);
+                        if (orig)
+                            label += ", ***";
+
+                        g.DrawString(label, font, new SolidBrush(Color.Black), x, y + iheight - padding);
+
+                        result.Dispose();
+
+                        data.colors.Clear();
+                        data.lab.Clear();
+
+                        nresult++;
+                    }
+
+                    vis.Save(Path.Combine(outdir, "viscolor", Util.ConvertFileName(basename, "_vis", ".png")));
+                    vis.Dispose();
+                }
+
+
+            }
+        }
+
+
+
+
         private void RecolorPatterns_Click(object sender, RoutedEventArgs e)
         {
             Recolor();
+        }
+
+        private void VisPermutations_Click(object sender, RoutedEventArgs e)
+        {
+            Vis();
         }
 
     }

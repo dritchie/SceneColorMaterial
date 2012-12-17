@@ -15,7 +15,7 @@ import java.io.File
 import cc.factorie._
 import la.Tensor1
 import scala.util.Random
-import cc.factorie.DiffList
+import java.io.FileWriter
 
 
 object ModelTraining
@@ -159,6 +159,9 @@ object PatternMain {
   //Just a place to test loading and evaluating patterns/images. Subject to much change
   val inputDir = "../PatternColorizer/out/mesh"
   val outputDir = "../PatternColorizer/out/specs"
+  val histDir = "../PatternColorizer/out/hist"
+
+  val visDir = "../PatternColorizer/out/vis"
 
   var meshes:ArrayBuffer[SegmentMesh] = new ArrayBuffer[SegmentMesh]()
   var files:Array[File] = null
@@ -167,10 +170,20 @@ object PatternMain {
 
   def main(args:Array[String])
   {
-      // Verify that outputDir exists
-      val outputDirTestFile = new File(outputDir)
-      if (!outputDirTestFile.exists)
-          outputDirTestFile.mkdir
+    // Verify that outputDir exists
+    val outputDirTestFile = new File(outputDir)
+    if (!outputDirTestFile.exists)
+        outputDirTestFile.mkdir
+
+    // Verify that visDir exists
+    val visDirTestFile = new File(visDir)
+    if (!visDirTestFile.exists)
+      visDirTestFile.mkdir
+
+    // Verify that histDir exists
+    val histDirTestFile = new File(histDir)
+    if (!histDirTestFile.exists)
+      histDirTestFile.mkdir
 
     //load all files
     files = new File(inputDir).listFiles.filter(_.getName.endsWith(".txt"))
@@ -186,15 +199,40 @@ object PatternMain {
     var avgTScore:Double = 0
     var randTScore:Double = 0
     var tcount = 0
-    //test the model by training and testing on the same mesh
+
+    for (idx <- meshes.indices if idx<15)
+    {
+
+      val trainingMeshes:Array[SegmentMesh] = {for (tidx<-meshes.indices if tidx != idx) yield meshes(tidx)}.toArray
+      val hfilename = histDir + "/"+files(idx).getName()
+      val vfilename = visDir + "/"+files(idx).getName()
+
+      OutputHistograms(meshes(idx), trainingMeshes.toArray, hfilename)
+      OutputAllPermutations(meshes(idx), trainingMeshes.toArray, vfilename)
+
+    }
+    //test the model by training and testing on the same mesh, plus a few other meshes
     /*for (idx<-meshes.indices if idx<5)
     {
       println("Testing model on mesh " + files(idx).getName )
-      val (score, rand) = TrainTestModel(meshes(idx), Array[SegmentMesh]{meshes(idx)})
+      val trainingMeshes:ArrayBuffer[SegmentMesh] = ArrayBuffer[SegmentMesh]{meshes(idx)}
+
+      //pick 4 more random meshes (different)
+      val pool = ArrayBuffer[Int]()
+      pool ++= (0 until meshes.indices.length)
+      pool -= idx
+      while (trainingMeshes.length < 3)
+      {
+        val todrop = pool(random.nextInt(pool.length))
+        trainingMeshes += meshes(todrop)
+        pool -= todrop
+      }
+
+      val (score, rand) = TrainTestModel(meshes(idx), trainingMeshes.toArray)
       avgTScore += score
       randTScore += rand
       tcount +=1
-    }*/
+    }
     avgTScore /= tcount
     randTScore /= tcount
 
@@ -227,7 +265,7 @@ object PatternMain {
 
     println("\nWhen training and testing on the same mesh..")
     println("Average Score: " + avgTScore)
-    println("Average Random Score: " + randTScore)
+    println("Average Random Score: " + randTScore)*/
 
   }
 
@@ -267,12 +305,129 @@ object PatternMain {
     }
   }
 
+  /** Visualization output methods **/
+  def OutputHistograms(mesh:SegmentMesh, trainingMeshes:Array[SegmentMesh], filename:String)
+  {
+    //output the histograms in a csv format
+    //TODO: output group marginals
+
+    val palette = ColorPalette(mesh)
+    DiscreteColorVariable.initDomain(palette)
+
+    val model = ModelTraining(trainingMeshes)
+    model.conditionOn(mesh)
+
+    //headings
+    //TODO: current format may not work for histograms greater than 1D
+    //TODO: add more summary items?
+    val out = new FileWriter(filename)
+    out.write("\"factortype\",\"property\",\"ids\",\"bin\",\"value\",\"smoothed\"\n")
+
+    val summary:ArrayBuffer[SummaryItem] = model.getSummary
+
+    for (s <- summary)
+    {
+      val name = s.ttype
+      val prop = s.propname
+      val ids = s.ids
+      val hist = s.hist
+
+      val centroids = hist.getCentroids
+      val bins = hist.getBins
+      var idx = 0
+      for (c <- centroids)
+      {
+        out.write("\""+name +"\",\""+prop+"\",\""+ ids.mkString("-")+"\","+c.mkString("-")+","+hist.evaluateAt(c)+",\"true\"\"\n")
+
+        out.write("\""+name +"\",\""+prop+"\",\""+ ids.mkString("-")+"\","+c.mkString("-")+","+bins(idx)++",\"false\"\n")
+        idx += 1
+      }
+    }
+    out.close()
+
+  }
+
+
+  def OutputAllPermutations(mesh:SegmentMesh, trainingMeshes:Array[SegmentMesh], filename:String)
+  {
+    //output all the permutations in order of score, indicate which one is the original
+    val palette = ColorPalette(mesh)
+    DiscreteColorVariable.initDomain(palette)
+
+    val model = ModelTraining(trainingMeshes)
+    model.conditionOn(mesh)
+
+    val numVals = DiscreteColorVariable.domain.size
+    val vars = mesh.groups.map(g => g.color)
+    val allPerms = (0 until numVals).toList.permutations.toList
+
+    //store the permutation index and the score in a list
+    var results = ArrayBuffer[(Int, Double)]()
+    val itemizedModel = model.itemizedModel(vars)
+
+    //add the results
+    var idx = 0
+    for (p <- allPerms)
+    {
+      val assignment = new HashMapAssignment(vars)
+      for (i <- mesh.groups.indices)
+      {
+        assignment.update(mesh.groups(i).color.asInstanceOf[DiscreteColorVariable], DiscreteColorVariable.domain(p(i)))
+      }
+      for (f <- itemizedModel.factors)
+      {
+        f.variables.foreach{ e => e match {
+          case(v:UnarySegmentTemplate.DatumVariable) => assignment.update(v, v.value)
+          case(b:BinarySegmentTemplate.DatumVariable) => assignment.update(b, b.value)
+          case _ => null
+        }}
+      }
+
+      val currScore = model.assignmentScore(vars, assignment)
+
+      //store the permutation index and the score into the results list
+      results += ((idx, currScore))
+
+      idx += 1
+    }
+
+    results = results.sortBy(t => -1*t._2)
+
+
+
+    //write the file
+    //Start with Score number isOrig
+    //then color assignments
+    val out = new FileWriter(filename)
+    out.write("Count " + allPerms.length +"\n")
+    for (r <- results)
+    {
+      val p = allPerms(r._1)
+      val score = r._2
+
+      //check if it is the original
+      var orig = true
+      for (i <- mesh.groups.indices)
+      {
+        if (palette(p(i)).distance(mesh.groups(i).color.observedColor) > 0)
+          orig = false
+      }
+
+      out.write("Score " + score + " " + orig+"\n")
+      for (i <- mesh.groups.indices)
+      {
+        out.write(palette(p(i)).componentString + "\n")
+      }
+    }
+    out.close()
+
+  }
 
   def TrainTestModel(segmesh:SegmentMesh, trainingMeshes:Array[SegmentMesh]):(Double,Double) =
   {
-      // set the variable domain
-      val palette = ColorPalette(segmesh)
-      DiscreteColorVariable.initDomain(palette)
+    // set the variable domain
+    val palette = ColorPalette(segmesh)
+    DiscreteColorVariable.initDomain(palette)
 
       // Convert colors to LAB space, since most of our factors use LAB features
       for (color <- palette) color.convertTo(LABColorSpace)
@@ -286,9 +441,9 @@ object PatternMain {
     val optimizer = new SamplingMaximizer(sampler)
     optimizer.maximize(for (group <- segmesh.groups) yield group.color.asInstanceOf[DiscreteColorVariable], numIterations)*/
 
-    ExhaustiveSearch.allCombinations(segmesh, model)
+    //ExhaustiveSearch.allCombinations(segmesh, model)
 
-    //ExhaustiveSearch.allPermutations(segmesh, model)
+    ExhaustiveSearch.allPermutations(segmesh, model)
 
       // Convert colors back to RGB space before we do any comparisons to ground truth, etc.
       for (color <- palette) color.convertTo(RGBColorSpace)

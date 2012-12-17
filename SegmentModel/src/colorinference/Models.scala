@@ -12,7 +12,11 @@ import cc.factorie._
 import cc.factorie.la.Tensor
 import cc.factorie.la.Tensor1
 import cc.factorie.la.DenseTensor1
-import collection.mutable.HashMap
+import collection.mutable.{ArrayBuffer, HashMap}
+import scala.Array
+
+
+class SummaryItem(val ttype:String, val propname:String, val ids:Array[Int], val hist:VectorHistogram)
 
 
 /** All the templates we define will have this trait **/
@@ -22,6 +26,8 @@ trait ColorInferenceTemplate
     def setWeight(w:Double) { weights.update(0, w) }
 
     def conditionOn(mesh:SegmentMesh)
+
+    def summarize():Array[SummaryItem]
 }
 
 /** This is the top-level model that we use for everything.
@@ -29,11 +35,21 @@ trait ColorInferenceTemplate
    */
 class ColorInferenceModel extends TemplateModel
 {
+    type ModelSummary = ArrayBuffer[SummaryItem]
     def conditionOn(mesh:SegmentMesh)
     {
         for (t <- this.templates)
             t.asInstanceOf[ColorInferenceTemplate].conditionOn(mesh)
     }
+
+    def getSummary:ModelSummary =
+    {
+      var summary = new ModelSummary
+      for (t <- this.templates)
+        summary ++= t.asInstanceOf[ColorInferenceTemplate].summarize()
+      summary
+    }
+
 }
 
 object UnarySegmentTemplate
@@ -51,6 +67,7 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
     protected def colorPropExtractor:ColorPropertyExtractor
     protected def regressor:HistogramRegressor
     protected val data = new Data
+    def propName:String
 
     def conditionOn(mesh:SegmentMesh)
     {
@@ -60,6 +77,13 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
             val f = Segment.getUnaryRegressionFeatures(seg)
             data(seg) = new DatumVariable(Datum(seg, regressor.predictHistogram(f)))
         }
+    }
+
+    def summarize():Array[SummaryItem] =
+    {
+      val items = data.keys.map(s => new SummaryItem("unarysegment", propName, Array(s.index), data(s).value.hist))
+
+      items.toArray
     }
 
     protected def trainRegressor(property:ModelTraining#UnarySegmentProperty) : HistogramRegressor =
@@ -100,6 +124,7 @@ class DiscreteUnarySegmentTemplate(property:ModelTraining#UnarySegmentProperty)
 {
     import UnarySegmentTemplate._
 
+    val propName = property.name
     protected val colorPropExtractor = property.extractor
     protected val regressor = trainRegressor(property)
 
@@ -116,6 +141,7 @@ class ContinuousUnarySegmentTemplate(property:ModelTraining#UnarySegmentProperty
 
     protected val colorPropExtractor = property.extractor
     protected val regressor = trainRegressor(property)
+    val propName = property.name
 
     override def statistics(v1:ContinuousColorVariable#Value, v2:DatumVariable#Value) : Tensor =
     {
@@ -137,9 +163,11 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
 {
     import BinarySegmentTemplate._
 
+    def propName:String
     protected def colorPropExtractor:ColorPropertyExtractor
     protected def regressor:HistogramRegressor
     protected val data = new Data
+
 
     def conditionOn(mesh:SegmentMesh)
     {
@@ -151,7 +179,15 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
         }
     }
 
-    protected def trainRegressor(property:ModelTraining#BinarySegmentProperty) : HistogramRegressor =
+  def summarize():Array[SummaryItem] =
+  {
+    val items = data.keys.map(s => new SummaryItem("binarysegment", propName, Array(s._1.index, s._2.index), data(s).value.hist))
+
+    items.toArray
+  }
+
+
+  protected def trainRegressor(property:ModelTraining#BinarySegmentProperty) : HistogramRegressor =
     {
         HistogramRegressor.LogisticRegression(property.examples, MathUtils.euclideanDistance, property.quant, WekaMultiClassHistogramRegressor)
     }
@@ -193,6 +229,7 @@ class DiscreteBinarySegmentTemplate(property:ModelTraining#BinarySegmentProperty
 {
     import BinarySegmentTemplate._
 
+    val propName = property.name
     protected val colorPropExtractor = property.extractor
     protected val regressor = trainRegressor(property)
 
@@ -207,6 +244,7 @@ class ContinuousBinarySegmentTemplate(property:ModelTraining#BinarySegmentProper
 {
     import BinarySegmentTemplate._
 
+    val propName = property.name
     protected val colorPropExtractor = property.extractor
     protected val regressor = trainRegressor(property)
 
@@ -230,6 +268,7 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
 {
     import ColorGroupTemplate._
 
+    def propName:String
     protected def colorPropExtractor:ColorPropertyExtractor
     protected def regressor:HistogramRegressor
     protected val data = new Data
@@ -242,6 +281,13 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
             val f = SegmentGroup.getRegressionFeatures(group)
             data(group) = new DatumVariable(Datum(group, regressor.predictHistogram(f)))
         }
+    }
+
+    def summarize():Array[SummaryItem] =
+    {
+      val items = data.keys.map(g => new SummaryItem("unarygroup", propName, Array(g.index), data(g).value.hist))
+
+      items.toArray
     }
 
     protected def trainRegressor(property:ModelTraining#ColorGroupProperty) : HistogramRegressor =
@@ -275,6 +321,7 @@ class DiscreteColorGroupTemplate(property:ModelTraining#ColorGroupProperty)
 {
     import ColorGroupTemplate._
 
+    val propName = property.name
     protected val colorPropExtractor = property.extractor
     protected val regressor = trainRegressor(property)
 
@@ -289,6 +336,7 @@ class ContinuousColorGroupTemplate(property:ModelTraining#ColorGroupProperty)
 {
     import ColorGroupTemplate._
 
+   val propName = property.name
     protected val colorPropExtractor = property.extractor
     protected val regressor = trainRegressor(property)
 
