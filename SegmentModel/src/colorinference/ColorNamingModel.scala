@@ -83,9 +83,7 @@ class ColorNamingModel(c3JsonFile:String)
         attribs.addElement(new Attribute("L"))
         attribs.addElement(new Attribute("a"))
         attribs.addElement(new Attribute("b"))
-        val indices = new FastVector(colors.length)
-        for (i <- 0 until colors.length) indices.addElement(i)
-        attribs.addElement(new Attribute("index", indices))
+        attribs.addElement(new Attribute("index"))
         val insts = new Instances("colors", attribs, colors.length)
         insts.setClassIndex(attribs.size-1)
         for (i <- 0 until colors.length)
@@ -93,7 +91,8 @@ class ColorNamingModel(c3JsonFile:String)
             val c = colors(i)
             insts.add(new Instance(1.0, Array(c(0), c(1), c(2), i)))
         }
-        kdtree = new KDTree(insts)
+        kdtree = new KDTree
+        kdtree.setInstances(insts)
     }
 
     private def pwc(w:Int, c:Int) : Double =
@@ -110,6 +109,7 @@ class ColorNamingModel(c3JsonFile:String)
     {
         val c = color.copyIfNeededTo(LABColorSpace)
         val inst = new Instance(1.0, Array(c(0), c(1), c(2), -1))
+        inst.setDataset(kdtree.getInstances)
         val nn = kdtree.nearestNeighbour(inst)
         nn.classValue.toInt
     }
