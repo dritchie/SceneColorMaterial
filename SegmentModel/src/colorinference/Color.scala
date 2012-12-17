@@ -59,10 +59,29 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
             copyTo(cspace)
     }
 
-    def luminance() : Double =
+    def luminance : Double =
     {
         val c = copyIfNeededTo(RGBColorSpace)
         0.212*c(0) + 0.7152*c(1) + 0.0722*c(2)
+    }
+
+    // See http://en.wikipedia.org/wiki/Colorfulness
+    def colorfulness : Double =
+    {
+        val c = copyIfNeededTo(LABColorSpace)
+        val chromaSq = c(1)*c(1) + c(2)*c(2)
+        val lightness = c(0)
+
+        // Colors with zero lightness require special case
+        if (lightness == 0) 0
+
+        // This is one estimate of colorfulness
+        // math.sqrt(chromaSq) / lightness
+
+        // This one is supposedly a little bit more in line with
+        // human perception (percentage of total color stimulus that
+        // is due to chroma)
+        math.sqrt(chromaSq) / math.sqrt(chromaSq + lightness*lightness)
     }
 
     def distance(color:Color): Double =
@@ -78,18 +97,58 @@ object Color
     def HSVColor(c1:Double, c2:Double, c3:Double) = new Color(c1, c2, c3, HSVColorSpace)
     def LABColor(c1:Double, c2:Double, c3:Double) = new Color(c1, c2, c3, LABColorSpace)
 
-    // Super simple contrast measure using luminance difference / average luminance
-    def contrast(col1:Color, col2:Color) : Double =
+    // For the time being, this is just Delta E.
+    // TODO: Replace this with something more correct e.g. CIEDE2000?
+    // See http://en.wikipedia.org/wiki/Color_difference
+    def perceptualDifference(col1:Color, col2:Color) : Double =
     {
-        val l1 = col1.luminance()
-        val l2 = col2.luminance()
+        val c1 = col1.copyIfNeededTo(LABColorSpace)
+        val c2 = col2.copyIfNeededTo(LABColorSpace)
+        (c1 - c2).twoNorm
+    }
+
+    // More perceptually accurate than hue angle in HSV space
+    def chromaDifference(col1:Color, col2:Color) : Double =
+    {
+        val c1 = col1.copyIfNeededTo(LABColorSpace)
+        val c2 = col2.copyIfNeededTo(LABColorSpace)
+
+        // Percentage of total difference that is due to chroma
+        val ldiff = c2(0) - c1(0)
+        val adiff = c2(1) - c1(1)
+        val bdiff = c2(2) - c1(2)
+        val chromaDiffSq = adiff*adiff + bdiff*bdiff
+        chromaDiffSq / (chromaDiffSq + ldiff*ldiff)
+    }
+
+    // A more perceptually-relevant contrast measure
+    // (Note that this does not take into account the Helmholtz-Kohlrausch effect)
+    // http://en.wikipedia.org/wiki/Helmholtz%E2%80%93Kohlrausch_effect
+    def relativeLightness(col1:Color, col2:Color) : Double =
+    {
+        val c1 = col1.copyIfNeededTo(LABColorSpace)
+        val c2 = col2.copyIfNeededTo(LABColorSpace)
+        math.abs(c1(0) - c2(0))
+    }
+
+    // Better than relative saturation in HSV space
+    def relativeColorfulness(col1:Color, col2:Color) : Double =
+    {
+        math.abs(col1.colorfulness - col2.colorfulness)
+    }
+
+    // Super simple contrast measure using luminance difference / average luminance
+    def luminanceContrast(col1:Color, col2:Color) : Double =
+    {
+        val l1 = col1.luminance
+        val l2 = col2.luminance
         //math.abs(l1 - l2) / (0.5 * (l1 + l2) + 1e-10)
 
         //normalize by max luminance diff, which is 1
         math.abs(l1-l2)
     }
 
-    def hueComplementarity(col1:Color, col2:Color) : Double =
+    def hueAngle(col1:Color, col2:Color) : Double =
     {
         val hue1 = col1.copyIfNeededTo(HSVColorSpace)(0)
         val hue2 = col2.copyIfNeededTo(HSVColorSpace)(0)

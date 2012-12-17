@@ -22,14 +22,19 @@ object ModelTraining
 {
     /* Color properties */
 
-    // Segment - unary
+    // Unary
+    def colorfulness(c:Color) = Tensor1(c.colorfulness)
     def lightness(c:Color) = Tensor1(c.copyIfNeededTo(LABColorSpace)(0))
-    def saturation(c:Color) = Tensor1(c.copyIfNeededTo(HSVColorSpace)(1))
+//    def saturation(c:Color) = Tensor1(c.copyIfNeededTo(HSVColorSpace)(1))
 
-    // Segment - binary
-    def contrast(c1:Color, c2:Color) = Tensor1(Color.contrast(c1, c2))
-    def hueComplementarity(c1:Color, c2:Color) = Tensor1(Color.hueComplementarity(c1, c2))
-    def relativeSaturation(c1:Color, c2:Color) = Tensor1(Color.relativeSaturation(c1, c2))
+    // Binary
+    def perceptualDifference(c1:Color, c2:Color) = Tensor1(Color.perceptualDifference(c1, c2))
+    def chromaDifference(c1:Color, c2:Color) = Tensor1(Color.chromaDifference(c1, c2))
+    def relativeColorfulness(c1:Color, c2:Color) = Tensor1(Color.relativeColorfulness(c1, c2))
+    def relativeLightness(c1:Color, c2:Color) = Tensor1(Color.relativeLightness(c1, c2))
+//    def luminanceContrast(c1:Color, c2:Color) = Tensor1(Color.luminanceContrast(c1, c2))
+//    def hueComplementarity(c1:Color, c2:Color) = Tensor1(Color.hueAngle(c1, c2))
+//    def relativeSaturation(c1:Color, c2:Color) = Tensor1(Color.relativeSaturation(c1, c2))
 
 
     /* Quantizers */
@@ -62,18 +67,24 @@ class ModelTraining
     /* Unary segment properties */
     val unarySegProps = new ArrayBuffer[UnarySegmentProperty]()
     unarySegProps += UnarySegmentProperty("Lightness", ModelTraining.lightness, ModelTraining.uniformQuant10)
-    unarySegProps += UnarySegmentProperty("Saturation", ModelTraining.saturation, ModelTraining.uniformQuant10)
+    unarySegProps += UnarySegmentProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.uniformQuant10)
+//    unarySegProps += UnarySegmentProperty("Saturation", ModelTraining.saturation, ModelTraining.uniformQuant10)
 
     /* Binary segment properties */
     // The assumption for the binary properties thus far is that they're symmetric (no directionality between the variables), which is probably ok
     val binarySegProps = new ArrayBuffer[BinarySegmentProperty]()
-    binarySegProps += BinarySegmentProperty("Contrast", ModelTraining.contrast, ModelTraining.uniformQuant10)
-    binarySegProps += BinarySegmentProperty("Hue Complementarity", ModelTraining.hueComplementarity, ModelTraining.uniformQuant10)
-    binarySegProps += BinarySegmentProperty("Relative Saturation", ModelTraining.relativeSaturation, ModelTraining.uniformQuant10)
+    binarySegProps += BinarySegmentProperty("Perceptual Difference", ModelTraining.perceptualDifference, ModelTraining.uniformQuant10)
+    binarySegProps += BinarySegmentProperty("Chroma Difference", ModelTraining.chromaDifference, ModelTraining.uniformQuant10)
+    binarySegProps += BinarySegmentProperty("Relative Colorfulness", ModelTraining.relativeColorfulness, ModelTraining.uniformQuant10)
+    binarySegProps += BinarySegmentProperty("Relative Lightness", ModelTraining.relativeLightness, ModelTraining.uniformQuant10)
+//    binarySegProps += BinarySegmentProperty("Luminance Contrast", ModelTraining.luminanceContrast, ModelTraining.uniformQuant10)
+//    binarySegProps += BinarySegmentProperty("Hue Complementarity", ModelTraining.hueComplementarity, ModelTraining.uniformQuant10)
+//    binarySegProps += BinarySegmentProperty("Relative Saturation", ModelTraining.relativeSaturation, ModelTraining.uniformQuant10)
 
     /* Color group properties */
     val groupProps = new ArrayBuffer[ColorGroupProperty]()
-    // TODO: Add some group properties
+//    groupProps += ColorGroupProperty("Lightness", ModelTraining.lightness, ModelTraining.uniformQuant10)
+//    groupProps += ColorGroupProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.uniformQuant10)
 
     def train(trainingMeshes:Array[SegmentMesh]) : ColorInferenceModel =
     {
@@ -418,6 +429,9 @@ object PatternMain {
     val palette = ColorPalette(segmesh)
     DiscreteColorVariable.initDomain(palette)
 
+      // Convert colors to LAB space, since most of our factors use LAB features
+      for (color <- palette) color.convertTo(LABColorSpace)
+
     val model = ModelTraining(trainingMeshes)
     model.conditionOn(segmesh)
 
@@ -430,6 +444,9 @@ object PatternMain {
     //ExhaustiveSearch.allCombinations(segmesh, model)
 
     ExhaustiveSearch.allPermutations(segmesh, model)
+
+      // Convert colors back to RGB space before we do any comparisons to ground truth, etc.
+      for (color <- palette) color.convertTo(RGBColorSpace)
 
     // Evaluate assignments
     val score = segmesh.scoreAssignment()
