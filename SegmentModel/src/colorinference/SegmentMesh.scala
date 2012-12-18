@@ -82,6 +82,15 @@ class SegmentGroup(val index:Int, val owner:SegmentMesh)
     val features = new mutable.HashMap[String, Tensor1]
     val members = new ArrayBuffer[Segment]
     val adjacencies = new HashSet[SegmentGroup]
+
+    // Quick-access to features that are accessed frequently
+    // in inference inner loop
+    var size:Double = 0.0
+
+    def extractQuickAccessFeatures()
+    {
+        size = features("RelativeSize")(0)
+    }
 }
 object SegmentGroup
 {
@@ -211,6 +220,7 @@ class SegmentMesh(private val gen:ColorVariableGenerator)
                 }
                 case "GroupEnd" =>
                 {
+                    newgroup.extractQuickAccessFeatures()
                     groups += newgroup
                     return
                 }

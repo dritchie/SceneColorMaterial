@@ -14,18 +14,22 @@ import cc.factorie.la.Tensor1
 import cc.factorie.la.DenseTensor1
 import collection.mutable.{ArrayBuffer, HashMap}
 import scala.Array
+import matlabcontrol._
 
 class SummaryItem(val ttype:String, val propname:String, val ids:Array[String], val hist:VectorHistogram)
 
 
 /** All the templates we define will have this trait **/
-trait ColorInferenceTemplate
+trait ColorInferenceModelComponent
 {
     lazy val weights = new DenseTensor1(1)
     def setWeight(w:Double) { weights.update(0, w) }
 
     def conditionOn(mesh:SegmentMesh)
+}
 
+trait ColorInferenceHistogramTemplate extends ColorInferenceModelComponent
+{
     def summarize():Array[SummaryItem]
 }
 
@@ -38,14 +42,14 @@ class ColorInferenceModel extends TemplateModel
     def conditionOn(mesh:SegmentMesh)
     {
         for (t <- this.templates)
-            t.asInstanceOf[ColorInferenceTemplate].conditionOn(mesh)
+            t.asInstanceOf[ColorInferenceModelComponent].conditionOn(mesh)
     }
 
     def getSummary:ModelSummary =
     {
       var summary = new ModelSummary
       for (t <- this.templates)
-        summary ++= t.asInstanceOf[ColorInferenceTemplate].summarize()
+        summary ++= t.asInstanceOf[ColorInferenceHistogramTemplate].summarize()
       summary
     }
 
@@ -59,7 +63,7 @@ object UnarySegmentTemplate
     protected type Data = HashMap[Segment, DatumVariable]
 }
 
-trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar, UnarySegmentTemplate.DatumVariable] with ColorInferenceTemplate
+trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar, UnarySegmentTemplate.DatumVariable] with ColorInferenceHistogramTemplate
 {
     import UnarySegmentTemplate._
 
@@ -159,7 +163,7 @@ object BinarySegmentTemplate
     protected type Data = HashMap[(Segment,Segment), DatumVariable]
 }
 
-trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorVar, ColorVar, BinarySegmentTemplate.DatumVariable] with ColorInferenceTemplate
+trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorVar, ColorVar, BinarySegmentTemplate.DatumVariable] with ColorInferenceHistogramTemplate
 {
     import BinarySegmentTemplate._
 
@@ -266,7 +270,7 @@ object ColorGroupTemplate
     protected type Data = HashMap[SegmentGroup, DatumVariable]
 }
 
-trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar, ColorGroupTemplate.DatumVariable] with ColorInferenceTemplate
+trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar, ColorGroupTemplate.DatumVariable] with ColorInferenceHistogramTemplate
 {
     import ColorGroupTemplate._
 
@@ -340,7 +344,7 @@ class ContinuousColorGroupTemplate(property:ModelTraining#ColorGroupProperty)
 {
     import ColorGroupTemplate._
 
-   val propName = property.name
+    val propName = property.name
     protected val colorPropExtractor = property.extractor
     protected val regressor = trainRegressor(property)
 
@@ -349,3 +353,122 @@ class ContinuousColorGroupTemplate(property:ModelTraining#ColorGroupProperty)
         computeStatistics(v1, v2)
     }
 }
+
+
+/*
+Base class of all factors that touch an arbitrary number of the same type of variable
+ */
+abstract class FactorN[V<:Variable](varlist:V*) extends Factor
+{
+    val vars = ArrayBuffer(varlist:_*)
+
+    def variables: Seq[Variable] = vars
+    def numVariables: Int = vars.length
+    def variable(index: Int): Variable = vars(index)
+
+    def score(values:Seq[V#Value]): Double
+    def statistics(values:Seq[V#Value]): StatisticsType = values.asInstanceOf[StatisticsType]
+
+    def currentScore: Double = score(for (v <- vars) yield v.value.asInstanceOf[V#Value])
+    override def currentStatistics: StatisticsType = statistics(for (v <- vars) yield v.value.asInstanceOf[V#Value])
+
+    def currentAssignment = new HashMapAssignment(vars)
+    def assignmentScore(a:Assignment) = score(for (v <- a.variables.toSeq) yield a(v).asInstanceOf[V#Value])
+    override final def assignmentStatistics(a:Assignment): StatisticsType =
+        statistics(for (v <- a.variables.toSeq) yield a(v).asInstanceOf[V#Value])
+
+    def valuesIterator: ValuesIterator = new ValuesIterator
+    {
+        def factor: FactorN[V] = FactorN.this
+        def hasNext = false
+        def next() = null.asInstanceOf[Assignment]  // Not sure if this will work...
+        def score: Double = Double.NaN
+        def valuesTensor: Tensor = null
+    }
+}
+
+abstract class TensorFactorN[V<:Variable](varlist:V*) extends FactorN[V](varlist:_*)
+{
+    type StatisticsType = Tensor
+    override def statistics(values:Seq[V#Value]): Tensor
+    final def score(values:Seq[V#Value]): Double = statisticsScore(statistics(values))
+    def scoreAndStatistics(values:Seq[V#Value]): (Double, Tensor) = {
+        val tensor = statistics(values)
+        (statisticsScore(tensor), tensor)
+    }
+    def statisticsScore(t:Tensor): Double
+}
+
+abstract class DotFactorN[V<:Variable](varlist:V*) extends TensorFactorN[V](varlist:_*)
+{
+    def weights: Tensor
+    def statisticsScore(t:Tensor): Double = weights dot t
+}
+
+
+object ColorCompatibilityFactor
+{
+    var matlabProxy:MatlabProxyScalaWrapper = null
+
+    def ensureMatlabConnection()
+    {
+        if (matlabProxy == null)
+            setupMatlabConnection()
+    }
+
+    private def setupMatlabConnection()
+    {
+        // Open the connection to matlab
+        val options = new MatlabProxyFactoryOptions.Builder().setUsePreviouslyControlledSession(true).build()
+        val factory = new MatlabProxyFactory(options)
+        val proxy = factory.getProxy
+        matlabProxy = new MatlabProxyScalaWrapper(proxy)
+
+        // Set up the workspace for processing color rating queries
+        matlabProxy.eval("cd ../odonovan")
+        matlabProxy.eval("setup_rating_env")
+    }
+
+    // Will we ever actually call this, or will we just let the program terminate? Is there a problem
+    // if we do that?
+    def closeMatlabConnection()
+    {
+        matlabProxy.proxy.disconnect()
+    }
+}
+
+// This factor only makes sense in the context of continuous color variables, so there aren't
+// two (discrete, continuous) versions of it.
+class ColorCompatibilityFactor extends DotFactorN[ContinuousColorVariable] with ColorInferenceModelComponent
+{
+    def conditionOn(mesh:SegmentMesh)
+    {
+        // This factor touches the 5 largest color groups
+        vars.clear()
+        val sortedGroups = mesh.groups.sortWith((g1, g2) => g1.size > g2.size)
+        for (i <- 0 until 5)
+            vars += sortedGroups(i).color.asInstanceOf[ContinuousColorVariable]
+    }
+
+    private def colorsToArray(c1:Color, c2:Color, c3:Color, c4:Color, c5:Color) : Array[Double] =
+    {
+        MathUtils.concatVectors(c1, c2, c3, c4, c5).toArray
+    }
+
+    def statistics(c1:Color, c2:Color, c3:Color, c4:Color, c5:Color) : Tensor1 =
+    {
+        // TODO: Permutations?
+        val retval = ColorCompatibilityFactor.matlabProxy.returningFeval("getRating", 1, colorsToArray(c1,c2,c3,c4,c5))
+        val rating = retval(0).asInstanceOf[Array[Double]](0)
+        val normalizedRating = rating / 5.0
+        Tensor1(MathUtils.safeLog(normalizedRating))
+    }
+
+    override def statistics(values:Seq[ContinuousColorVariable#Value]): Tensor =
+    {
+        assert(values.length == 5, {println("ColorCompatibilityFactor.statistics - values list does not have 5 elements")})
+        statistics(values(0), values(1), values(2), values(3), values(4))
+    }
+}
+
+

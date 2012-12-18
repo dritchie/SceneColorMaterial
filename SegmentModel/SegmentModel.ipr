@@ -205,6 +205,15 @@
         <root url="file://$FACTORIE_HOME$/src/main/scala/cc/factorie" />
       </SOURCES>
     </library>
+    <library name="matlabcontrol-4.0.0">
+      <CLASSES>
+        <root url="jar://$MATLABCONTROL_HOME$/matlabcontrol-4.0.0.jar!/" />
+      </CLASSES>
+      <JAVADOC />
+      <SOURCES>
+        <root url="jar://$MATLABCONTROL_HOME$/matlabcontrol-4.0.0.jar!/" />
+      </SOURCES>
+    </library>
     <library name="scala-compiler">
       <CLASSES>
         <root url="jar://$SCALA_HOME$/lib/scala-compiler.jar!/" />
