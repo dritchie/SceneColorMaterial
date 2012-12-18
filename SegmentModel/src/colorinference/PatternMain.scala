@@ -224,6 +224,10 @@ object PatternMain {
       515691,
       798455)
 
+    val hallfilename = histDir + "/allhistknn.txt"
+    val file = new File(hallfilename)
+    file.delete()
+
     for (idx <- meshes.indices
          if (patterns.contains(files(idx).getName().replace(".txt","").toInt)))
     {
@@ -240,7 +244,9 @@ object PatternMain {
 
 
       val patternId = files(idx).getName().replace(".txt","").toInt
-      OutputHistograms(meshes(idx), model, hfilename, patternId)
+     // OutputHistograms(meshes(idx), model, hfilename, patternId, false)
+
+      OutputHistograms(meshes(idx), model, hallfilename, patternId, true)
       OutputAllPermutations(meshes(idx), model, palette, vfilename)
 
     }
@@ -339,13 +345,13 @@ object PatternMain {
   }
 
   /** Visualization output methods **/
-  def OutputHistograms(mesh:SegmentMesh, model:ColorInferenceModel, filename:String, patternId:Int)
+  def OutputHistograms(mesh:SegmentMesh, model:ColorInferenceModel, filename:String, patternId:Int, append:Boolean)
   {
     //output the histograms in a csv format
     //TODO: output group marginals
     //TODO: current format may not work for histograms greater than 1D
     //TODO: add more summary items?
-    val out = new FileWriter(filename)
+    val out = new FileWriter(filename, append)
     out.write("\"pattern\",\"factortype\",\"property\",\"ids\",\"bin\",\"value\",\"smoothed\"\n")
 
     val summary:ArrayBuffer[SummaryItem] = model.getSummary
