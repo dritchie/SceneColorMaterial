@@ -19,6 +19,13 @@ import matlabcontrol._
 class SummaryItem(val ttype:String, val propname:String, val ids:Array[String], val hist:VectorHistogram)
 
 
+/**parameters for regression**/
+object ModelParams
+{
+  type RegressionFunction = (Seq[HistogramRegressor.RegressionExample], MathUtils.DistanceMetric, VectorQuantizer, WekaHistogramRegressor) => HistogramRegressor
+  val regression:RegressionFunction = HistogramRegressor.LogisticRegression
+}
+
 /** All the templates we define will have this trait **/
 trait ColorInferenceModelComponent
 {
@@ -91,8 +98,7 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
 
     protected def trainRegressor(property:ModelTraining#UnarySegmentProperty) : HistogramRegressor =
     {
-        //HistogramRegressor.LogisticRegression(property.examples, MathUtils.euclideanDistance, property.quant, WekaMultiClassHistogramRegressor)
-        HistogramRegressor.KNN(property.examples, MathUtils.euclideanDistance, property.quant, WekaMultiClassHistogramRegressor)
+        ModelParams.regression(property.examples, MathUtils.euclideanDistance, property.quant, WekaMultiClassHistogramRegressor)
     }
 
     protected def computeStatistics(color:Color, datum:Datum) : Tensor1  =
@@ -193,9 +199,7 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
 
   protected def trainRegressor(property:ModelTraining#BinarySegmentProperty) : HistogramRegressor =
     {
-        //HistogramRegressor.LogisticRegression(property.examples, MathUtils.euclideanDistance, property.quant, WekaMultiClassHistogramRegressor)
-
-        HistogramRegressor.KNN(property.examples, MathUtils.euclideanDistance, property.quant, WekaMultiClassHistogramRegressor)
+        ModelParams.regression(property.examples, MathUtils.euclideanDistance, property.quant, WekaMultiClassHistogramRegressor)
     }
 
     protected def computeStatistics(color1:Color, color2:Color, datum:Datum) : Tensor1  =
@@ -298,9 +302,7 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
 
     protected def trainRegressor(property:ModelTraining#ColorGroupProperty) : HistogramRegressor =
     {
-        //HistogramRegressor.LogisticRegression(property.examples, MathUtils.euclideanDistance, property.quant, WekaMultiClassHistogramRegressor)
-
-      HistogramRegressor.KNN(property.examples, MathUtils.euclideanDistance, property.quant, WekaMultiClassHistogramRegressor)
+      ModelParams.regression(property.examples, MathUtils.euclideanDistance, property.quant, WekaMultiClassHistogramRegressor)
     }
 
     protected def computeStatistics(color:Color, datum:Datum) : Tensor1  =
