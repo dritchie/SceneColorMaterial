@@ -79,9 +79,15 @@ namespace PatternColorizer
             segments = new List<Segment>();
 
             //now populate the segments and segment groups
+            //filter out groups that have no members (due to quantization)
+            Dictionary<int, int> slotToGroup = new Dictionary<int, int>();
             for (int i = 0; i < numGroups; i++)
             {
-                groups.Add(new SegmentGroup(template.OriginalSlotColor(i)));
+                if (template.PixelsInSlot(i) > 0)
+                {
+                    slotToGroup.Add(i, groups.Count());
+                    groups.Add(new SegmentGroup(template.OriginalSlotColor(i)));
+                }
             }
 
             UnionFind<Color> uf = new UnionFind<Color>((a, b) => (a.GetHashCode() == b.GetHashCode()));
@@ -104,7 +110,7 @@ namespace PatternColorizer
                         idToSegment.Add(id, new Segment(id));
 
                     idToSegment[id].points.Add(new Point(i, j));
-                    idToSegment[id].groupId = template.GetSlotId(i, j);
+                    idToSegment[id].groupId = slotToGroup[template.GetSlotId(i, j)];
 
                     //look for 8-neighbor adjacencies, 2 pixels away
                     //TODO: measure adjacency strength and filter?
@@ -266,7 +272,7 @@ namespace PatternColorizer
             double CD = (4.0 * n - perimeter) / 2;
             double CDmin = n - 1;
             double CDmax = (4 * n - 4 * Math.Sqrt(n)) / 2;
-            double CDN = (CD - CDmin) / (CDmax - CDmin);
+            double CDN = (CD - CDmin) / Math.Max(1,(CDmax - CDmin));
             s.features.Add(new NamedFeature("NormalizedDiscreteCompactness", new List<double> { CDN }));
 
 

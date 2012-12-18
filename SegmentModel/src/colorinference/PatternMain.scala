@@ -231,7 +231,7 @@ object PatternMain {
     for (idx <- meshes.indices
          if (patterns.contains(files(idx).getName().replace(".txt","").toInt)))
     {
-
+     println("Testing mesh " + files(idx).getName())
       val trainingMeshes:Array[SegmentMesh] = {for (tidx<-meshes.indices if tidx != idx) yield meshes(tidx)}.toArray
       val hfilename = histDir + "/"+files(idx).getName()
       val vfilename = visDir + "/"+files(idx).getName()

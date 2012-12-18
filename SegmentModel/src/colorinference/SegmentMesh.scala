@@ -35,10 +35,18 @@ class Segment(val index:Int, val owner:SegmentMesh)
 }
 object Segment
 {
+
     def getUnaryRegressionFeatures(seg:Segment) : Tensor1 =
     {
         val blockList = Set("HuMoments","RelativeCentroid")
         val featureList = seg.features.filterKeys(name => !blockList.contains(name)).values
+
+        //check for Nans
+        for (f<-featureList; i<-f)
+        {
+          assert(i == i, "Segment: getUnaryRegressionFeatures: NaNs detected!")
+        }
+
         MathUtils.concatVectors(featureList)
     }
 
@@ -81,6 +89,13 @@ object SegmentGroup
     {
         val blockList = Set[String]()
         val featureList = seg.features.filterKeys(name => !blockList.contains(name)).values
+
+        //check for Nans
+        for (f<-featureList; i<-f)
+        {
+          assert(i == i, "SegmentGroup: getRegressionFeatures: NaNs detected!")
+        }
+
         MathUtils.concatVectors(featureList)
     }
 }

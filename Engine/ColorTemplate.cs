@@ -18,6 +18,7 @@ namespace Engine
         public ColorTemplate(Bitmap image, PaletteData palette)
         {
             //create the segmentation based on the palette
+            //TODO: There's a problem that sometimes a palette color won't appear in the image (perhaps due to color blending), and so the slot will have no pixels associated with it
             int width = image.Width;
             int height = image.Height;
             slots = new Segmentation(palette.colors.Count(), width, height);
@@ -117,6 +118,12 @@ namespace Engine
         {
             return x >= 0 && x < width && y >= 0 && y < height;
         }*/
+
+
+        public int PixelsInSlot(int idx)
+        {
+            return slots.counts[idx];
+        }
 
         private int ClosestColorIndex(CIELAB color, List<CIELAB> palette)
         {
