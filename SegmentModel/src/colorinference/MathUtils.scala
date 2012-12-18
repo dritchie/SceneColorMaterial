@@ -133,6 +133,8 @@ object MathUtils
         math.log(value + 1e-10)
     }
 
+    def concatVectors[T<:Tensor1](vecs:T*) : Tensor1 = concatVectors(vecs.toIterable)
+
     def concatVectors[T<:Tensor1](vecs:collection.Iterable[T]) : Tensor1 =
     {
         var totaldims = 0

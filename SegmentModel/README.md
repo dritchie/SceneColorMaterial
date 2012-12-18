@@ -9,3 +9,5 @@
  * Create an IntelliJ path variable called `FACTORIE_HOME` that points to the root of your factorie installation.
 * Weka 3.6 (http://www.cs.waikato.ac.nz/ml/weka/)
  * Create an IntelliJ path variable called `WEKA_HOME` that points to the root of your Weka installation.
+* matlabcontrol 4.0.0 (https://code.google.com/p/matlabcontrol/)
+ * Create an IntelliJ path variable called `MATLABCONTROL_HOME` that points to the directory containing the matlabcontrol jar.

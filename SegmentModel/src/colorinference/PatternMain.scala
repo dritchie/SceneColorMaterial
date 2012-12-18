@@ -167,7 +167,6 @@ object PatternMain {
   val inputDir = "../PatternColorizer/out/mesh"
   val outputDir = "../PatternColorizer/out/specs"
   val histDir = "../PatternColorizer/out/hist"
-
   val visDir = "../PatternColorizer/out/vis"
 
   var meshes:ArrayBuffer[SegmentMesh] = new ArrayBuffer[SegmentMesh]()
