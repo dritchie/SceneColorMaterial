@@ -211,15 +211,37 @@ namespace PatternColorizer
                 {
                     String[] lines = File.ReadAllLines(specs);
                     int[] slotToColor = new int[template.NumSlots()];
-                    for (int i=0; i<slotToColor.Count(); i++)
+                    Dictionary<int, int> groupToSlot = new Dictionary<int, int>();
+
+                    int ngroups = 0;
+                    for (int i = 0; i < slotToColor.Count(); i++)
+                    {
                         slotToColor[i] = i;
+                        if (template.PixelsInSlot(i) > 0)
+                            groupToSlot.Add(ngroups++, i);
+                    }
+
+
+                    //TODO: handle recoloring when # groups is less than number of original slots, because of quantization issues.
+                    //Right now, this is rather ugly..
+
+                    data.colors = new List<Color>();
+                    data.lab = new List<CIELAB>();
+                    for (int i = 0; i < slotToColor.Count(); i++)
+                    {
+                        data.colors.Add(new Color());
+                        data.lab.Add(new CIELAB());
+                    }
+
+                    int groupid = 0;
                     foreach (String line in lines)
                     {
                         //rgb floats
                         int[] fields = line.Split(new string[]{" "},StringSplitOptions.RemoveEmptyEntries).Select<String, int>(s=>((int)(Math.Round(double.Parse(s)*255)))).ToArray<int>();
                         Color color = Color.FromArgb(fields[0], fields[1], fields[2]);
-                        data.colors.Add(color);
-                        data.lab.Add(Util.RGBtoLAB(color));
+                        data.colors[groupToSlot[groupid]] = color;
+                        data.lab[groupToSlot[groupid]] = Util.RGBtoLAB(color);
+                        groupid++;
                     }
 
                     Bitmap orig = template.DebugQuantization();
@@ -291,7 +313,7 @@ namespace PatternColorizer
                             int count = Int32.Parse(line.Split(' ').Last());
 
                             //initialize the result image
-                            int nrow = (int)Math.Round(count / ncol + 0.5);
+                            int nrow = count / ncol + 1;
                             vis = new Bitmap(ncol*iwidth, nrow*iheight);
                             g = Graphics.FromImage(vis);
 

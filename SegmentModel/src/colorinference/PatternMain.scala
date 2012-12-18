@@ -223,7 +223,7 @@ object PatternMain {
       515691,
       798455)
 
-    val hallfilename = histDir + "/allhistknn.txt"
+    val hallfilename = histDir + "/allhist.txt"
     val file = new File(hallfilename)
     file.delete()
 
