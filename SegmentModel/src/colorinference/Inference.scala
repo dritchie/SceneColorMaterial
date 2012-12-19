@@ -1,6 +1,7 @@
 package colorinference
 
-import cc.factorie.{HashMapAssignment, Model}
+import cc.factorie._
+import cc.factorie.la.Tensor1
 
 /**
  * Created with IntelliJ IDEA.
@@ -124,5 +125,83 @@ object ExhaustiveInference
         }
 
     }
+}
 
+// NOTE: The proposals this sampler makes are intended for exploring the RGB color cube
+class ContinuousColorSampler(override val model:Model, val minRadius:Double = 0.01, val maxRadius:Double = 0.33,
+                             val minSwapProb:Double = 0.05, val maxSwapProb:Double = 0.5) extends MHSampler[SegmentMesh](model)
+{
+    private val mins = Tensor1(0, 0, 0)
+    private val maxs = Tensor1(1, 1, 1)
+
+    def propose(context:SegmentMesh)(implicit d:DiffList) : Double =
+    {
+        // Decide whether to peturb or to swap
+        if (math.random < swapProbability)
+            proposeSwap(context)(d)
+        else
+            proposePerturbation(context)(d)
+
+        // Since the choice of which type of proposal to make is symmetric (i.e. doesn't depend
+        // on whether we're making a forward or reverse jump), we don't need to include 'swapProbability'
+        // in the q/qprime calculation -- it just cancels out
+    }
+
+    // TODO: If truncated gaussian is too slow or whatevs - Use a uniform cube instead of a Gaussian. Correction then requires box intersection volume.
+    private def proposePerturbation(context:SegmentMesh)(d:DiffList) : Double =
+    {
+        val colorvars = for (g <- context.groups) yield g.color.asInstanceOf[ContinuousColorVariable]
+
+        // Pick a random color variable
+        val randvar = colorvars(random.nextInt(colorvars.length))
+
+        // Generate a random perturbation
+        val oldvalue = randvar.value.copyIfNeededTo(RGBColorSpace)
+        val sigma = perturbationRadius
+        val newvec = MathUtils.gaussianRandomIsotropicTruncated(oldvalue, sigma, mins, maxs)
+
+        // Convert to color, clamp, and update the difflist
+        val newvalue = new Color(newvec, RGBColorSpace)
+        newvalue.clamp()    // Just in case (the truncated Gaussian should take care of this, though)
+        d += randvar.SetTensorDiff(oldvalue, newvalue)
+
+        // Compute q/q', the ratio of forward to backward jump probabilities
+        // (Note that 1/colorvars.length is implicitly part of both terms, but it cancels out)
+        val q = MathUtils.gaussianDistributionIsotropicTruncated(oldvalue, newvalue, sigma, mins, maxs)
+        val qprime = MathUtils.gaussianDistributionIsotropicTruncated(newvalue, oldvalue, sigma, mins, maxs)
+        q/qprime
+    }
+
+    private def proposeSwap(context:SegmentMesh)(d:DiffList) : Double =
+    {
+        // Pick two random variables to swap values
+        val colorvars = for (g <- context.groups) yield g.color.asInstanceOf[ContinuousColorVariable]
+        val rvar1 = colorvars(random.nextInt(colorvars.length))
+        colorvars -= rvar1
+        val rvar2 = colorvars(random.nextInt(colorvars.length))
+
+        // Generate diffs for the value swap
+        d += rvar1.SetTensorDiff(rvar1.value, rvar2.value)
+        d += rvar2.SetTensorDiff(rvar2.value, rvar1.value)
+
+        // This proposal is symmetric, so q/qprime is just 1
+        1.0
+    }
+
+    private def perturbationRadius : Double =
+    {
+        // A function of the current temperature
+        // - When temperature is high (close to 1), this should be large-ish
+        // - When temperature is low (close to 0), this should be small-ish
+
+        // For the time being, linear interpolation between provided
+        // min and max sigmas
+        (1-temperature)*minRadius + temperature*maxRadius
+    }
+
+    private def swapProbability : Double =
+    {
+        // Same concet as the above
+        (1-temperature)*minSwapProb + temperature*maxSwapProb
+    }
 }

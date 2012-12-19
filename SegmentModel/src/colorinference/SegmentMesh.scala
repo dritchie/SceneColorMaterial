@@ -114,11 +114,14 @@ class SegmentMesh(private val gen:ColorVariableGenerator)
     /** Data members **/
     val segments = new ArrayBuffer[Segment]
     val groups = new ArrayBuffer[SegmentGroup]
+    var name:String = "NO FILE LOADED"
 
     /** Constructor **/
     def this(gen:ColorVariableGenerator, filename:String)
     {
         this(gen)
+
+        name = filename
 
         val adjacencies = new ArrayBuffer[ ArrayBuffer[Int] ]
 
