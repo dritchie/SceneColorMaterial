@@ -12,9 +12,10 @@ import cc.factorie.la.{DenseTensor1, Tensor1}
 
 object MathUtils
 {
-    /**constants**/
+    /** Constants **/
     val epsilon = 0.00001
-    /** Gaussians **/
+
+    /** Gaussians and related distributions **/
 
     def logGaussianKernel(arg:Double, sigma:Double) : Double = -(arg*arg) / (2*sigma*sigma)
 
@@ -52,6 +53,70 @@ object MathUtils
         gaussianDistribution(xminusmu, sigma)
     }
 
+    def gaussianDistributionIsotropic(x:Tensor1, mu:Tensor1, sigma:Double) : Double =
+    {
+        // This is correct and (probably) more efficient than the commented-out thing below
+        val diff = (x-mu).twoNormSquared
+        val coeff = 1.0 / (math.pow(sigma, mu.length) * math.pow(2*math.Pi, mu.length/2))
+        coeff * math.exp(-diff/(2*sigma*sigma))
+
+//        var prod = 1.0
+//        for (i <- 0 until x.length)
+//            prod *= gaussianDistribution(x(i), mu(i), sigma)
+//        prod
+    }
+
+    // The following two functions cribbed from Scalala
+    // https://github.com/scalala/Scalala/blob/master/src/main/scala/scalala/library/Numerics.scala
+    private val erf_a = 0.147
+    def erf(x: Double) =
+    {
+        val x2 = x*x
+        val inner = math.exp(-1*x2*(4/math.Pi + erf_a*x2) /
+            (1.0 + erf_a*x2))
+        math.signum(x)*math.sqrt(1.0 - inner)
+    }
+    def erfi(x: Double) =
+    {
+        val x2 = x*x
+        val i1 = 2.0/(math.Pi*erf_a) + math.log(1-x2)/2.0
+        val i2 = math.log(1-x2)/erf_a
+        math.signum(x) * math.sqrt( math.sqrt(i1*i1 - i2) - i1 )
+    }
+
+    def cumulativeNormalDistribution(x:Double) : Double =
+    {
+        0.5 * (1 + erf(x / math.sqrt(2.0)))
+    }
+
+    def inverseCumulativeNormalDistribution(p:Double) : Double =
+    {
+        math.sqrt(2.0) * erfi(2*p - 1)
+    }
+
+    // http://en.wikipedia.org/wiki/Truncated_normal_distribution
+    def gaussianDistributionTruncated(x:Double, mu:Double, sigma:Double, lo:Double, hi:Double) : Double =
+    {
+        if (x >= lo && x <= hi)
+        {
+            val numer = logGaussianDistribution(x, mu, sigma)
+            val denom = cumulativeNormalDistribution((hi-mu)/sigma) - cumulativeNormalDistribution((lo-mu)/sigma)
+            numer / denom
+        }
+        else 0.0
+    }
+
+    def gaussianDistributionIsotropicTruncated(x:Tensor1, mu:Tensor1, sigma:Double, los:Tensor1, his:Tensor1) : Double =
+    {
+        var prod = 1.0
+        for (i <- 0 until x.length)
+        {
+            if (x(i) < los(i) || x(i) > his(i)) return 0.0
+            prod *= gaussianDistributionTruncated(x(i), mu(i), sigma, los(i), his(i))
+        }
+        prod
+    }
+
 
     /** Random numbers **/
 
@@ -75,6 +140,52 @@ object MathUtils
     }
 
     def gaussianRandom(mu:Double, sigma:Double) : Double = mu + sigma*gaussianRandom()
+
+    // http://en.wikipedia.org/wiki/Truncated_normal_distribution
+    // TODO: Try the rejection approach of http://link.springer.com/article/10.1007%2FBF00143942
+    def gaussianRandomTruncated(lo:Double, hi:Double) : Double =
+    {
+        inverseCumulativeNormalDistribution(
+            cumulativeNormalDistribution(lo) +
+                math.random * (cumulativeNormalDistribution(hi) -cumulativeNormalDistribution(lo)))
+    }
+
+    def gaussianRandomTruncated(mu:Double, sigma:Double, lo:Double, hi:Double) : Double =
+    {
+        val rawresult = gaussianRandomTruncated((lo - mu)/sigma, (hi-mu)/sigma)
+        sigma*rawresult + mu
+    }
+
+    def gaussianRandomIsotropic(dim:Int) : Tensor1 =
+    {
+        val result = new DenseTensor1(dim)
+        for (i <- 0 until dim) result(i) = gaussianRandom()
+        result
+    }
+
+    def gaussianRandomIsotropic(mu:Tensor1, sigma:Double) : Tensor1 =
+    {
+        val result = gaussianRandomIsotropic(mu.length)
+        result *= sigma
+        result += mu
+        result
+    }
+
+    def gaussianRandomIsotropicTruncated(dim:Int, los:Tensor1, his:Tensor1) : Tensor1 =
+    {
+        val result = new DenseTensor1(dim)
+        for (i <- 0 until dim) result(i) = gaussianRandomTruncated(los(i), his(i))
+        result
+    }
+
+    def gaussianRandomIsotropicTruncated(mu:Tensor1, sigma:Double, los:Tensor1, his:Tensor1) : Tensor1 =
+    {
+        val result = gaussianRandomIsotropicTruncated(mu.length, ((los - mu)/sigma).asInstanceOf[Tensor1],
+                                                                 ((his - mu)/sigma).asInstanceOf[Tensor1])
+        result *= sigma
+        result += mu
+        result
+    }
 
     def multinomialRandom(params:IndexedSeq[Double]) : Int =
     {

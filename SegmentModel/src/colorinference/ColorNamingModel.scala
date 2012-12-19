@@ -116,11 +116,13 @@ class ColorNamingModel(c3JsonFile:String)
 
     private def saliency(c:Int) : Double =
     {
+        val log2 = math.log(2)
         var sum = 0.0
         for (w <- 0 until terms.length)
         {
             val p = pwc(w, c)
-            if (p > 0) sum += p * math.log(p)
+            if (p > 0)
+                sum += p * math.log(p) / log2
         }
         sum
     }

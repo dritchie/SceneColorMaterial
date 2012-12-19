@@ -21,7 +21,7 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
     def this(c:Color) = this(c, c.colorspace)
     def this(cspace:ColorSpace) = this(0.0, 0.0, 0.0, cspace)
 
-    override def toString : String = colorspace + "(" + this(0) + "," + this(1) + "," + this(2) + ")"
+    override def toString() : String = colorspace + "(" + this(0) + "," + this(1) + "," + this(2) + ")"
     def componentString : String = "" + this(0) + " " + this(1) + " " + this(2)
 
     def colorSpace = colorspace
@@ -88,6 +88,11 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
     {
         val c = color.copyIfNeededTo(this.colorspace)
         colorspace.distance(this, c)
+    }
+
+    def clamp()
+    {
+        colorspace.clamp(this)
     }
 }
 
@@ -177,6 +182,7 @@ trait ColorSpace
 {
     def toRGB(c1: Double, c2: Double, c3: Double): (Double, Double, Double)
     def fromRGB(c1: Double, c2: Double, c3: Double): (Double, Double, Double)
+    def clamp(components:Tensor1)
 
     // Default is Euclidean distance, but other color spaces (like HSV) might want something else
     def distance:MathUtils.DistanceMetric = MathUtils.euclideanDistance
@@ -187,6 +193,12 @@ object RGBColorSpace extends ColorSpace
     override def toString: String = "RGB"
     def toRGB(c1: Double, c2: Double, c3: Double): (Double, Double, Double) = (c1, c2, c3)
     def fromRGB(c1: Double, c2: Double, c3: Double): (Double, Double, Double) = (c1, c2, c3)
+    def clamp(components:Tensor1)
+    {
+        components(0) = MathUtils.clamp(components(0), 0, 1)
+        components(1) = MathUtils.clamp(components(1), 0, 1)
+        components(2) = MathUtils.clamp(components(2), 0, 1)
+    }
 }
 
 
@@ -251,6 +263,13 @@ object HSVColorSpace extends ColorSpace
         val value: Double = max / 255.0
 
         (hue, saturation, value)
+    }
+
+    def clamp(components:Tensor1)
+    {
+        components(0) = components(0) % 360
+        components(1) = MathUtils.clamp(components(1), 0, 1)
+        components(2) = MathUtils.clamp(components(2), 0, 1)
     }
 }
 
@@ -353,4 +372,10 @@ object LABColorSpace extends ColorSpace
         (cieL, cieA, cieB)
     }
 
+    def clamp(components:Tensor1)
+    {
+        components(0) = MathUtils.clamp(components(0), 0, 100)
+        components(1) = MathUtils.clamp(components(1), -100, 100)
+        components(2) = MathUtils.clamp(components(2), -100, 100)
+    }
 }
