@@ -23,7 +23,7 @@ class SummaryItem(val ttype:String, val propname:String, val ids:Array[String], 
 object ModelParams
 {
   type RegressionFunction = (Seq[HistogramRegressor.RegressionExample], MathUtils.DistanceMetric, VectorQuantizer, WekaHistogramRegressor) => HistogramRegressor
-  val regression:RegressionFunction = HistogramRegressor.LogisticRegression
+  var regression:RegressionFunction = HistogramRegressor.LogisticRegression
 }
 
 /** All the templates we define will have this trait **/

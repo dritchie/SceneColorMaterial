@@ -464,7 +464,6 @@ namespace PatternColorizer
                     unary.Dispose();
                 }
 
-
                 for (int i = 0; i < groups.Count(); i++)
                 {
                     Bitmap group = new Bitmap(previewBase);

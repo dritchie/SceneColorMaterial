@@ -206,6 +206,7 @@ object PatternMain {
     var randTScore:Double = 0
     var tcount = 0
 
+
     //list of patterns to consider
     val patterns = Array(
       296605,
@@ -223,16 +224,18 @@ object PatternMain {
       515691,
       798455)
 
-    val hallfilename = histDir + "/allhist.txt"
+    //change the regression type
+    ModelParams.regression = HistogramRegressor.KNN
+    val hallfilename = histDir + "/allhistknn.txt"
     val file = new File(hallfilename)
     file.delete()
 
+    var count=0
     for (idx <- meshes.indices
          if (patterns.contains(files(idx).getName().replace(".txt","").toInt)))
     {
      println("Testing mesh " + files(idx).getName())
       val trainingMeshes:Array[SegmentMesh] = {for (tidx<-meshes.indices if tidx != idx) yield meshes(tidx)}.toArray
-      val hfilename = histDir + "/"+files(idx).getName()
       val vfilename = visDir + "/"+files(idx).getName()
 
       val palette = ColorPalette(meshes(idx))
@@ -245,8 +248,9 @@ object PatternMain {
       val patternId = files(idx).getName().replace(".txt","").toInt
      // OutputHistograms(meshes(idx), model, hfilename, patternId, false)
 
-      OutputHistograms(meshes(idx), model, hallfilename, patternId, true)
+      OutputHistograms(meshes(idx), model, hallfilename, patternId, true, count==0)
       OutputAllPermutations(meshes(idx), model, palette, vfilename)
+      count+=1
 
     }
     //test the model by training and testing on the same mesh, plus a few other meshes
@@ -344,14 +348,15 @@ object PatternMain {
   }
 
   /** Visualization output methods **/
-  def OutputHistograms(mesh:SegmentMesh, model:ColorInferenceModel, filename:String, patternId:Int, append:Boolean)
+  def OutputHistograms(mesh:SegmentMesh, model:ColorInferenceModel, filename:String, patternId:Int, append:Boolean, headers:Boolean)
   {
     //output the histograms in a csv format
     //TODO: output group marginals
     //TODO: current format may not work for histograms greater than 1D
     //TODO: add more summary items?
     val out = new FileWriter(filename, append)
-    out.write("\"pattern\",\"factortype\",\"property\",\"ids\",\"bin\",\"value\",\"smoothed\"\n")
+    if (headers)
+      out.write("\"pattern\",\"factortype\",\"property\",\"ids\",\"bin\",\"value\",\"smoothed\"\n")
 
     val summary:ArrayBuffer[SummaryItem] = model.getSummary
 
