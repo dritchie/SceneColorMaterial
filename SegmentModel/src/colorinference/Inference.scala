@@ -2,6 +2,7 @@ package colorinference
 
 import cc.factorie._
 import cc.factorie.la.Tensor1
+import collection.mutable.ArrayBuffer
 
 /**
  * Created with IntelliJ IDEA.
@@ -127,15 +128,25 @@ object ExhaustiveInference
     }
 }
 
+
+
 // NOTE: The proposals this sampler makes are intended for exploring the RGB color cube
 class ContinuousColorSampler(override val model:Model, val minRadius:Double = 0.01, val maxRadius:Double = 0.33,
-                             val minSwapProb:Double = 0.05, val maxSwapProb:Double = 0.5) extends MHSampler[SegmentMesh](model)
+                             val minSwapProb:Double = 0.05, val maxSwapProb:Double = 0.5, val diagnostics:ContinuousColorSampler.Diagnostics = null)
+    extends MHSampler[IndexedSeq[ContinuousColorVariable]](model)
 {
+    import ContinuousColorSampler.ProposalType._
+
     private val mins = Tensor1(0, 0, 0)
     private val maxs = Tensor1(1, 1, 1)
 
-    def propose(context:SegmentMesh)(implicit d:DiffList) : Double =
+    // IMPORTANT: MHSampler lies when it says that this method should return q/q'.
+    // It should actually return log(q/q')
+    def propose(context:IndexedSeq[ContinuousColorVariable])(implicit d:DiffList) : Double =
     {
+        if (diagnostics != null)
+            diagnostics.updateLastState(context)
+
         // Decide whether to peturb or to swap
         if (math.random < swapProbability)
             proposeSwap(context)(d)
@@ -144,13 +155,14 @@ class ContinuousColorSampler(override val model:Model, val minRadius:Double = 0.
 
         // Since the choice of which type of proposal to make is symmetric (i.e. doesn't depend
         // on whether we're making a forward or reverse jump), we don't need to include 'swapProbability'
-        // in the q/qprime calculation -- it just cancels out
+        // in the q/q' calculation -- it just cancels out
     }
 
     // TODO: If truncated gaussian is too slow or whatevs - Use a uniform cube instead of a Gaussian. Correction then requires box intersection volume.
-    private def proposePerturbation(context:SegmentMesh)(d:DiffList) : Double =
+    private def proposePerturbation(colorvars:IndexedSeq[ContinuousColorVariable])(implicit d:DiffList) : Double =
     {
-        val colorvars = for (g <- context.groups) yield g.color.asInstanceOf[ContinuousColorVariable]
+        if (diagnostics != null)
+            diagnostics.lastProposal = Perturbation
 
         // Pick a random color variable
         val randvar = colorvars(random.nextInt(colorvars.length))
@@ -160,32 +172,42 @@ class ContinuousColorSampler(override val model:Model, val minRadius:Double = 0.
         val sigma = perturbationRadius
         val newvec = MathUtils.gaussianRandomIsotropicTruncated(oldvalue, sigma, mins, maxs)
 
-        // Convert to color, clamp, and update the difflist
+        // Convert to color and clamp
         val newvalue = new Color(newvec, RGBColorSpace)
         newvalue.clamp()    // Just in case (the truncated Gaussian should take care of this, though)
-        d += randvar.SetTensorDiff(oldvalue, newvalue)
 
-        // Compute q/q', the ratio of forward to backward jump probabilities
+        // Make the change (this will automagically update the implicit difflist)
+        randvar.set(newvalue)
+
+        // Compute log(q/q'), the ratio of backward to forward jump probabilities
         // (Note that 1/colorvars.length is implicitly part of both terms, but it cancels out)
         val q = MathUtils.gaussianDistributionIsotropicTruncated(oldvalue, newvalue, sigma, mins, maxs)
         val qprime = MathUtils.gaussianDistributionIsotropicTruncated(newvalue, oldvalue, sigma, mins, maxs)
-        q/qprime
+        val ratio = q/qprime
+        val logratio = math.log(ratio)
+        logratio
     }
 
-    private def proposeSwap(context:SegmentMesh)(d:DiffList) : Double =
+    private def proposeSwap(colorvars:IndexedSeq[ContinuousColorVariable])(implicit d:DiffList) : Double =
     {
+        if (diagnostics != null)
+            diagnostics.lastProposal = Swap
+
         // Pick two random variables to swap values
-        val colorvars = for (g <- context.groups) yield g.color.asInstanceOf[ContinuousColorVariable]
-        val rvar1 = colorvars(random.nextInt(colorvars.length))
-        colorvars -= rvar1
-        val rvar2 = colorvars(random.nextInt(colorvars.length))
+        val tmpvars = ArrayBuffer(colorvars:_*)
+        val rvar1 = tmpvars(random.nextInt(tmpvars.length))
+        tmpvars -= rvar1
+        val rvar2 = tmpvars(random.nextInt(tmpvars.length))
 
-        // Generate diffs for the value swap
-        d += rvar1.SetTensorDiff(rvar1.value, rvar2.value)
-        d += rvar2.SetTensorDiff(rvar2.value, rvar1.value)
+        // Do the swap (this will automatically update the implicit difflist)
+        val value1 = rvar1.value
+        val value2 = rvar2.value
+        rvar1.set(value2)
+        rvar2.set(value1)
 
-        // This proposal is symmetric, so q/qprime is just 1
-        1.0
+        // This proposal is symmetric, so q/q' is just 1
+        // (and thus log(q/q') is 0)
+        0.0
     }
 
     private def perturbationRadius : Double =
@@ -201,7 +223,104 @@ class ContinuousColorSampler(override val model:Model, val minRadius:Double = 0.
 
     private def swapProbability : Double =
     {
-        // Same concet as the above
+        // Same concept as the above
         (1-temperature)*minSwapProb + temperature*maxSwapProb
+    }
+
+    override def proposalHook(proposal:cc.factorie.Proposal)
+    {
+        // MHSampler forgets to call super.proposalHook, so I need to put this here
+        this.proposalHooks(proposal)
+
+        // I don't want this.proposalHooks called twice, so to make sure the code
+        // is still fine if/when the factorie folks fix this bug, I should empty
+        // out this.proposalHooks before calling the superclass method
+        val savedHooks = Array(this.proposalHooks:_*)
+        this.proposalHooks.clear()
+
+        // Now we're safe to call the super method
+        super.proposalHook(proposal)
+
+        // Make sure to put the saved proposalHooks back
+        this.proposalHooks ++= savedHooks
+
+        // Finally, we can do the new stuff we *actually* wanted to
+        // do with this method O_O
+        if (diagnostics != null)
+        {
+            val p = proposal.asInstanceOf[Proposal]
+            diagnostics.process(this, p)
+        }
+    }
+}
+
+object ContinuousColorSampler
+{
+    object ProposalType extends Enumeration
+    {
+        type ProposalType = Value
+        val Perturbation, Swap = Value
+    }
+    import ProposalType._
+
+    class Diagnostics
+    {
+        case class HistoryEntry(state:IndexedSeq[Color], propType:ProposalType, accepted:Boolean, temp:Double)
+
+        var history = new ArrayBuffer[HistoryEntry]
+
+        var lastProposal:ProposalType = Perturbation
+        private var lastState:IndexedSeq[Color] = null
+
+        var numProposedMoves = 0
+        var numAcceptedMoves = 0
+        var numNegativeMoves = 0
+        var numProposedSwaps = 0
+        var numAcceptedSwaps = 0
+        var numProposedPerturbations = 0
+        var numAcceptedPerturbations = 0
+
+        def updateLastState(state:IndexedSeq[ContinuousColorVariable])
+        {
+            lastState = for (cvar <- state) yield cvar.value.copy
+        }
+
+        def process(sampler:ContinuousColorSampler, proposal:ContinuousColorSampler#Proposal)
+        {
+            // Record summary statistics
+            numProposedMoves += 1
+            lastProposal match
+            {
+                case Perturbation => numProposedPerturbations += 1
+                case Swap => numProposedSwaps += 1
+            }
+            val accepted = !proposal.bfRatio.isNaN
+            if (accepted)
+            {
+                numAcceptedMoves += 1
+                lastProposal match
+                {
+                    case Perturbation => numAcceptedPerturbations += 1
+                    case Swap => numAcceptedSwaps += 1
+                }
+            }
+            if (proposal.modelScore < 0)
+                numNegativeMoves += 1
+
+            // Record history
+            history += HistoryEntry(lastState, lastProposal, accepted, sampler.temperature)
+        }
+
+        def summarize()
+        {
+            println("ContinuousColorSampler Diagonistic Summary:")
+            println("numProposedMoves: " + numProposedMoves)
+            println("numProposedSwaps: %d (.%.2f of total)".format(numProposedSwaps, numProposedSwaps/numProposedMoves.toDouble))
+            println("numProposedPerturbations: %d (%.2f of total)".format(numProposedPerturbations, numProposedPerturbations/numProposedMoves.toDouble))
+            println("numAcceptedMoves: %d (%.2f of total)".format(numAcceptedMoves, numAcceptedMoves/numProposedMoves.toDouble))
+            println("numNegativeMoves: " + numNegativeMoves)
+            println("numAcceptedSwaps: %d (%.2f of total)".format(numAcceptedSwaps, numAcceptedSwaps/numAcceptedMoves.toDouble))
+            println("numAcceptedPerturbations: %d (%.2f of total)".format(numAcceptedPerturbations, numAcceptedPerturbations/numAcceptedMoves.toDouble))
+        }
     }
 }

@@ -28,6 +28,10 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
     def isIn(cspace:ColorSpace) = colorspace == cspace
     def sameColorSpace(c:Color) = colorspace == c.colorspace
 
+    // DenseTensor1 overrides for copying
+    override def copy: Color = { new Color(this) }
+    override def blankCopy: Color = new Color(this.colorSpace)
+
     // Convert to a different color space
     def convertTo(cspace:ColorSpace)
     {
