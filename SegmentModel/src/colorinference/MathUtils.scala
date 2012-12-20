@@ -17,19 +17,23 @@ object MathUtils
 
     /** Gaussians and related distributions **/
 
-    def logGaussianKernel(arg:Double, sigma:Double) : Double = -(arg*arg) / (2*sigma*sigma)
+    def logGaussianKernel(arg:Double, sigma:Double) : Double =
+    {
+        val argOSigma = arg/sigma
+        -0.5 * argOSigma * argOSigma
+    }
 
     def gaussianKernel(arg:Double, sigma:Double) : Double = math.exp(logGaussianKernel(arg, sigma))
 
     def logGaussianDistribution(arg:Double, sigma:Double) : Double =
     {
-        val coeff = 1.0 / (sigma * math.sqrt(2*math.Pi))
+        val coeff = 1.0 / (sigma * math.sqrt(2.0*math.Pi))
         math.log(coeff) + logGaussianKernel(arg, sigma)
     }
 
     def gaussianDistribution(arg:Double, sigma:Double) : Double =
     {
-        val coeff = 1.0 / (sigma * math.sqrt(2*math.Pi))
+        val coeff = 1.0 / (sigma * math.sqrt(2.0*math.Pi))
         coeff * gaussianKernel(arg, sigma)
     }
 
@@ -99,7 +103,7 @@ object MathUtils
     {
         if (x >= lo && x <= hi)
         {
-            val numer = logGaussianDistribution(x, mu, sigma)
+            val numer = gaussianDistribution(x, mu, sigma)
             val denom = cumulativeNormalDistribution((hi-mu)/sigma) - cumulativeNormalDistribution((lo-mu)/sigma)
             numer / denom
         }
@@ -111,8 +115,8 @@ object MathUtils
         var prod = 1.0
         for (i <- 0 until x.length)
         {
-            if (x(i) < los(i) || x(i) > his(i)) return 0.0
-            prod *= gaussianDistributionTruncated(x(i), mu(i), sigma, los(i), his(i))
+            val accum = gaussianDistributionTruncated(x(i), mu(i), sigma, los(i), his(i))
+            prod *= accum
         }
         prod
     }
@@ -180,8 +184,12 @@ object MathUtils
 
     def gaussianRandomIsotropicTruncated(mu:Tensor1, sigma:Double, los:Tensor1, his:Tensor1) : Tensor1 =
     {
-        val result = gaussianRandomIsotropicTruncated(mu.length, ((los - mu)/sigma).asInstanceOf[Tensor1],
-                                                                 ((his - mu)/sigma).asInstanceOf[Tensor1])
+        // I can't do this inline because the / operator returns a lazy "TensorTimesScalar" object, not
+        // a Tensor1.
+        val xformedLos = los.copy; xformedLos -= mu; xformedLos /= sigma
+        val xformedHis = his.copy; xformedHis -= mu; xformedHis /= sigma
+
+        val result = gaussianRandomIsotropicTruncated(mu.length, xformedLos, xformedHis)
         result *= sigma
         result += mu
         result

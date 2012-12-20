@@ -509,6 +509,8 @@ object ColorCompatibilityFactor
 
     private def setupMatlabConnection()
     {
+        println("Setting up MATLAB connection...")
+
         // Open the connection to matlab
         val options = new MatlabProxyFactoryOptions.Builder().setUsePreviouslyControlledSession(true).build()
         val factory = new MatlabProxyFactory(options)
@@ -518,6 +520,8 @@ object ColorCompatibilityFactor
         // Set up the workspace for processing color rating queries
         matlabProxy.eval("cd ../odonovan")
         matlabProxy.eval("setup_rating_env")
+
+        println("MATLAB connection set up.")
     }
 
     // Will we ever actually call this, or will we just let the program terminate? Is there a problem
@@ -549,11 +553,17 @@ class ColorCompatibilityFactor extends DotFactorN[ContinuousColorVariable] with 
 
     private def colorsToArray(c1:Color, c2:Color, c3:Color, c4:Color, c5:Color) : Array[Double] =
     {
-        MathUtils.concatVectors(c1, c2, c3, c4, c5).toArray
+        MathUtils.concatVectors(c1.copyIfNeededTo(RGBColorSpace),
+                                c2.copyIfNeededTo(RGBColorSpace),
+                                c3.copyIfNeededTo(RGBColorSpace),
+                                c4.copyIfNeededTo(RGBColorSpace),
+                                c5.copyIfNeededTo(RGBColorSpace)).toArray
     }
 
     def statistics(c1:Color, c2:Color, c3:Color, c4:Color, c5:Color) : Tensor1 =
     {
+        ColorCompatibilityFactor.ensureMatlabConnection()
+
         // TODO: Permutations?
         val retval = ColorCompatibilityFactor.matlabProxy.returningFeval("getRating", 1, colorsToArray(c1,c2,c3,c4,c5))
         val rating = retval(0).asInstanceOf[Array[Double]](0)
