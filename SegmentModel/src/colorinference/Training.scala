@@ -163,10 +163,12 @@ class ModelTraining
       //as we increase the number of training meshes, this may or may not be feasible, and we may have to condition the model
       //on each inner loop iteration
       //TODO: try other weight trainers, or turn off and on different features?
+      //TODO: weights don't really seem to converge much after the first iteration. we may need a different scoring objective, or add more constraints
 
       model.conditionOnAll(trainingMeshes)
       objective.conditionOnAll(trainingMeshes)
 
+      var prevWeights:Tensor1 = MathUtils.concatVectors({for (t<-model.templates) yield t match {case c:ColorInferenceModelComponent => c.weights}})
       for (i <- 0 until iterations)
       {
         var avgAccuracy = 0.0
@@ -194,7 +196,13 @@ class ModelTraining
             avgAccuracy += objective.accuracy(vars)
             print(".")
           }
-          println("\nIteration " + i+ " Overall Training Accuracy: " + avgAccuracy/trainingMeshes.length)
+
+          //print change in weights
+          val curWeights:Tensor1 = MathUtils.concatVectors({for (t<-model.templates) yield t match {case c:ColorInferenceModelComponent => c.weights}})
+          println("\nWeights delta: " + (curWeights-prevWeights).twoNorm)
+          prevWeights = curWeights
+
+          println("Iteration " + i+ " Overall Training Accuracy: " + avgAccuracy/trainingMeshes.length)
         }
 
 
