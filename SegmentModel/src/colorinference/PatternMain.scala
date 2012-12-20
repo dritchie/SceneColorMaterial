@@ -80,43 +80,35 @@ object PatternMain {
       515691,
       798455)
 
-    //change the regression type
-    ModelParams.regression = HistogramRegressor.KNN
-    val hallfilename = histDir + "/allhistknn.txt"
-    val file = new File(hallfilename)
-    file.delete()
 
-    var count=0
-    for (idx <- meshes.indices
-         if (patterns.contains(files(idx).getName().replace(".txt","").toInt)))
+    //train a model on all patterns, except the ones being considered (train/test set)
+    val testingMeshes = {for (idx<-meshes.indices if (patterns.contains(files(idx).getName().replace(".txt","").toInt))) yield meshes(idx)}
+    val trainingMeshes = {for (m<-meshes if (!testingMeshes.contains(m))) yield m}
+
+    println("Training on " + trainingMeshes.length + " meshes")
+    val model = ModelTraining(trainingMeshes.toArray)
+
+    val (totalScore, randomScore) = testingMeshes.foldLeft[(Double,Double)]((0.0,0.0))((curSum, mesh) =>
     {
-     println("Testing mesh " + files(idx).getName())
-      val trainingMeshes:Array[SegmentMesh] = {for (tidx<-meshes.indices if tidx != idx) yield meshes(tidx)}.toArray
-      val vfilename = visDir + "/"+files(idx).getName()
+      val (score, rscore) = TestModel(mesh, model)
+      (curSum._1+score, curSum._2+rscore)
+    } )
 
-      val palette = ColorPalette(meshes(idx))
-      DiscreteColorVariable.initDomain(palette)
-
-      val model = ModelTraining(trainingMeshes)
-      model.conditionOn(meshes(idx))
+    //higher score is better
+    println("Average score " + totalScore/testingMeshes.length)
+    println("Average random score " + randomScore/testingMeshes.length)
 
 
-      val patternId = files(idx).getName().replace(".txt","").toInt
-     // OutputHistograms(meshes(idx), model, hfilename, patternId, false)
-
-      OutputHistograms(meshes(idx), model, hallfilename, patternId, true, count==0)
-      OutputAllPermutations(meshes(idx), model, palette, vfilename)
-      count+=1
-
-    }
     //test the model by training and testing on the same mesh, plus a few other meshes
-    /*for (idx<-meshes.indices if idx<5)
+    /*for (idx<-meshes.indices if (patterns.contains(files(idx).getName().replace(".txt","").toInt)))
     {
       println("Testing model on mesh " + files(idx).getName )
       val trainingMeshes:ArrayBuffer[SegmentMesh] = ArrayBuffer[SegmentMesh]{meshes(idx)}
 
+      val model = ModelTraining(trainingMeshes)
+
       //pick 4 more random meshes (different)
-      val pool = ArrayBuffer[Int]()
+     val pool = ArrayBuffer[Int]()
       pool ++= (0 until meshes.indices.length)
       pool -= idx
       while (trainingMeshes.length < 3)
@@ -126,29 +118,31 @@ object PatternMain {
         pool -= todrop
       }
 
-      val (score, rand) = TrainTestModel(meshes(idx), trainingMeshes.toArray)
+      val (score, rand) = TestModel(meshes(idx), model)
       avgTScore += score
       randTScore += rand
       tcount +=1
     }
     avgTScore /= tcount
-    randTScore /= tcount
+    randTScore /= tcount*/
 
     //for now, just try using the original palette
-    var avgScore:Double = 0
+    /*var avgScore:Double = 0
     var count = 0
     var randScore:Double = 0
 
-    for (idx <- meshes.indices if idx < 10)
+    for (idx <- meshes.indices if (patterns.contains(files(idx).getName().replace(".txt","").toInt)))
     {
-      println("Testing mesh " + idx)
+      println("Testing mesh " + count)
       val segmesh = meshes(idx)
       count += 1
       //get all the other meshes
       val trainingMeshes:Array[SegmentMesh] = {for (tidx<-meshes.indices if tidx != idx) yield meshes(tidx)}.toArray
 
+      val model = ModelTraining(trainingMeshes)
+
       // Evaluate assignments
-      val (score, rscore) = TrainTestModel(segmesh, trainingMeshes)
+      val (score, rscore) = TestModel(segmesh, model)
       avgScore += score
       randScore += rscore
 
@@ -163,10 +157,12 @@ object PatternMain {
 
     println("\nWhen training and testing on the same mesh..")
     println("Average Score: " + avgTScore)
-    println("Average Random Score: " + randTScore)*/
+    println("Average Random Score: " + randTScore) */
 
   }
 
+
+ /** Getting and setting random assignments **/
   def RandomAssignment(segmesh:SegmentMesh, palette:ColorPalette) : Seq[Color] =
   {
      segmesh.groups.map(g => palette(random.nextInt(palette.length)))
@@ -204,6 +200,38 @@ object PatternMain {
   }
 
   /** Visualization output methods **/
+  def OutputVisualizations(patterns:Array[Int], regression:ModelParams.RegressionFunction, filename:String)
+  {
+    //change the regression type
+    ModelParams.regression = regression
+    val hallfilename = histDir + "/"+ filename //"/allhistknn.txt"
+    val file = new File(hallfilename)
+    file.delete()
+
+    var count=0
+    for (idx <- meshes.indices
+         if (patterns.contains(files(idx).getName().replace(".txt","").toInt)))
+    {
+      println("Testing mesh " + files(idx).getName())
+      val trainingMeshes:Array[SegmentMesh] = {for (tidx<-meshes.indices if tidx != idx) yield meshes(tidx)}.toArray
+      val vfilename = visDir + "/"+files(idx).getName()
+
+      val palette = ColorPalette(meshes(idx))
+      DiscreteColorVariable.initDomain(palette)
+
+      val model = ModelTraining(trainingMeshes)
+      model.conditionOn(meshes(idx))
+
+
+      val patternId = files(idx).getName().replace(".txt","").toInt
+
+      OutputHistograms(meshes(idx), model, hallfilename, patternId, true, count==0)
+      OutputAllPermutations(meshes(idx), model, palette, vfilename)
+      count+=1
+
+    }
+  }
+
   def OutputHistograms(mesh:SegmentMesh, model:ColorInferenceModel, filename:String, patternId:Int, append:Boolean, headers:Boolean)
   {
     //output the histograms in a csv format
@@ -308,7 +336,8 @@ object PatternMain {
 
   }
 
-  def TrainTestModel(segmesh:SegmentMesh, trainingMeshes:Array[SegmentMesh]):(Double,Double) =
+  /** Testing the model **/
+  def TestModel(segmesh:SegmentMesh, model:ColorInferenceModel):(Double,Double) =
   {
     // set the variable domain
     val palette = ColorPalette(segmesh)
@@ -317,7 +346,6 @@ object PatternMain {
       // Convert colors to LAB space, since most of our factors use LAB features
       for (color <- palette) color.convertTo(LABColorSpace)
 
-    val model = ModelTraining(trainingMeshes)
     model.conditionOn(segmesh)
 
     // Do inference
@@ -331,7 +359,7 @@ object PatternMain {
     ExhaustiveInference.allPermutations(segmesh, model)
 
       // Convert colors back to RGB space before we do any comparisons to ground truth, etc.
-      for (color <- palette) color.convertTo(RGBColorSpace)
+      //for (color <- palette) color.convertTo(RGBColorSpace)
 
     // Evaluate assignments
     val score = segmesh.scoreAssignment()

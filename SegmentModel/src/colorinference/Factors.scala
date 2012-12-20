@@ -75,6 +75,8 @@ class ColorHistogramPriorFactor(v:DiscreteColorVariable, private val hist:ColorH
         MathUtils.safeLog(hist.evaluateAt(c))
     }
 }
+
+
 //
 //class BinaryPriorFactor(v1:DiscreteColorVariable, v2:DiscreteColorVariable, protected val hist:VectorHistogram, val func:(Color,Color)=>Tensor1) extends Factor2(v1,v2)
 //{

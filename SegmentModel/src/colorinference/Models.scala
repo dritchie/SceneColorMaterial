@@ -26,6 +26,53 @@ object ModelParams
   var regression:RegressionFunction = HistogramRegressor.LogisticRegression
 }
 
+
+/** Template that scores how close a variable's color is to the original.**/
+object AssignmentScoreTemplate
+{
+  type DatumVariable = RefVariable[ColorVariable]
+  type Data = HashMap[ColorVariable, DatumVariable]
+}
+class AssignmentScoreTemplate extends Template2[ColorVariable, AssignmentScoreTemplate.DatumVariable]
+{
+    import AssignmentScoreTemplate._
+    protected val data = new Data
+
+    def conditionOnAll(meshes:Seq[SegmentMesh])
+    {
+      data.clear()
+      for (mesh<-meshes; g<-mesh.groups)
+        data(g.color) = new DatumVariable(g.color)
+    }
+
+    def conditionOn(mesh:SegmentMesh)
+    {
+      data.clear()
+      for (g <- mesh.groups)
+      {
+        data(g.color) = new DatumVariable(g.color)
+      }
+    }
+
+    override def score(val1:ColorVariable#Value, val2:DatumVariable#Value):Double=
+    {
+      -1.0*(Color.perceptualDifference(val2.getColor, val2.observedColor)/100.0)
+    }
+
+    def unroll1(v1:ColorVariable) =
+    {
+       Factor(v1.group.color, data(v1.group.color))
+    }
+
+    def unroll2(v2:DatumVariable) =
+    {
+      throw new Error("Cannot unroll target variable!")
+    }
+
+    def accuracy(context: Iterable[ColorVariable]): Double = context.map(currentScore(_)).sum / context.size
+
+}
+
 /** All the templates we define will have this trait **/
 trait ColorInferenceModelComponent
 {
@@ -33,6 +80,9 @@ trait ColorInferenceModelComponent
     def setWeight(w:Double) { weights.update(0, w) }
 
     def conditionOn(mesh:SegmentMesh)
+
+    //to save having to re-condition on every iteration for every mesh, during weight tuning
+    def conditionOnAll(meshes:Seq[SegmentMesh])
 }
 
 trait ColorInferenceHistogramTemplate extends ColorInferenceModelComponent
@@ -46,6 +96,14 @@ trait ColorInferenceHistogramTemplate extends ColorInferenceModelComponent
 class ColorInferenceModel extends TemplateModel
 {
     type ModelSummary = ArrayBuffer[SummaryItem]
+
+    def conditionOnAll(meshes:Seq[SegmentMesh])
+    {
+      for (t <- this.templates)
+        t.asInstanceOf[ColorInferenceModelComponent].conditionOnAll(meshes)
+    }
+
+
     def conditionOn(mesh:SegmentMesh)
     {
         for (t <- this.templates)
@@ -78,6 +136,17 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
     protected def regressor:HistogramRegressor
     protected val data = new Data
     def propName:String
+
+    def conditionOnAll(meshes:Seq[SegmentMesh])
+    {
+      data.clear()
+      for (mesh<-meshes; seg <- mesh.segments)
+      {
+        val f = Segment.getUnaryRegressionFeatures(seg)
+        data(seg) = new DatumVariable(Datum(seg, regressor.predictHistogram(f)))
+      }
+    }
+
 
     def conditionOn(mesh:SegmentMesh)
     {
@@ -178,6 +247,15 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
     protected def regressor:HistogramRegressor
     protected val data = new Data
 
+    def conditionOnAll(meshes:Seq[SegmentMesh])
+    {
+      data.clear()
+      for (mesh<-meshes; seg1 <- mesh.segments; seg2 <- seg1.adjacencies if seg1.index < seg2.index)
+      {
+        val f = Segment.getBinaryRegressionFeatures(seg1, seg2)
+        data((seg1, seg2)) = new DatumVariable(Datum(seg1, seg2, regressor.predictHistogram(f)))
+      }
+    }
 
     def conditionOn(mesh:SegmentMesh)
     {
@@ -282,6 +360,17 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
     protected def colorPropExtractor:ColorPropertyExtractor
     protected def regressor:HistogramRegressor
     protected val data = new Data
+
+    def conditionOnAll(meshes:Seq[SegmentMesh])
+    {
+      data.clear()
+      for (mesh<-meshes; group <- mesh.groups)
+      {
+        val f = SegmentGroup.getRegressionFeatures(group)
+        data(group) = new DatumVariable(Datum(group, regressor.predictHistogram(f)))
+      }
+    }
+
 
     def conditionOn(mesh:SegmentMesh)
     {
@@ -443,6 +532,12 @@ object ColorCompatibilityFactor
 // two (discrete, continuous) versions of it.
 class ColorCompatibilityFactor extends DotFactorN[ContinuousColorVariable] with ColorInferenceModelComponent
 {
+    def conditionOnAll(meshes:Seq[SegmentMesh])
+    {
+      //this method doesn't really make sense here...(at least, not yet)
+      throw new Error("ColorCompatibilityFactor: conditionOnAll doesn't really make sense here")
+    }
+
     def conditionOn(mesh:SegmentMesh)
     {
         // This factor touches the 5 largest color groups

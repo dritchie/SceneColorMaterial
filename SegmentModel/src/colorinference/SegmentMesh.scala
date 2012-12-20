@@ -259,9 +259,9 @@ class SegmentMesh(private val gen:ColorVariableGenerator)
       //just scoring by the color difference between the observed and assigned colors of each group, weighted uniformly
       //the smaller the score, the better
       val diffs = groups.map(
-        g=>{if (g.color.observedColor==null) 0 else g.color.observedColor.distance(g.color.getColor)}
+        g=>{if (g.color.observedColor==null) 0 else Color.perceptualDifference(g.color.observedColor, g.color.getColor)/100.0}
       )
-      diffs.sum/groups.length
+      -1*diffs.sum/groups.length
     }
 
   def scoreAssignment(assign:Seq[Color]):Double =
@@ -273,10 +273,10 @@ class SegmentMesh(private val gen:ColorVariableGenerator)
       if (groups(i).color.observedColor == null)
         diffs += 0.0
       else
-        diffs += groups(i).color.observedColor.distance(assign(i))
+        diffs += Color.perceptualDifference(groups(i).color.observedColor, assign(i))/100.0
     }
 
-    diffs/groups.length
+    -1*diffs/groups.length
 
   }
 }

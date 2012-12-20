@@ -2,6 +2,8 @@ package colorinference
 
 import cc.factorie.la.Tensor1
 import collection.mutable.ArrayBuffer
+import cc.factorie.{SampleRankExample, SampleRankTrainer, GibbsSampler, SampleRank, VariableSettingsSampler}
+import cc.factorie.optimize.StepwiseGradientAscent
 
 /**
  * Created with IntelliJ IDEA.
@@ -44,7 +46,6 @@ object ModelTraining
     }
 }
 
-// This does not use labels
 class ModelTraining
 {
     type Examples = ArrayBuffer[HistogramRegressor.RegressionExample]
@@ -149,7 +150,74 @@ class ModelTraining
 
         /** Train weights of the model **/
         // TODO: Remove the 'setWeight' calls above and actually do parameter estimation
+        println("Tuning weights...")
+        val objective = new AssignmentScoreTemplate()
+        val trainer = new SampleRank(new VariableSettingsSampler[DiscreteColorVariable](model, objective), new StepwiseGradientAscent)
+
+      //go through all training meshes
+      //we iterate through each mesh in the inner loop, so as to not bias the tuning towards later meshes
+
+        val iterations = 5
+
+      //pre-condition the model and objective on all the meshes
+      //as we increase the number of training meshes, this may or may not be feasible, and we may have to condition the model
+      //on each inner loop iteration
+      //TODO: try other weight trainers, or turn off and on different features?
+
+      model.conditionOnAll(trainingMeshes)
+      objective.conditionOnAll(trainingMeshes)
+
+      for (i <- 0 until iterations)
+      {
+        var avgAccuracy = 0.0
+        for (mesh <- trainingMeshes)
+        {
+          //set the pattern domain
+          val palette = ColorPalette(mesh)
+          DiscreteColorVariable.initDomain(palette)
+
+          // Convert colors to LAB space, since most of our factors use LAB features
+          for (color <- palette) color.convertTo(LABColorSpace)
+
+
+          //model.conditionOn(mesh)
+          //objective.conditionOn(mesh)
+
+          //process the variables and learn the weights
+            val vars = mesh.groups.map(g => g.color.asInstanceOf[DiscreteColorVariable])
+
+            trainer.processAll(vars)
+
+            //print the accuracy
+            //println("Iteration "+i+" Training Accuracy: " + objective.accuracy(vars))
+
+            avgAccuracy += objective.accuracy(vars)
+            print(".")
+          }
+          println("\nIteration " + i+ " Overall Training Accuracy: " + avgAccuracy/trainingMeshes.length)
+        }
+
+
+        println("Weights:")
+
+        //print the weights
+        for (t<-model.templates)
+        {
+          t match
+          {
+            case u:UnarySegmentTemplate[DiscreteColorVariable] => println("unary " + u.propName + " " + u.weights)
+            case b:BinarySegmentTemplate[DiscreteColorVariable] => println("binary " + b.propName + " " + b.weights)
+            case g:ColorGroupTemplate[DiscreteColorVariable] => println("group " + g.propName + " " + g.weights)
+            case _ => null
+          }
+        }
+        println()
+
+
 
         model
     }
+
+
 }
+
