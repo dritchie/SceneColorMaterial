@@ -18,6 +18,7 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
     update(2, c3)
 
     def this(comps:Tensor1, cspace:ColorSpace) = this(comps(0), comps(1), comps(2), cspace)
+    def this(comps:IndexedSeq[Double], cspace:ColorSpace) = this(comps(0), comps(1), comps(2), cspace)
     def this(c:Color) = this(c, c.colorspace)
     def this(cspace:ColorSpace) = this(0.0, 0.0, 0.0, cspace)
 
@@ -31,6 +32,23 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
     // DenseTensor1 overrides for copying
     override def copy: Color = { new Color(this) }
     override def blankCopy: Color = new Color(this.colorSpace)
+
+    // Equality!
+    override def equals(obj:Any) : Boolean =
+    {
+        obj match
+        {
+            case c:Color => c.colorSpace == this.colorSpace && c(0) == this(0) && c(1) == this(1) && c(2) == this(2)
+            case _ => false
+        }
+    }
+    def approxEquals(c:Color, eps:Double = 1e-10) : Boolean =
+    {
+        c.colorSpace == this.colorSpace &&
+        math.abs(c(0) - this(0)) < eps &&
+        math.abs(c(1) - this(1)) < eps &&
+        math.abs(c(2) - this(2)) < eps
+    }
 
     // Convert to a different color space
     def convertTo(cspace:ColorSpace)

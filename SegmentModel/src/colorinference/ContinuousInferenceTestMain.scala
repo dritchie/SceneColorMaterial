@@ -4,8 +4,8 @@ import cc.factorie._
 import java.awt.image.BufferedImage
 import java.awt
 import javax.imageio.ImageIO
-import java.io.File
-import util.Hooks0
+import java.io.{FileWriter, File}
+import collection.mutable.HashSet
 
 /**
  * Created with IntelliJ IDEA.
@@ -38,6 +38,10 @@ object ContinuousInferenceTestMain
         println("Creating itemized model...")
         val model = new ItemizedModel(factor)
 
+        // TEST
+        checkPatternPaletteScores(colorvars, model)
+        return
+
         // Spit out an image depicting the initial state
         val initScore = model.currentScore(colorvars)
         val initRating = math.exp(initScore)*5
@@ -52,10 +56,10 @@ object ContinuousInferenceTestMain
         // Use this sampler to find the MAP assignment
         println("Maximizing...")
         val maximizer = new SamplingMaximizer(sampler)
-        val iterations = 1000
+        val iterations = 2000
         val initTemp = 1.0
         val finalTemp = 0.01
-        val rounds = 10
+        val rounds = 40
         maximizer.maximize(Array(colorvars), iterations, initTemp, finalTemp, rounds)
 
         // Spit out an image depicting the MAP palette
@@ -103,5 +107,88 @@ object ContinuousInferenceTestMain
             val filename = "acceptedStates/palette_%05d_%1.4f.png".format(e, rating)
             savePaletteImage(cvars, filename)
         }
+    }
+
+    def checkPatternPaletteScores(cvars:IndexedSeq[ContinuousColorVariable], m:Model)
+    {
+        println("Computing scores of all permutations of ColourLovers pattern palettes...")
+
+        val datafile = "../Colourlovers/patterns.csv"
+        val artists = HashSet("sugar!", "ghighi", "incal")
+        val lines = io.Source.fromFile(datafile).getLines().map(_.split(',')).toSeq.filter(l => artists.contains(l(0)))
+
+        case class PaletteDatum(palette:IndexedSeq[Color], originalOrder:Boolean, sizeOrder:Boolean, score:Double)
+        {
+            var optimalOrder = false
+            def permutationType:String =
+            {
+                if (originalOrder) "ORIGINAL"
+                else if (sizeOrder) "BYSIZE"
+                else if (optimalOrder) "OPTIMAL"
+                else "OTHER"
+            }
+        }
+
+        // Open CSV
+        val file = new FileWriter("permutationStats/permutationScores.csv")
+        file.write("artist,id,permutationType,score\n")
+        file.flush()
+
+        // Extract data
+        println("Extracting data...")
+        var i = 0
+        for (line <- lines)
+        {
+            // Fields are: artist, id, url, palette
+            // Palette is a list of space separated 24bit hex RGB colors
+            if (line.length == 4)
+            {
+                val artist = line(0)
+                val id = line(1)
+                val palette = line(3).split(' ').distinct
+
+                // We can only really evaluate the model on 5 color palettes
+                if (palette.length == 5)
+                {
+                    val colors = for (cstr <- palette) yield
+                    {
+                        val ac = awt.Color.decode("0x"+cstr)
+                        val rgb = new Array[Float](3)
+                        ac.getRGBColorComponents(rgb)
+                        Color.RGBColor(rgb(0), rgb(1), rgb(2))
+                    }
+
+                    // We also need the corresponding SegmentMesh so we can identify the
+                    // permutation that corresponds to group size order
+                    val segmesh = new SegmentMesh(ContinuousColorVariable, "permutationStats/meshes/%s.txt".format(id))
+                    val sizeOrder = for (g <- segmesh.groups.sortWith(_.size > _.size)) yield g.color.observedColor
+
+                    // Generate and score all permutations of the palette
+                    val datumlist = (for (cperm <- colors.permutations) yield
+                    {
+                        for (i <- 0 until cperm.length) cvars(i).setColor(cperm(i))
+                        val score = math.exp(m.currentScore(cvars))*5
+                        val isOrigOrder = (cperm, colors).zipped.map(_ equals _).reduce(_ && _)
+                        val isSizeOrder = (cperm, sizeOrder).zipped.map(_.approxEquals(_,1e-4)).reduce(_ && _)
+                        PaletteDatum(cperm, isOrigOrder, isSizeOrder, score)
+                    }).toSeq
+                    // Mark the optimal permutation
+                    val opt = datumlist.reduce((a,b) => {if (a.score > b.score) a else b})
+                    opt.optimalOrder = true
+                    // Output CSV data for this palette
+                    for (pdatum <- datumlist)
+                    {
+                        file.write("%s,%s,%s,%g\n".format(artist,id,pdatum.permutationType,pdatum.score))
+                    }
+                    file.flush()
+                }
+            }
+            i += 1
+            println("Done %d/%d".format(i, lines.length))
+        }
+
+        // Finish up
+        file.close()
+        println("DONE")
     }
 }

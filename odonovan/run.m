@@ -5,7 +5,7 @@
 
 
 %set the code directory...
-codeRoot= 'D:\UCLA\research\Projects\fashion\colorCode\'
+codeRoot= 'C:\Git\SceneColorMaterial\odonovan\'
 addpath([codeRoot])
 addpath([codeRoot,'data/'])
 addpath([codeRoot,'circstat/'])
