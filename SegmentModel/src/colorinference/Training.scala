@@ -1,9 +1,11 @@
 package colorinference
 
-import cc.factorie.la.Tensor1
+import cc.factorie.la._
 import collection.mutable.ArrayBuffer
-import cc.factorie.{SampleRankExample, SampleRankTrainer, GibbsSampler, SampleRank, VariableSettingsSampler}
-import cc.factorie.optimize.StepwiseGradientAscent
+import cc.factorie._
+import cc.factorie.optimize._
+import collection.Set
+import util.DoubleAccumulator
 
 /**
  * Created with IntelliJ IDEA.
@@ -12,6 +14,32 @@ import cc.factorie.optimize.StepwiseGradientAscent
  * Time: 11:26 AM
  * To change this template use File | Settings | File Templates.
  */
+
+/**parameters for regression**/
+object ModelParams
+{
+  type RegressionFunction = (Seq[HistogramRegressor.RegressionExample], MathUtils.DistanceMetric, VectorQuantizer, WekaHistogramRegressor) => HistogramRegressor
+  var regression:RegressionFunction = HistogramRegressor.LogisticRegression
+
+  //include the segment factors?
+  var includeUnaryTerms = false
+
+  //ignore the noise segments?
+  //var filterNoise = false
+
+  //threshold at which to cap the distance
+  //var perceptualDistThresh = Double.PositiveInfinity
+
+
+  var useMLTrainer = false
+
+
+  //output csv
+  //parameter settings, iteration, weights delta, accuracy
+
+
+}
+
 
 object ModelTraining
 {
@@ -64,10 +92,13 @@ class ModelTraining
 
     /* Unary segment properties */
     val unarySegProps = new ArrayBuffer[UnarySegmentProperty]()
-    unarySegProps += UnarySegmentProperty("Lightness", ModelTraining.lightness, ModelTraining.uniformQuant10)
-    unarySegProps += UnarySegmentProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.uniformQuant10)
-    unarySegProps += UnarySegmentProperty("Name Saliency", ModelTraining.nameSaliency, ModelTraining.uniformQuant10)
-    //    unarySegProps += UnarySegmentProperty("Saturation", ModelTraining.saturation, ModelTraining.uniformQuant10)
+    if (ModelParams.includeUnaryTerms)
+    {
+      unarySegProps += UnarySegmentProperty("Lightness", ModelTraining.lightness, ModelTraining.uniformQuant10)
+      unarySegProps += UnarySegmentProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.uniformQuant10)
+      unarySegProps += UnarySegmentProperty("Name Saliency", ModelTraining.nameSaliency, ModelTraining.uniformQuant10)
+      //    unarySegProps += UnarySegmentProperty("Saturation", ModelTraining.saturation, ModelTraining.uniformQuant10)
+    }
 
     /* Binary segment properties */
     // The assumption for the binary properties thus far is that they're symmetric (no directionality between the variables), which is probably ok
@@ -149,21 +180,58 @@ class ModelTraining
         }
 
         /** Train weights of the model **/
-        // TODO: Remove the 'setWeight' calls above and actually do parameter estimation
-        println("Tuning weights...")
-        val objective = new AssignmentScoreTemplate()
-        val trainer = new SampleRank(new VariableSettingsSampler[DiscreteColorVariable](model, objective), new StepwiseGradientAscent)
+
+      //TODO: try other weight trainers, or turn off and on different features?
+      //TODO: weights don't really seem to converge much after the first iteration. we may need a different scoring objective, or add more constraints
+
+       val iterations = 5
+
+      if (ModelParams.useMLTrainer)
+      {
+        TuneWeightsMaxLikelihood(model, trainingMeshes, iterations)
+      } else
+      {
+        TuneWeightsSampleRank(model, trainingMeshes, iterations)
+      }
+
+
+      println("Weights:")
+
+        //print the weights
+        for (t<-model.templates)
+        {
+          t match
+          {
+            case u:UnarySegmentTemplate[DiscreteColorVariable] => println("unary " + u.propName + " " + u.weights)
+            case b:BinarySegmentTemplate[DiscreteColorVariable] => println("binary " + b.propName + " " + b.weights)
+            case g:ColorGroupTemplate[DiscreteColorVariable] => println("group " + g.propName + " " + g.weights)
+            case _ => null
+          }
+        }
+        println()
+
+
+
+        model
+    }
+
+
+    def TuneWeightsSampleRank(model:ColorInferenceModel, trainingMeshes:Array[SegmentMesh], iterations:Int)
+    {
+      //TODO: For sample rank, may need to add more constraints. i.e. constraining the original color of one (or more) of the color groups
+
+      println("Tuning weights Sample Rank...")
+      val objective = new AssignmentScoreTemplate()
+      val trainer = new SampleRank(new VariableSettingsSampler[DiscreteColorVariable](model, objective), new StepwiseGradientAscent)
 
       //go through all training meshes
       //we iterate through each mesh in the inner loop, so as to not bias the tuning towards later meshes
 
-        val iterations = 10
 
       //pre-condition the model and objective on all the meshes
       //as we increase the number of training meshes, this may or may not be feasible, and we may have to condition the model
       //on each inner loop iteration
-      //TODO: try other weight trainers, or turn off and on different features?
-      //TODO: weights don't really seem to converge much after the first iteration. we may need a different scoring objective, or add more constraints
+
 
       model.conditionOnAll(trainingMeshes)
       objective.conditionOnAll(trainingMeshes)
@@ -186,46 +254,111 @@ class ModelTraining
           //objective.conditionOn(mesh)
 
           //process the variables and learn the weights
-            val vars = mesh.groups.map(g => g.color.asInstanceOf[DiscreteColorVariable])
+          val vars = mesh.groups.map(g => g.color.asInstanceOf[DiscreteColorVariable])
 
-            trainer.processAll(vars)
+          trainer.processAll(vars)
 
-            //print the accuracy
-            //println("Iteration "+i+" Training Accuracy: " + objective.accuracy(vars))
+          //print the accuracy
+          //println("Iteration "+i+" Training Accuracy: " + objective.accuracy(vars))
 
-            avgAccuracy += objective.accuracy(vars)
-            print(".")
-          }
-
-          //print change in weights
-          val curWeights:Tensor1 = MathUtils.concatVectors({for (t<-model.templates) yield t match {case c:ColorInferenceModelComponent => c.weights}})
-          println("\nWeights delta: " + (curWeights-prevWeights).twoNorm)
-          prevWeights = curWeights
-
-          println("Iteration " + i+ " Overall Training Accuracy: " + avgAccuracy/trainingMeshes.length)
+          avgAccuracy += objective.accuracy(vars)
+          print(".")
         }
 
+        //print change in weights
+        val curWeights:Tensor1 = MathUtils.concatVectors({for (t<-model.templates) yield t match {case c:ColorInferenceModelComponent => c.weights}})
+        println("\nWeights delta: " + (curWeights-prevWeights).twoNorm)
+        prevWeights = curWeights
 
-        println("Weights:")
+        println("Iteration " + i+ " Overall Training Accuracy: " + avgAccuracy/trainingMeshes.length)
+      }
+    }
 
-        //print the weights
-        for (t<-model.templates)
+  //TODO: This is broken right now...
+    def TuneWeightsMaxLikelihood(model:ColorInferenceModel, trainingMeshes:Array[SegmentMesh], iterations:Int)
+    {
+
+      println("Tuning weights Max Likelihood...")
+
+
+      val trainer = new BatchTrainer(new StepwiseGradientAscent, model)
+
+      model.conditionOnAll(trainingMeshes)
+
+      var prevWeights:Tensor1 = MathUtils.concatVectors({for (t<-model.templates) yield t match {case c:ColorInferenceModelComponent => c.weights}})
+      for (i <- 0 until iterations)
+      {
+        var avgLikelihood = 0.0    //well, this might not be comparable across meshes...
+        for (mesh <- trainingMeshes)
         {
-          t match
-          {
-            case u:UnarySegmentTemplate[DiscreteColorVariable] => println("unary " + u.propName + " " + u.weights)
-            case b:BinarySegmentTemplate[DiscreteColorVariable] => println("binary " + b.propName + " " + b.weights)
-            case g:ColorGroupTemplate[DiscreteColorVariable] => println("group " + g.propName + " " + g.weights)
-            case _ => null
-          }
+          //set the pattern domain
+          val palette = ColorPalette(mesh)
+          DiscreteColorVariable.initDomain(palette)
+
+          // Convert colors to LAB space, since most of our factors use LAB features
+          for (color <- palette) color.convertTo(LABColorSpace)
+
+          //in this case, there's only one example...the observed original assignment
+          //TODO: ideally, we might want this to use Loopy BP, but there seems to be a problem with our color variables having a third refvariable and BP requiring it to be a DiscreteTensorVar
+          //TODO: alternatively (and probably easier), we can calculate log Z and the marginal statistics (whatever those are) by exhaustive inference
+
+          //val examples = Array(new MaxLikelihoodExample(mesh.groups.map(g=>g.color.asInstanceOf[DiscreteColorVariable]), InferByBPLoopy))
+          val examples = Array(new ModifiedMaxLikelihoodExample(mesh.groups.map(g=>g.color.asInstanceOf[DiscreteColorVariable]), mesh))
+
+          trainer.processAll(examples)
+
+          val likelihood = trainer.valueAccumulator.value
+          avgLikelihood += likelihood
+
+          print(".")
         }
-        println()
 
+        //print change in weights
+        val curWeights:Tensor1 = MathUtils.concatVectors({for (t<-model.templates) yield t match {case c:ColorInferenceModelComponent => c.weights}})
+        println("\nWeights delta: " + (curWeights-prevWeights).twoNorm)
+        prevWeights = curWeights
 
+        println("Iteration "+i+" Avg. Likelihood " + avgLikelihood/trainingMeshes.length)
+      }
 
-        model
     }
 
 
 }
+
+
+//TODO: check if this is correct
+object InferByBPLoopy extends InferByBP {
+  override def infer(variables:Iterable[Variable], model:Model, summary:Summary[Marginal] = null): Option[BPSummary] = variables match {
+    case variables:Iterable[DiscreteVar] if (variables.forall(_.isInstanceOf[DiscreteVar])) => Some(apply(variables.toSet, model))
+  }
+  def apply(varying:Set[DiscreteVar], model:Model): BPSummary = {
+    val summary = BPSummary(varying, model)
+  //TODO: figure out how many iterations
+    BP.inferLoopy(summary)
+    summary
+  }
+
+}
+
+
+class ModifiedMaxLikelihoodExample(labels:Iterable[DiscreteColorVariable], mesh:SegmentMesh) extends Example[Model] {
+  def accumulateExampleInto(model: Model, gradient: WeightsTensorAccumulator, value: DoubleAccumulator, margin:DoubleAccumulator): Unit = {
+    if (labels.size == 0) return
+
+    //get logZ, by enumerating all permutations (TODO: or should we enumerate combinations)
+    val logZ = ExhaustiveInference.logZAllPermutations(mesh, model)
+
+    if (value != null)
+      value.accumulate(model.assignmentScore(labels, TargetAssignment) - logZ)
+
+    if (gradient != null) {
+      model.factorsOfFamilyClass[DotFamily](labels, classOf[DotFamily]).foreach(factor => {
+        gradient.accumulate(factor.family, factor.assignmentStatistics(TargetAssignment))
+        //gradient.accumulate(factor.family, summary.marginalTensorStatistics(factor), -1.0)     // TODO: need to calculate the marginal tensor statistics....
+      })
+    }
+  }
+}
+
 
