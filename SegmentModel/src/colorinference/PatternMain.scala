@@ -99,6 +99,9 @@ object PatternMain {
     println("Average random score " + randomScore/testingMeshes.length)
 
 
+    OutputVisualizations(patterns, model, HistogramRegressor.LogisticRegression, "histtest.txt")
+
+
     //test the model by training and testing on the same mesh, plus a few other meshes
     /*for (idx<-meshes.indices if (patterns.contains(files(idx).getName().replace(".txt","").toInt)))
     {
@@ -200,7 +203,7 @@ object PatternMain {
   }
 
   /** Visualization output methods **/
-  def OutputVisualizations(patterns:Array[Int], regression:ModelParams.RegressionFunction, filename:String)
+  def OutputVisualizations(patterns:Array[Int], model:ColorInferenceModel, regression:ModelParams.RegressionFunction, filename:String)
   {
     //change the regression type
     ModelParams.regression = regression
@@ -213,13 +216,11 @@ object PatternMain {
          if (patterns.contains(files(idx).getName().replace(".txt","").toInt)))
     {
       println("Testing mesh " + files(idx).getName())
-      val trainingMeshes:Array[SegmentMesh] = {for (tidx<-meshes.indices if tidx != idx) yield meshes(tidx)}.toArray
       val vfilename = visDir + "/"+files(idx).getName()
 
       val palette = ColorPalette(meshes(idx))
       DiscreteColorVariable.initDomain(palette)
 
-      val model = ModelTraining(trainingMeshes)
       model.conditionOn(meshes(idx))
 
 
@@ -329,7 +330,7 @@ object PatternMain {
       out.write("Score " + score + " " + orig+"\n")
       for (i <- mesh.groups.indices)
       {
-        out.write(palette(p(i)).componentString + "\n")
+        out.write(palette(p(i)).copyIfNeededTo(RGBColorSpace).componentString + "\n")
       }
     }
     out.close()
@@ -358,8 +359,7 @@ object PatternMain {
 
     ExhaustiveInference.allPermutations(segmesh, model)
 
-      // Convert colors back to RGB space before we do any comparisons to ground truth, etc.
-      //for (color <- palette) color.convertTo(RGBColorSpace)
+
 
     // Evaluate assignments
     val score = segmesh.scoreAssignment()
@@ -374,6 +374,9 @@ object PatternMain {
     }
     rscore /= 3.0
     println("Random score: " + rscore)
+
+    // Convert colors back to RGB space before outputting...
+    for (color <- palette) color.convertTo(RGBColorSpace)
 
     (score,rscore)
 

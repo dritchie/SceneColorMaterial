@@ -157,7 +157,7 @@ class ModelTraining
       //go through all training meshes
       //we iterate through each mesh in the inner loop, so as to not bias the tuning towards later meshes
 
-        val iterations = 5
+        val iterations = 10
 
       //pre-condition the model and objective on all the meshes
       //as we increase the number of training meshes, this may or may not be feasible, and we may have to condition the model

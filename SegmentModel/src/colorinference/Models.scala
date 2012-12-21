@@ -56,7 +56,7 @@ class AssignmentScoreTemplate extends Template2[ColorVariable, AssignmentScoreTe
 
     override def score(val1:ColorVariable#Value, val2:DatumVariable#Value):Double=
     {
-      -1.0*(Color.perceptualDifference(val2.getColor, val2.observedColor)/100.0)
+      -1.0*(Color.perceptualDifference(val2.getColor, val2.observedColor)/100.0)*val2.group.size
     }
 
     def unroll1(v1:ColorVariable) =
@@ -69,7 +69,7 @@ class AssignmentScoreTemplate extends Template2[ColorVariable, AssignmentScoreTe
       throw new Error("Cannot unroll target variable!")
     }
 
-    def accuracy(context: Iterable[ColorVariable]): Double = context.map(currentScore(_)).sum / context.size
+    def accuracy(context: Iterable[ColorVariable]): Double = context.map(currentScore(_)).sum// / context.size
 
 }
 
