@@ -1,7 +1,7 @@
 package colorinference
 
 import cc.factorie.la._
-import collection.mutable.ArrayBuffer
+import collection.mutable.{HashMap, ArrayBuffer}
 import cc.factorie._
 import cc.factorie.optimize._
 import collection.Set
@@ -359,6 +359,52 @@ class ModifiedMaxLikelihoodExample(labels:Iterable[DiscreteColorVariable], mesh:
       })
     }
   }
+}
+
+/** Template that scores how close a variable's color is to the original.**/
+object AssignmentScoreTemplate
+{
+    type DatumVariable = RefVariable[ColorVariable]
+    type Data = HashMap[ColorVariable, DatumVariable]
+}
+class AssignmentScoreTemplate extends Template2[ColorVariable, AssignmentScoreTemplate.DatumVariable]
+{
+    import AssignmentScoreTemplate._
+    protected val data = new Data
+
+    def conditionOnAll(meshes:Seq[SegmentMesh])
+    {
+        data.clear()
+        for (mesh<-meshes; g<-mesh.groups)
+            data(g.color) = new DatumVariable(g.color)
+    }
+
+    def conditionOn(mesh:SegmentMesh)
+    {
+        data.clear()
+        for (g <- mesh.groups)
+        {
+            data(g.color) = new DatumVariable(g.color)
+        }
+    }
+
+    override def score(val1:ColorVariable#Value, val2:DatumVariable#Value):Double=
+    {
+        -1.0*(Color.perceptualDifference(val2.getColor, val2.observedColor)/100.0)*val2.group.size
+    }
+
+    def unroll1(v1:ColorVariable) =
+    {
+        Factor(v1.group.color, data(v1.group.color))
+    }
+
+    def unroll2(v2:DatumVariable) =
+    {
+        throw new Error("Cannot unroll target variable!")
+    }
+
+    def accuracy(context: Iterable[ColorVariable]): Double = context.map(currentScore(_)).sum// / context.size
+
 }
 
 
