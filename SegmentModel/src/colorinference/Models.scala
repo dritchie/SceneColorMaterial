@@ -19,14 +19,6 @@ import matlabcontrol._
 class SummaryItem(val ttype:String, val propname:String, val ids:Array[String], val hist:VectorHistogram)
 
 
-/**parameters for regression**/
-object ModelParams
-{
-  type RegressionFunction = (Seq[HistogramRegressor.RegressionExample], MathUtils.DistanceMetric, VectorQuantizer, WekaHistogramRegressor) => HistogramRegressor
-  var regression:RegressionFunction = HistogramRegressor.LogisticRegression
-}
-
-
 /** Template that scores how close a variable's color is to the original.**/
 object AssignmentScoreTemplate
 {

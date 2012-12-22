@@ -28,7 +28,7 @@ trait ColorVariableGenerator
  * (i.e. when we have a restricted palette)
  */
 
-class DiscreteColorVariable(val group:SegmentGroup, val observedColor:Color = null) extends CategoricalVariable[Color] with ColorVariable
+class DiscreteColorVariable(val group:SegmentGroup, val observedColor:Color = null) extends CategoricalVariable[Color] with ColorVariable with LabeledVar
 {
     def domain = DiscreteColorVariable.domain
     def setColor(color:Color)
@@ -36,6 +36,9 @@ class DiscreteColorVariable(val group:SegmentGroup, val observedColor:Color = nu
         set(domain.index(color))(null)
     }
     def getColor:Color = value.category
+
+    def targetValue = domain.value(observedColor)//observedColor.asInstanceOf[DiscreteColorVariable#Value]
+    override def valueIsTarget = value.category.distance(observedColor) == 0
 }
 
 object DiscreteColorVariable extends ColorVariableGenerator

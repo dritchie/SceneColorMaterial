@@ -126,6 +126,46 @@ object ExhaustiveInference
         }
 
     }
+
+    //TODO: take into account logZ when some variables are fixed
+    def logZAllPermutations(mesh:SegmentMesh, model:Model):Double =
+    {
+      val numVals = DiscreteColorVariable.domain.size
+      val vars = mesh.groups.map(g => g.color)
+      assert(numVals==vars.size, "logZAllPermutations: Number of variables is not equal to domain!")
+
+      val allPerms = (0 until numVals).toList.permutations.toList
+
+      val itemizedModel = model.itemizedModel(vars)
+
+      val Z = allPerms.foldLeft(0.0)((sofar, p) => {
+        //create the new assignment
+        val assignment = new HashMapAssignment(vars)
+        for (i <- mesh.groups.indices)
+        {
+          assignment.update(mesh.groups(i).color.asInstanceOf[DiscreteColorVariable], DiscreteColorVariable.domain(p(i)))
+        }
+
+        for (f <- itemizedModel.factors)
+        {
+          f.variables.foreach{ e => e match {
+            case(v:UnarySegmentTemplate.DatumVariable) => assignment.update(v, v.value)
+            case(b:BinarySegmentTemplate.DatumVariable) => assignment.update(b, b.value)
+            case (g:ColorGroupTemplate.DatumVariable) => assignment.update(g, g.value)
+            case _ => null
+          }}
+        }
+
+
+        val currScore = model.assignmentScore(vars, assignment)
+        sofar+Math.exp(currScore)
+      })
+
+      Math.log(Z)
+
+    }
+
+
 }
 
 
