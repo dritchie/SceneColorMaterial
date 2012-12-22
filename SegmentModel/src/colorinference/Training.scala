@@ -323,17 +323,21 @@ class ModelTraining
 
     }
 
-    def TuneWeightsContrastiveDivergence(model:ColorInferenceModel, trainingMeshes:Array[SegmentMesh], setIterations:Int, meshIterations:Int)
+    def TuneWeightsContrastiveDivergence(model:ColorInferenceModel, trainingMeshes:Array[SegmentMesh], setIterations:Int, meshIterations:Int, cdK:Int)
     {
         println("Tuning weights by Contrastive Divergence...")
 
-        val trainer = new DiscreteColorTrainingSampler(model)
+        val trainer = new DiscreteColorTrainingSampler(model, cdK)
         model.conditionOnAll(trainingMeshes)
         var prevWeights:Tensor1 = MathUtils.concatVectors({for (t<-model.templates) yield t match {case c:ColorInferenceModelComponent => c.weights}})
 
         // Iterate over the whole training set multiple times
         for (i <- 0 until setIterations)
         {
+            // Lower the learning rate as the iterations go on.
+            val t = i/(setIterations.toDouble)
+            trainer.learningRate = 1-t
+
             println("Outer iteration %d/%d".format(i+1, setIterations))
             var avgLikelihood = 0.0     // Likelihoods aren't strictly comparable across meshes, but whatevs--this is just for printf reporting
             for (m <- 0 until trainingMeshes.length)
@@ -351,10 +355,11 @@ class ModelTraining
                 for (j <- 0 until meshIterations)
                 {
                     println("Inner iteration %d/%d".format(j+1, meshIterations))
+                    trainer.reset()
                     // Set the initial state of the mesh's color variables to be the observed colors
                     mesh.setVariableValuesToObserved()
-                    // Run the MCMC sampling chain for one step, which will invoke the CD parameter update
-                    trainer.process(mesh.variablesAs[DiscreteColorVariable], 1)
+                    // Run the MCMC sampling chain for k steps, which will invoke the CD parameter update
+                    trainer.process(mesh.variablesAs[DiscreteColorVariable], cdK)
                 }
 
                 // Accumulate the current likelihood of this mesh into the running average

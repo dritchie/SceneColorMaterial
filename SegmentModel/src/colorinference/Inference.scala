@@ -387,17 +387,43 @@ abstract class SimpleContrastiveDivergence[C](override val model:Model) extends 
 
     def updateWeights { addGradient(accumulator, learningRate) }
 
-    private def accumulator(df:DotFamily) : Tensor = df.weights
+    protected def accumulator(df:DotFamily) : Tensor = df.weights
 }
 
+// Extending ContrastiveDivergence to do k MCMC steps, instead of just 1.
+abstract class KStepContrastiveDivergence[C](override val model:Model, val k:Int) extends SimpleContrastiveDivergence[C](model)
+{
+    private var kStepDiffList = new DiffList
+    private var stepsDone:Int = 0
+
+    def reset()
+    {
+        stepsDone = 0
+        kStepDiffList.clear()
+    }
+
+    override def updateWeights
+    {
+        stepsDone += 1
+        kStepDiffList ++= difflist
+
+        if (stepsDone == k)
+        {
+            difflist = kStepDiffList
+            addGradient(accumulator, learningRate)
+            reset()
+        }
+    }
+}
 
 // Concrete subclass for training parameters
 // How to use this: Sweep over all the training meshes multiple times. Each time we visit a mesh, set the value of the
 //   color variables to be the observed color, then run this sampler for one step.
 class ContinuousColorTrainingSampler(override val model:Model, val minRadius:Double = 0.01, val maxRadius:Double = 0.33,
                              val minSwapProb:Double = 0.05, val maxSwapProb:Double = 0.5,
-                             val diagnostics:ContinuousColorSampling.Diagnostics = null)
-    extends SimpleContrastiveDivergence[IndexedSeq[ContinuousColorVariable]](model) with ContinuousColorSampling
+                             val diagnostics:ContinuousColorSampling.Diagnostics = null,
+                             override val k:Int = 1)
+    extends KStepContrastiveDivergence[IndexedSeq[ContinuousColorVariable]](model, k) with ContinuousColorSampling
 
 
 
@@ -428,5 +454,5 @@ trait DiscreteColorSampling extends MHSampler[IndexedSeq[DiscreteColorVariable]]
 class DiscreteColorSampler(override val model:Model)
     extends MHSampler[IndexedSeq[DiscreteColorVariable]](model) with DiscreteColorSampling
 
-class DiscreteColorTrainingSampler(override val model:Model)
-    extends SimpleContrastiveDivergence[IndexedSeq[DiscreteColorVariable]](model) with DiscreteColorSampling
+class DiscreteColorTrainingSampler(override val model:Model, override val k:Int = 1)
+    extends KStepContrastiveDivergence[IndexedSeq[DiscreteColorVariable]](model, k) with DiscreteColorSampling
