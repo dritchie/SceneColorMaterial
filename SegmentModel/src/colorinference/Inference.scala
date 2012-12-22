@@ -1,7 +1,7 @@
 package colorinference
 
 import cc.factorie._
-import cc.factorie.la.Tensor1
+import la.{Tensor, Tensor1}
 import collection.mutable.ArrayBuffer
 
 /**
@@ -170,12 +170,90 @@ object ExhaustiveInference
 
 
 
-// NOTE: The proposals this sampler makes are intended for exploring the RGB color cube
-class ContinuousColorSampler(override val model:Model, val minRadius:Double = 0.01, val maxRadius:Double = 0.33,
-                             val minSwapProb:Double = 0.05, val maxSwapProb:Double = 0.5, val diagnostics:ContinuousColorSampler.Diagnostics = null)
-    extends MHSampler[IndexedSeq[ContinuousColorVariable]](model)
+
+object ContinuousColorSampling
 {
-    import ContinuousColorSampler.ProposalType._
+    object ProposalType extends Enumeration
+    {
+        type ProposalType = Value
+        val Perturbation, Swap = Value
+    }
+    import ProposalType._
+
+    class Diagnostics
+    {
+        case class HistoryEntry(state:IndexedSeq[Color], propType:ProposalType, accepted:Boolean, temp:Double)
+
+        var history = new ArrayBuffer[HistoryEntry]
+
+        var lastProposal:ProposalType = Perturbation
+        private var lastState:IndexedSeq[Color] = null
+
+        var numProposedMoves = 0
+        var numAcceptedMoves = 0
+        var numNegativeMoves = 0
+        var numProposedSwaps = 0
+        var numAcceptedSwaps = 0
+        var numProposedPerturbations = 0
+        var numAcceptedPerturbations = 0
+
+        def updateLastState(state:IndexedSeq[ContinuousColorVariable])
+        {
+            lastState = for (cvar <- state) yield cvar.value.copy
+        }
+
+        def process(sampler:ContinuousColorSampling, proposal:ContinuousColorSampling#Proposal)
+        {
+            // Record summary statistics
+            numProposedMoves += 1
+            lastProposal match
+            {
+                case Perturbation => numProposedPerturbations += 1
+                case Swap => numProposedSwaps += 1
+            }
+            val accepted = !proposal.bfRatio.isNaN
+            if (accepted)
+            {
+                numAcceptedMoves += 1
+                lastProposal match
+                {
+                    case Perturbation => numAcceptedPerturbations += 1
+                    case Swap => numAcceptedSwaps += 1
+                }
+            }
+            if (proposal.modelScore < 0)
+                numNegativeMoves += 1
+
+            // Record history
+            history += HistoryEntry(lastState, lastProposal, accepted, sampler.temperature)
+        }
+
+        def summarize()
+        {
+            println("ContinuousColorSampling Diagonistic Summary:")
+            println("numProposedMoves: " + numProposedMoves)
+            println("numProposedSwaps: %d (.%.2f of total)".format(numProposedSwaps, numProposedSwaps/numProposedMoves.toDouble))
+            println("numProposedPerturbations: %d (%.2f of total)".format(numProposedPerturbations, numProposedPerturbations/numProposedMoves.toDouble))
+            println("numAcceptedMoves: %d (%.2f of total)".format(numAcceptedMoves, numAcceptedMoves/numProposedMoves.toDouble))
+            println("numNegativeMoves: " + numNegativeMoves)
+            println("numAcceptedSwaps: %d (%.2f of total)".format(numAcceptedSwaps, numAcceptedSwaps/numAcceptedMoves.toDouble))
+            println("numAcceptedPerturbations: %d (%.2f of total)".format(numAcceptedPerturbations, numAcceptedPerturbations/numAcceptedMoves.toDouble))
+        }
+    }
+}
+
+// NOTE: The proposals this sampler makes are intended for exploring the RGB color cube
+trait ContinuousColorSampling extends MHSampler[IndexedSeq[ContinuousColorVariable]]
+{
+    import ContinuousColorSampling.Diagnostics
+    import ContinuousColorSampling.ProposalType._
+
+    // Concrete subclasses must implement these vals
+    def minRadius:Double
+    def maxRadius:Double
+    def minSwapProb:Double
+    def maxSwapProb:Double
+    def diagnostics:Diagnostics
 
     private val mins = Tensor1(0, 0, 0)
     private val maxs = Tensor1(1, 1, 1)
@@ -294,73 +372,25 @@ class ContinuousColorSampler(override val model:Model, val minRadius:Double = 0.
     }
 }
 
-object ContinuousColorSampler
+
+// Concrete subclass for doing normal sampling
+class ContinuousColorSampler(override val model:Model, val minRadius:Double = 0.01, val maxRadius:Double = 0.33,
+                              val minSwapProb:Double = 0.05, val maxSwapProb:Double = 0.5, val diagnostics:ContinuousColorSampling.Diagnostics = null)
+    extends MHSampler[IndexedSeq[ContinuousColorVariable]](model) with ContinuousColorSampling
+
+
+// Concrete subclass for training parameters
+// 'learningRate' should be decreased over time so that weights can converge.
+// How to use this: Sweep over all the training meshes multiple times. Each time we visit a mesh, set the value of the
+//   color variables to be the observed color, then run this sampler for one step.
+class ContinuousColorTrainer(override val model:Model, val minRadius:Double = 0.01, val maxRadius:Double = 0.33,
+                             val minSwapProb:Double = 0.05, val maxSwapProb:Double = 0.5,
+                             val diagnostics:ContinuousColorSampling.Diagnostics = null)
+    extends ContrastiveDivergence[IndexedSeq[ContinuousColorVariable]](model) with ContinuousColorSampling
 {
-    object ProposalType extends Enumeration
-    {
-        type ProposalType = Value
-        val Perturbation, Swap = Value
-    }
-    import ProposalType._
+    var learningRate:Double = 1.0
 
-    class Diagnostics
-    {
-        case class HistoryEntry(state:IndexedSeq[Color], propType:ProposalType, accepted:Boolean, temp:Double)
+    def updateWeights { addGradient(accumulator, learningRate) }
 
-        var history = new ArrayBuffer[HistoryEntry]
-
-        var lastProposal:ProposalType = Perturbation
-        private var lastState:IndexedSeq[Color] = null
-
-        var numProposedMoves = 0
-        var numAcceptedMoves = 0
-        var numNegativeMoves = 0
-        var numProposedSwaps = 0
-        var numAcceptedSwaps = 0
-        var numProposedPerturbations = 0
-        var numAcceptedPerturbations = 0
-
-        def updateLastState(state:IndexedSeq[ContinuousColorVariable])
-        {
-            lastState = for (cvar <- state) yield cvar.value.copy
-        }
-
-        def process(sampler:ContinuousColorSampler, proposal:ContinuousColorSampler#Proposal)
-        {
-            // Record summary statistics
-            numProposedMoves += 1
-            lastProposal match
-            {
-                case Perturbation => numProposedPerturbations += 1
-                case Swap => numProposedSwaps += 1
-            }
-            val accepted = !proposal.bfRatio.isNaN
-            if (accepted)
-            {
-                numAcceptedMoves += 1
-                lastProposal match
-                {
-                    case Perturbation => numAcceptedPerturbations += 1
-                    case Swap => numAcceptedSwaps += 1
-                }
-            }
-            if (proposal.modelScore < 0)
-                numNegativeMoves += 1
-
-            // Record history
-            history += HistoryEntry(lastState, lastProposal, accepted, sampler.temperature)
-        }
-
-        def summarize()
-        {
-            println("ContinuousColorSampler Diagonistic Summary:")
-            println("numProposedMoves: " + numProposedMoves)
-            println("numProposedSwaps: %d (.%.2f of total)".format(numProposedSwaps, numProposedSwaps/numProposedMoves.toDouble))
-            println("numProposedPerturbations: %d (%.2f of total)".format(numProposedPerturbations, numProposedPerturbations/numProposedMoves.toDouble))
-            println("numAcceptedMoves: %d (%.2f of total)".format(numAcceptedMoves, numAcceptedMoves/numProposedMoves.toDouble))
-            println("numNegativeMoves: " + numNegativeMoves)
-            println("numAcceptedSwaps: %d (%.2f of total)".format(numAcceptedSwaps, numAcceptedSwaps/numAcceptedMoves.toDouble))
-            println("numAcceptedPerturbations: %d (%.2f of total)".format(numAcceptedPerturbations, numAcceptedPerturbations/numAcceptedMoves.toDouble))
-        }
-    }
+    private def accumulator(df:DotFamily) : Tensor = df.weights
 }

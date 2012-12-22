@@ -50,7 +50,7 @@ object ContinuousInferenceTestMain
 
         // Set up an MH sampler to explore color assignments
         println("Creating sampler...")
-        val diagnostics = new ContinuousColorSampler.Diagnostics
+        val diagnostics = new ContinuousColorSampling.Diagnostics
         val sampler = new ContinuousColorSampler(model, 0.01, 0.33, 0.05, 0.5, diagnostics)
 
         // Use this sampler to find the MAP assignment
@@ -90,7 +90,7 @@ object ContinuousInferenceTestMain
         ImageIO.write(img, "png", new File(filename))
     }
 
-    def visAcceptedStates(cvars:IndexedSeq[ContinuousColorVariable], m:Model, d:ContinuousColorSampler.Diagnostics)
+    def visAcceptedStates(cvars:IndexedSeq[ContinuousColorVariable], m:Model, d:ContinuousColorSampling.Diagnostics)
     {
         // Ensure directory exists
         val dir = new File("acceptedStates")
