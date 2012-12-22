@@ -202,7 +202,7 @@ class SegmentMesh(private val gen:ColorVariableGenerator)
         var newgroup = new SegmentGroup(groups.length, this)
         while (lineIterator.hasNext)
         {
-            val line = lineIterator.next
+            val line = lineIterator.next()
             val tokens = line.split(" ")
             tokens(0) match
             {
@@ -240,6 +240,16 @@ class SegmentMesh(private val gen:ColorVariableGenerator)
                 }
             }
         }
+    }
+
+    def setVariableValuesToObserved()
+    {
+        for (group <- groups) group.color.setColor(group.color.observedColor)
+    }
+
+    def variablesAs[ColorVar<:ColorVariable] : IndexedSeq[ColorVar] =
+    {
+        for (group <- groups) yield group.color.asInstanceOf[ColorVar]
     }
 
     /** Output **/
