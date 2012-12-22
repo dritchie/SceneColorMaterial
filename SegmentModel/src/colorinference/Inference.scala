@@ -379,14 +379,9 @@ class ContinuousColorSampler(override val model:Model, val minRadius:Double = 0.
     extends MHSampler[IndexedSeq[ContinuousColorVariable]](model) with ContinuousColorSampling
 
 
-// Concrete subclass for training parameters
+// Extending ContrastiveDivergence with the simple, obvious implementation of updateWeights
 // 'learningRate' should be decreased over time so that weights can converge.
-// How to use this: Sweep over all the training meshes multiple times. Each time we visit a mesh, set the value of the
-//   color variables to be the observed color, then run this sampler for one step.
-class ContinuousColorTrainer(override val model:Model, val minRadius:Double = 0.01, val maxRadius:Double = 0.33,
-                             val minSwapProb:Double = 0.05, val maxSwapProb:Double = 0.5,
-                             val diagnostics:ContinuousColorSampling.Diagnostics = null)
-    extends ContrastiveDivergence[IndexedSeq[ContinuousColorVariable]](model) with ContinuousColorSampling
+abstract class SimpleContrastiveDivergence[C](override val model:Model) extends ContrastiveDivergence[C](model)
 {
     var learningRate:Double = 1.0
 
@@ -394,3 +389,44 @@ class ContinuousColorTrainer(override val model:Model, val minRadius:Double = 0.
 
     private def accumulator(df:DotFamily) : Tensor = df.weights
 }
+
+
+// Concrete subclass for training parameters
+// How to use this: Sweep over all the training meshes multiple times. Each time we visit a mesh, set the value of the
+//   color variables to be the observed color, then run this sampler for one step.
+class ContinuousColorTrainingSampler(override val model:Model, val minRadius:Double = 0.01, val maxRadius:Double = 0.33,
+                             val minSwapProb:Double = 0.05, val maxSwapProb:Double = 0.5,
+                             val diagnostics:ContinuousColorSampling.Diagnostics = null)
+    extends SimpleContrastiveDivergence[IndexedSeq[ContinuousColorVariable]](model) with ContinuousColorSampling
+
+
+
+// An MH Sampler for Discrete color variables
+// Just does random color-pair swaps
+trait DiscreteColorSampling extends MHSampler[IndexedSeq[DiscreteColorVariable]]
+{
+    def propose(context:IndexedSeq[DiscreteColorVariable])(implicit d:DiffList) : Double =
+    {
+        // Pick two random variables to swap values
+        val tmpvars = ArrayBuffer(context:_*)
+        val rvar1 = tmpvars(random.nextInt(tmpvars.length))
+        tmpvars -= rvar1
+        val rvar2 = tmpvars(random.nextInt(tmpvars.length))
+
+        // Do the swap (this will automatically update the implicit difflist)
+        val value1 = rvar1.value
+        val value2 = rvar2.value
+        rvar1.set(value2)
+        rvar2.set(value1)
+
+        // This proposal is symmetric, so q/q' is just 1
+        // (and thus log(q/q') is 0)
+        0.0
+    }
+}
+
+class DiscreteColorSampler(override val model:Model)
+    extends MHSampler[IndexedSeq[DiscreteColorVariable]](model) with DiscreteColorSampling
+
+class DiscreteColorTrainingSampler(override val model:Model)
+    extends SimpleContrastiveDivergence[IndexedSeq[DiscreteColorVariable]](model) with DiscreteColorSampling

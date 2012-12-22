@@ -19,6 +19,22 @@ import matlabcontrol._
 class SummaryItem(val ttype:String, val propname:String, val ids:Array[String], val hist:VectorHistogram)
 
 
+//object ColorInferenceModel
+//- trait Conditional { conditionOn, conditionOnAll }
+//- trait Trainable extends DotFamily { weights, setWeight }
+//- trait Summarizable { summary }
+//
+//class CombinedColorInferenceModel extends CombinedModel with Conditional
+//- conditionOn { for subm <- submodels; subm.asInstanceOf[...].conditionOn... }
+//
+//class TemplateColorInferenceModel extends TemplateModel with Conditional
+//- conditionOn { for t <- templates; ...}
+//
+//class ItemizedColorInferenceModel extends ItemizedModel with Conditional
+//- families (all factors that are actually Families, via the Trainable trait)
+
+
+
 /** All the templates we define will have this trait **/
 trait ColorInferenceModelComponent
 {
