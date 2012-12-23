@@ -26,6 +26,12 @@ object ColorInferenceModel
         def conditionOnAll(meshes:Seq[SegmentMesh])
     }
 
+    // It's nice to have a human-readable name for every component
+    trait Named
+    {
+        def name:String
+    }
+
     // All model components that wish to use a trainable log-linear weight
     // must mix-in this trait
     trait Trainable extends DotFamily
@@ -160,7 +166,7 @@ object UnarySegmentTemplate
 }
 
 trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar, UnarySegmentTemplate.DatumVariable]
-    with ColorInferenceModel.Conditional with ColorInferenceModel.Trainable with ColorInferenceModel.Summarizable
+    with ColorInferenceModel.Conditional with ColorInferenceModel.Named with ColorInferenceModel.Trainable with ColorInferenceModel.Summarizable
 {
     import ColorInferenceModel._
     import UnarySegmentTemplate._
@@ -169,6 +175,7 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
     protected def regressor:HistogramRegressor
     protected val data = new Data
     def propName:String
+    def name = propName
 
     def conditionOnAll(meshes:Seq[SegmentMesh])
     {
@@ -284,12 +291,13 @@ object BinarySegmentTemplate
 }
 
 trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorVar, ColorVar, BinarySegmentTemplate.DatumVariable]
-    with ColorInferenceModel.Conditional with ColorInferenceModel.Trainable with ColorInferenceModel.Summarizable
+    with ColorInferenceModel.Conditional with ColorInferenceModel.Named with ColorInferenceModel.Trainable with ColorInferenceModel.Summarizable
 {
     import ColorInferenceModel._
     import BinarySegmentTemplate._
 
     def propName:String
+    def name = propName
     protected def colorPropExtractor:ColorPropertyExtractor
     protected def regressor:HistogramRegressor
     protected val data = new Data
@@ -412,12 +420,13 @@ object ColorGroupTemplate
 }
 
 trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar, ColorGroupTemplate.DatumVariable]
-    with ColorInferenceModel.Conditional with ColorInferenceModel.Trainable with ColorInferenceModel.Summarizable
+    with ColorInferenceModel.Conditional with ColorInferenceModel.Named with ColorInferenceModel.Trainable with ColorInferenceModel.Summarizable
 {
     import ColorInferenceModel._
     import ColorGroupTemplate._
 
     def propName:String
+    def name = propName
     protected def colorPropExtractor:ColorPropertyExtractor
     protected def regressor:HistogramRegressor
     protected val data = new Data
@@ -646,9 +655,11 @@ object ColorCompatibilityFamily
 }
 
 class ColorCompatibilityFamily extends DotFamilyN[ContinuousColorVariable]
-    with ColorInferenceModel.Family with ColorInferenceModel.Trainable
+    with ColorInferenceModel.Family with ColorInferenceModel.Named with ColorInferenceModel.Trainable
 {
     import ColorInferenceModel._
+
+    def name = "ColorCompatibility"
 
     // Again, ignore the squiggly--this builds fine.
     final class Factor(varlist:ContinuousColorVariable*) extends super.Factor(varlist:_*) with Conditional

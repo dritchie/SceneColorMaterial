@@ -15,7 +15,7 @@ import util.DoubleAccumulator
  * To change this template use File | Settings | File Templates.
  */
 
-/**parameters for regression**/
+/* Various parameters for defining/learning the model */
 object ModelParams
 {
   type RegressionFunction = (Seq[HistogramRegressor.RegressionExample], MathUtils.DistanceMetric, VectorQuantizer, WekaHistogramRegressor) => HistogramRegressor
@@ -30,14 +30,7 @@ object ModelParams
   //threshold at which to cap the distance
   //var perceptualDistThresh = Double.PositiveInfinity
 
-
   var useMLTrainer = false
-
-
-  //output csv
-  //parameter settings, iteration, weights delta, accuracy
-
-
 }
 
 
