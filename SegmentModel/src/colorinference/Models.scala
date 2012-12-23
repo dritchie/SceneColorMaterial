@@ -15,72 +15,141 @@ import cc.factorie.la.DenseTensor1
 import collection.mutable.{ArrayBuffer, HashMap}
 import scala.Array
 import matlabcontrol._
+import collection.mutable
 
-class SummaryItem(val ttype:String, val propname:String, val ids:Array[String], val hist:VectorHistogram)
-
-
-//object ColorInferenceModel
-//- trait Conditional { conditionOn, conditionOnAll }
-//- trait Trainable extends DotFamily { weights, setWeight }
-//- trait Summarizable { summary }
-//
-//class CombinedColorInferenceModel extends CombinedModel with Conditional
-//- conditionOn { for subm <- submodels; subm.asInstanceOf[...].conditionOn... }
-//
-//class TemplateColorInferenceModel extends TemplateModel with Conditional
-//- conditionOn { for t <- templates; ...}
-//
-//class ItemizedColorInferenceModel extends ItemizedModel with Conditional
-//- families (all factors that are actually Families, via the Trainable trait)
-
-
-
-/** All the templates we define will have this trait **/
-trait ColorInferenceModelComponent
+object ColorInferenceModel
 {
-    lazy val weights = new DenseTensor1(1)
-    def setWeight(w:Double) { weights.update(0, w) }
+    // All model components must mix-in this trait
+    trait Conditional
+    {
+        def conditionOn(mesh:SegmentMesh)
+        def conditionOnAll(meshes:Seq[SegmentMesh])
+    }
+
+    // All model components that wish to use a trainable log-linear weight
+    // must mix-in this trait
+    trait Trainable extends DotFamily
+    {
+        lazy val weights = new DenseTensor1(1)
+        def setWeight(w:Double) { weights.update(0, w) }
+    }
+
+    // VectorHistogram-based components must implement this trait so
+    // that we can spit out & analyze their contents
+    class SummaryItem(val ttype:String, val propname:String, val ids:Array[String], val hist:VectorHistogram)
+    trait Summarizable
+    {
+        def summary:IndexedSeq[SummaryItem]
+    }
+
+    // This provides a way for factors from a family to retrieve the family instance they
+    // belong to.
+    // Supposedly there's also a way to do this with 'Self-type variables,' but I haven't
+    // figured that out.
+    trait Family extends cc.factorie.Family
+    {
+        val family = this
+    }
+}
+
+trait ColorInferenceModel extends Model
+    with ColorInferenceModel.Conditional with ColorInferenceModel.Summarizable
+{
+    import ColorInferenceModel._
+    def trainables:Seq[Trainable] = families.collect{case t:Trainable => t}
+    def trainableWeights:Tensor1 = MathUtils.concatVectors(trainables.map(_.weights))
+}
+
+class CombinedColorInferenceModel(theSubModels:Model*) extends CombinedModel(theSubModels:_*) with ColorInferenceModel
+{
+    import ColorInferenceModel._
+
+    def conditionOnAll(meshes:Seq[SegmentMesh])
+    {
+        for (c <- this.subModels.collect{case c:Conditional => c})
+            c.conditionOnAll(meshes)
+    }
+
 
     def conditionOn(mesh:SegmentMesh)
+    {
+        for (c <- this.subModels.collect{case c:Conditional => c})
+            c.conditionOn(mesh)
+    }
 
-    //to save having to re-condition on every iteration for every mesh, during weight tuning
-    def conditionOnAll(meshes:Seq[SegmentMesh])
+    def summary:IndexedSeq[SummaryItem] =
+    {
+        var summary = new ArrayBuffer[SummaryItem]
+        for (s <- this.subModels.collect{case s:Summarizable => s})
+            summary ++= s.summary
+        summary
+    }
 }
 
-trait ColorInferenceHistogramTemplate extends ColorInferenceModelComponent
+class TemplateColorInferenceModel(theSubModels:ModelAsTemplate*) extends TemplateModel(theSubModels:_*) with ColorInferenceModel
 {
-    def summarize():Array[SummaryItem]
-}
-
-/** This is the top-level model that we use for everything.
-  * Templates are added to this thing.
-   */
-class ColorInferenceModel extends TemplateModel
-{
-    type ModelSummary = ArrayBuffer[SummaryItem]
+    import ColorInferenceModel._
 
     def conditionOnAll(meshes:Seq[SegmentMesh])
     {
-      for (t <- this.templates)
-        t.asInstanceOf[ColorInferenceModelComponent].conditionOnAll(meshes)
+        for (c <- this.templates.collect{case c:Conditional => c})
+            c.conditionOnAll(meshes)
     }
 
 
     def conditionOn(mesh:SegmentMesh)
     {
-        for (t <- this.templates)
-            t.asInstanceOf[ColorInferenceModelComponent].conditionOn(mesh)
+        for (c <- this.templates.collect{case c:Conditional => c})
+            c.conditionOn(mesh)
     }
 
-    def getSummary:ModelSummary =
+    def summary:IndexedSeq[SummaryItem] =
     {
-      var summary = new ModelSummary
-      for (t <- this.templates)
-        summary ++= t.asInstanceOf[ColorInferenceHistogramTemplate].summarize()
-      summary
+        var summary = new ArrayBuffer[SummaryItem]
+        for (s <- this.templates.collect{case s:Summarizable => s})
+            summary ++= s.summary
+        summary
+    }
+}
+
+class ItemizedColorInferenceModel(initialFactors:Factor*) extends ItemizedModel(initialFactors:_*) with ColorInferenceModel
+{
+    import ColorInferenceModel._
+
+    // Some of this model's factors might come from families, so we must provide
+    // a way to retrieve all of those families (particularly important for training)
+    override def families: Seq[cc.factorie.Family] =
+    {
+        this.factors.collect{case f:Family#Factor => f.family}.toSeq.distinct
     }
 
+    def conditionOnAll(meshes:Seq[SegmentMesh])
+    {
+        for (c <- this.factors.collect{case c:Conditional => c})
+            c.conditionOnAll(meshes)
+        for (c <- this.families.collect{case c:Conditional => c})
+            c.conditionOnAll(meshes)
+    }
+
+    def conditionOn(mesh:SegmentMesh)
+    {
+        for (c <- this.factors.collect{case c:Conditional => c})
+            c.conditionOn(mesh)
+        for (c <- this.families.collect{case c:Conditional => c})
+            c.conditionOn(mesh)
+    }
+
+    def summary:IndexedSeq[SummaryItem] =
+    {
+        var summary = new ArrayBuffer[SummaryItem]
+        for (s <- this.factors.collect{case s:Summarizable => s})
+            summary ++= s.summary
+        for (s <- this.families.collect{case s:Summarizable => s})
+            summary ++= s.summary
+        summary
+    }
 }
+
 
 object UnarySegmentTemplate
 {
@@ -90,8 +159,10 @@ object UnarySegmentTemplate
     protected type Data = HashMap[Segment, DatumVariable]
 }
 
-trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar, UnarySegmentTemplate.DatumVariable] with ColorInferenceHistogramTemplate
+trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar, UnarySegmentTemplate.DatumVariable]
+    with ColorInferenceModel.Conditional with ColorInferenceModel.Trainable with ColorInferenceModel.Summarizable
 {
+    import ColorInferenceModel._
     import UnarySegmentTemplate._
 
     protected def colorPropExtractor:ColorPropertyExtractor
@@ -120,11 +191,10 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
         }
     }
 
-    def summarize():Array[SummaryItem] =
+    def summary:IndexedSeq[SummaryItem] =
     {
       val items = data.keys.map(s => new SummaryItem("unarysegment", propName, Array("s"+s.index), data(s).value.hist))
-
-      items.toArray
+      items.toArray[SummaryItem]
     }
 
     protected def trainRegressor(property:ModelTraining#UnarySegmentProperty) : HistogramRegressor =
@@ -200,8 +270,10 @@ object BinarySegmentTemplate
     protected type Data = HashMap[(Segment,Segment), DatumVariable]
 }
 
-trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorVar, ColorVar, BinarySegmentTemplate.DatumVariable] with ColorInferenceHistogramTemplate
+trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorVar, ColorVar, BinarySegmentTemplate.DatumVariable]
+    with ColorInferenceModel.Conditional with ColorInferenceModel.Trainable with ColorInferenceModel.Summarizable
 {
+    import ColorInferenceModel._
     import BinarySegmentTemplate._
 
     def propName:String
@@ -229,11 +301,10 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
         }
     }
 
-  def summarize():Array[SummaryItem] =
+  def summary:IndexedSeq[SummaryItem] =
   {
     val items = data.keys.map(s => new SummaryItem("binarysegment", propName, Array("s"+s._1.index, "s"+s._2.index), data(s).value.hist))
-
-    items.toArray
+    items.toArray[SummaryItem]
   }
 
 
@@ -314,8 +385,10 @@ object ColorGroupTemplate
     protected type Data = HashMap[SegmentGroup, DatumVariable]
 }
 
-trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar, ColorGroupTemplate.DatumVariable] with ColorInferenceHistogramTemplate
+trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar, ColorGroupTemplate.DatumVariable]
+    with ColorInferenceModel.Conditional with ColorInferenceModel.Trainable with ColorInferenceModel.Summarizable
 {
+    import ColorInferenceModel._
     import ColorGroupTemplate._
 
     def propName:String
@@ -344,11 +417,10 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
         }
     }
 
-    def summarize():Array[SummaryItem] =
+    def summary:IndexedSeq[SummaryItem] =
     {
       val items = data.keys.map(g => new SummaryItem("unarygroup", propName, Array("g"+g.index), data(g).value.hist))
-
-      items.toArray
+      items.toArray[SummaryItem]
     }
 
     protected def trainRegressor(property:ModelTraining#ColorGroupProperty) : HistogramRegressor =
@@ -408,6 +480,7 @@ class ContinuousColorGroupTemplate(property:ModelTraining#ColorGroupProperty)
 }
 
 
+
 /*
 Base class of all factors that touch an arbitrary number of the same type of variable
  */
@@ -435,7 +508,7 @@ abstract class FactorN[V<:Variable](varlist:V*) extends Factor
         def factor: FactorN[V] = FactorN.this
         def hasNext = false
         def next() = null.asInstanceOf[Assignment]  // Not sure if this will work...
-        def score: Double = Double.NaN
+    def score: Double = Double.NaN
         def valuesTensor: Tensor = null
     }
 }
@@ -455,11 +528,50 @@ abstract class TensorFactorN[V<:Variable](varlist:V*) extends FactorN[V](varlist
 abstract class DotFactorN[V<:Variable](varlist:V*) extends TensorFactorN[V](varlist:_*)
 {
     def weights: Tensor
-    def statisticsScore(t:Tensor): Double = weights dot t
+    override def statisticsScore(t:Tensor): Double = weights dot t
 }
 
 
-object ColorCompatibilityFactor
+/*
+A family of factors that touch an arbitrary number of the same type of variable
+ */
+trait FamilyN[V<:Variable] extends Family
+{
+    type FactorType = Factor
+
+    // Stupid thing from Family that we have to define
+    type NeighborType1 = V
+
+    class Factor(varlist:V*) extends FactorN[V](varlist:_*) with super.Factor
+    {
+        // Another stupid thing from Family#Factor that we need to define
+        def _1:NeighborType1 = null.asInstanceOf[NeighborType1]
+
+        // Ignore the red squigglies below--this actually compiles just fine.
+        override def equalityPrerequisite: AnyRef = FamilyN.this
+        override def score(values:Seq[V#Value]): Double = FamilyN.this.score(values)
+        override def statistics(values:Seq[V#Value]): StatisticsType = FamilyN.this.statistics(values)
+        def scoreAndStatistics(values:Seq[V#Value]): (Double,StatisticsType) = FamilyN.this.scoreAndStatistics(values)
+    }
+
+    /* Methods that the inner Factor class links to */
+    def score(values:Seq[V#Value]): Double
+    def statistics(values:Seq[V#Value]): StatisticsType = values.asInstanceOf[StatisticsType]
+    def scoreAndStatistics(values:Seq[V#Value]): (Double,StatisticsType) = (score(values), statistics(values))
+}
+
+trait TensorFamilyN[V<:Variable] extends FamilyN[V] with TensorFamily
+{
+    override def statistics(values:Seq[V#Value]): Tensor
+}
+
+trait DotFamilyN[V<:Variable] extends FamilyN[V] with DotFamily
+{
+    def score(values:Seq[V#Value]): Double = statisticsScore(statistics(values))
+}
+
+
+object ColorCompatibilityFamily
 {
     var matlabProxy:MatlabProxyScalaWrapper = null
 
@@ -494,23 +606,28 @@ object ColorCompatibilityFactor
     }
 }
 
-// This factor only makes sense in the context of continuous color variables, so there aren't
-// two (discrete, continuous) versions of it.
-class ColorCompatibilityFactor extends DotFactorN[ContinuousColorVariable] with ColorInferenceModelComponent
+class ColorCompatibilityFamily extends DotFamilyN[ContinuousColorVariable]
+    with ColorInferenceModel.Family with ColorInferenceModel.Trainable
 {
-    def conditionOnAll(meshes:Seq[SegmentMesh])
-    {
-      //this method doesn't really make sense here...(at least, not yet)
-      throw new Error("ColorCompatibilityFactor: conditionOnAll doesn't really make sense here")
-    }
+    import ColorInferenceModel._
 
-    def conditionOn(mesh:SegmentMesh)
+    // Again, ignore the squiggly--this builds fine.
+    final class Factor(varlist:ContinuousColorVariable*) extends super.Factor(varlist:_*) with Conditional
     {
-        // This factor touches the 5 largest color groups
-        vars.clear()
-        val sortedGroups = mesh.groups.sortWith((g1, g2) => g1.size > g2.size)
-        for (i <- 0 until 5)
-            vars += sortedGroups(i).color.asInstanceOf[ContinuousColorVariable]
+        override def conditionOnAll(meshes:Seq[SegmentMesh])
+        {
+            //this method doesn't really make sense here...(at least, not yet)
+            throw new Error("ColorCompatibilityFactor: conditionOnAll doesn't really make sense here")
+        }
+
+        override def conditionOn(mesh:SegmentMesh)
+        {
+            // This factor touches the 5 largest color groups
+            vars.clear()
+            val sortedGroups = mesh.groups.sortWith((g1, g2) => g1.size > g2.size)
+            for (i <- 0 until 5)
+                vars += sortedGroups(i).color.asInstanceOf[ContinuousColorVariable]
+        }
     }
 
     private def colorsToArray(c1:Color, c2:Color, c3:Color, c4:Color, c5:Color) : Array[Double] =
@@ -524,10 +641,10 @@ class ColorCompatibilityFactor extends DotFactorN[ContinuousColorVariable] with 
 
     def statistics(c1:Color, c2:Color, c3:Color, c4:Color, c5:Color) : Tensor1 =
     {
-        ColorCompatibilityFactor.ensureMatlabConnection()
+        ColorCompatibilityFamily.ensureMatlabConnection()
 
         // TODO: Permutations?
-        val retval = ColorCompatibilityFactor.matlabProxy.returningFeval("getRating", 1, colorsToArray(c1,c2,c3,c4,c5))
+        val retval = ColorCompatibilityFamily.matlabProxy.returningFeval("getRating", 1, colorsToArray(c1,c2,c3,c4,c5))
         val rating = retval(0).asInstanceOf[Array[Double]](0)
         val normalizedRating = rating / 5.0
         Tensor1(MathUtils.safeLog(normalizedRating))

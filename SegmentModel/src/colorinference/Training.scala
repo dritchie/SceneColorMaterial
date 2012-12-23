@@ -159,7 +159,7 @@ class ModelTraining
         }
 
         /** Construct model **/
-        val model = new ColorInferenceModel
+        val model = new TemplateColorInferenceModel
         for (i <- 0 until unarySegProps.length)
         {
             val template = new DiscreteUnarySegmentTemplate(unarySegProps(i))
@@ -236,7 +236,7 @@ class ModelTraining
       model.conditionOnAll(trainingMeshes)
       objective.conditionOnAll(trainingMeshes)
 
-      var prevWeights:Tensor1 = MathUtils.concatVectors({for (t<-model.templates) yield t match {case c:ColorInferenceModelComponent => c.weights}})
+      var prevWeights = model.trainableWeights
       for (i <- 0 until iterations)
       {
         var avgAccuracy = 0.0
@@ -266,7 +266,7 @@ class ModelTraining
         }
 
         //print change in weights
-        val curWeights:Tensor1 = MathUtils.concatVectors({for (t<-model.templates) yield t match {case c:ColorInferenceModelComponent => c.weights}})
+        val curWeights = model.trainableWeights
         println("\nWeights delta: " + (curWeights-prevWeights).twoNorm)
         prevWeights = curWeights
 
@@ -285,7 +285,7 @@ class ModelTraining
 
       model.conditionOnAll(trainingMeshes)
 
-      var prevWeights:Tensor1 = MathUtils.concatVectors({for (t<-model.templates) yield t match {case c:ColorInferenceModelComponent => c.weights}})
+      var prevWeights = model.trainableWeights
       for (i <- 0 until iterations)
       {
         var avgLikelihood = 0.0    //well, this might not be comparable across meshes...
@@ -314,7 +314,7 @@ class ModelTraining
         }
 
         //print change in weights
-        val curWeights:Tensor1 = MathUtils.concatVectors({for (t<-model.templates) yield t match {case c:ColorInferenceModelComponent => c.weights}})
+        val curWeights = model.trainableWeights
         println("\nWeights delta: " + (curWeights-prevWeights).twoNorm)
         prevWeights = curWeights
 
@@ -329,7 +329,7 @@ class ModelTraining
 
         val trainer = new DiscreteColorTrainingSampler(model, cdK)
         model.conditionOnAll(trainingMeshes)
-        var prevWeights:Tensor1 = MathUtils.concatVectors({for (t<-model.templates) yield t match {case c:ColorInferenceModelComponent => c.weights}})
+        var prevWeights = model.trainableWeights
 
         // Iterate over the whole training set multiple times
         for (i <- 0 until setIterations)
@@ -368,7 +368,7 @@ class ModelTraining
             }
 
             // Report!
-            val curWeights:Tensor1 = MathUtils.concatVectors({for (t<-model.templates) yield t match {case c:ColorInferenceModelComponent => c.weights}})
+            val curWeights = model.trainableWeights
             println("\nWeights delta: " + (curWeights-prevWeights).twoNorm)
             prevWeights = curWeights
             println("Outer Iteration "+(i+1)+" Avg. Likelihood " + avgLikelihood/trainingMeshes.length)

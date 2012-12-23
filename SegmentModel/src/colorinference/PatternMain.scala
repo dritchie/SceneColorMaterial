@@ -243,7 +243,7 @@ object PatternMain {
     if (headers)
       out.write("\"pattern\",\"factortype\",\"property\",\"ids\",\"bin\",\"value\",\"smoothed\"\n")
 
-    val summary:ArrayBuffer[SummaryItem] = model.getSummary
+    val summary = model.summary
 
     for (s <- summary)
     {

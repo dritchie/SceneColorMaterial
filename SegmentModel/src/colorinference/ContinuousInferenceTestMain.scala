@@ -30,17 +30,19 @@ object ContinuousInferenceTestMain
 
         // Create a color compatibility factor over those variables
         println("Creating compatibility factor...")
-        val factor = new ColorCompatibilityFactor
-        factor.setWeight(1.0)
+        val family = new ColorCompatibilityFamily
+        family.setWeight(1.0)
+        val factor = new family.Factor
         factor.vars ++= colorvars
 
         // Define an itemized model that just contains this one factor
         println("Creating itemized model...")
-        val model = new ItemizedModel(factor)
+        val model = new ItemizedColorInferenceModel(factor.asInstanceOf[Factor])
+        val families = model.families
 
-        // TEST
-        checkPatternPaletteScores(colorvars, model)
-        return
+//        // TEST
+//        checkPatternPaletteScores(colorvars, model)
+//        return
 
         // Spit out an image depicting the initial state
         val initScore = model.currentScore(colorvars)
