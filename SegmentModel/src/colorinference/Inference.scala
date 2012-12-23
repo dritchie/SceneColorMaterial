@@ -158,10 +158,10 @@ object ExhaustiveInference
 
 
         val currScore = model.assignmentScore(vars, assignment)
-        sofar+Math.exp(currScore)
+        sofar+math.exp(currScore)
       })
 
-      Math.log(Z)
+      math.log(Z)
 
     }
 
