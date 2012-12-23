@@ -19,14 +19,14 @@ import collection.mutable
 
 object ColorInferenceModel
 {
-    // All model components must mix-in this trait
+    // Everything from top-to-bottom is conditional
     trait Conditional
     {
         def conditionOn(mesh:SegmentMesh)
         def conditionOnAll(meshes:Seq[SegmentMesh])
     }
 
-    // It's nice to have a human-readable name for every component
+    // Most things are named
     trait Named
     {
         def name:String
@@ -34,7 +34,7 @@ object ColorInferenceModel
 
     // All model components that wish to use a trainable log-linear weight
     // must mix-in this trait
-    trait Trainable extends DotFamily
+    trait Trainable extends DotFamily with Named
     {
         lazy val weights = new DenseTensor1(1)
         def setWeight(w:Double) { weights.update(0, w) }
@@ -50,9 +50,7 @@ object ColorInferenceModel
 
     // This provides a way for factors from a family to retrieve the family instance they
     // belong to.
-    // Supposedly there's also a way to do this with 'Self-type variables,' but I haven't
-    // figured that out.
-    trait Family extends cc.factorie.Family
+    trait Family extends cc.factorie.Family with Named
     {
         val family = this
     }
@@ -166,7 +164,7 @@ object UnarySegmentTemplate
 }
 
 trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar, UnarySegmentTemplate.DatumVariable]
-    with ColorInferenceModel.Conditional with ColorInferenceModel.Named with ColorInferenceModel.Trainable with ColorInferenceModel.Summarizable
+    with ColorInferenceModel.Conditional with ColorInferenceModel.Trainable with ColorInferenceModel.Summarizable
 {
     import ColorInferenceModel._
     import UnarySegmentTemplate._
@@ -237,11 +235,6 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
     }
 }
 
-trait UnarySegmentTemplateGenerator
-{
-    def apply(property:ModelTraining#UnarySegmentProperty) : UnarySegmentTemplate
-}
-
 class DiscreteUnarySegmentTemplate(property:ModelTraining#UnarySegmentProperty)
     extends DotTemplate2[DiscreteColorVariable, UnarySegmentTemplate.DatumVariable] with UnarySegmentTemplate[DiscreteColorVariable]
 {
@@ -255,10 +248,6 @@ class DiscreteUnarySegmentTemplate(property:ModelTraining#UnarySegmentProperty)
     {
         computeStatistics(v1.category, v2)
     }
-}
-object DiscreteUnarySegmentTemplate extends UnarySegmentTemplateGenerator
-{
-    def apply(property:ModelTraining#UnarySegmentProperty) = new DiscreteUnarySegmentTemplate(property)
 }
 
 class ContinuousUnarySegmentTemplate(property:ModelTraining#UnarySegmentProperty)
@@ -275,10 +264,6 @@ class ContinuousUnarySegmentTemplate(property:ModelTraining#UnarySegmentProperty
         computeStatistics(v1, v2)
     }
 }
-object ContinuousUnarySegmentTemplate extends UnarySegmentTemplateGenerator
-{
-    def apply(property:ModelTraining#UnarySegmentProperty) = new ContinuousUnarySegmentTemplate(property)
-}
 
 
 
@@ -291,7 +276,7 @@ object BinarySegmentTemplate
 }
 
 trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorVar, ColorVar, BinarySegmentTemplate.DatumVariable]
-    with ColorInferenceModel.Conditional with ColorInferenceModel.Named with ColorInferenceModel.Trainable with ColorInferenceModel.Summarizable
+    with ColorInferenceModel.Conditional with ColorInferenceModel.Trainable with ColorInferenceModel.Summarizable
 {
     import ColorInferenceModel._
     import BinarySegmentTemplate._
@@ -366,11 +351,6 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
     }
 }
 
-trait BinarySegmentTemplateGenerator
-{
-    def apply(property:ModelTraining#BinarySegmentProperty) : BinarySegmentTemplate
-}
-
 class DiscreteBinarySegmentTemplate(property:ModelTraining#BinarySegmentProperty)
     extends DotTemplate3[DiscreteColorVariable, DiscreteColorVariable, BinarySegmentTemplate.DatumVariable] with BinarySegmentTemplate[DiscreteColorVariable]
 {
@@ -384,10 +364,6 @@ class DiscreteBinarySegmentTemplate(property:ModelTraining#BinarySegmentProperty
     {
         computeStatistics(v1.category, v2.category, v3)
     }
-}
-object DiscreteBinarySegmentTemplate extends BinarySegmentTemplateGenerator
-{
-    def apply(property:ModelTraining#BinarySegmentProperty) = new DiscreteBinarySegmentTemplate(property)
 }
 
 class ContinuousBinarySegmentTemplate(property:ModelTraining#BinarySegmentProperty)
@@ -404,10 +380,6 @@ class ContinuousBinarySegmentTemplate(property:ModelTraining#BinarySegmentProper
         computeStatistics(v1, v2, v3)
     }
 }
-object ContinuousBinarySegmentTemplate extends BinarySegmentTemplateGenerator
-{
-    def apply(property:ModelTraining#BinarySegmentProperty) = new ContinuousBinarySegmentTemplate(property)
-}
 
 
 
@@ -420,7 +392,7 @@ object ColorGroupTemplate
 }
 
 trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar, ColorGroupTemplate.DatumVariable]
-    with ColorInferenceModel.Conditional with ColorInferenceModel.Named with ColorInferenceModel.Trainable with ColorInferenceModel.Summarizable
+    with ColorInferenceModel.Conditional with ColorInferenceModel.Trainable with ColorInferenceModel.Summarizable
 {
     import ColorInferenceModel._
     import ColorGroupTemplate._
@@ -484,11 +456,6 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
     }
 }
 
-trait ColorGroupTemplateGenerator
-{
-    def apply(property:ModelTraining#ColorGroupProperty) : ColorGroupTemplate
-}
-
 class DiscreteColorGroupTemplate(property:ModelTraining#ColorGroupProperty)
     extends DotTemplate2[DiscreteColorVariable, ColorGroupTemplate.DatumVariable] with ColorGroupTemplate[DiscreteColorVariable]
 {
@@ -502,10 +469,6 @@ class DiscreteColorGroupTemplate(property:ModelTraining#ColorGroupProperty)
     {
         computeStatistics(v1.category, v2)
     }
-}
-object DiscreteColorGroupTemplate extends ColorGroupTemplateGenerator
-{
-    def apply(property:ModelTraining#ColorGroupProperty) = new DiscreteColorGroupTemplate(property)
 }
 
 class ContinuousColorGroupTemplate(property:ModelTraining#ColorGroupProperty)
@@ -521,10 +484,6 @@ class ContinuousColorGroupTemplate(property:ModelTraining#ColorGroupProperty)
     {
         computeStatistics(v1, v2)
     }
-}
-object ContinuousColorGroupTemplate extends ColorGroupTemplateGenerator
-{
-    def apply(property:ModelTraining#ColorGroupProperty) = new ContinuousColorGroupTemplate(property)
 }
 
 
@@ -655,7 +614,7 @@ object ColorCompatibilityFamily
 }
 
 class ColorCompatibilityFamily extends DotFamilyN[ContinuousColorVariable]
-    with ColorInferenceModel.Family with ColorInferenceModel.Named with ColorInferenceModel.Trainable
+    with ColorInferenceModel.Family with ColorInferenceModel.Trainable
 {
     import ColorInferenceModel._
 

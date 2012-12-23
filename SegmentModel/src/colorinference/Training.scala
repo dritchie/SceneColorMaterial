@@ -4,7 +4,7 @@ import cc.factorie.la._
 import collection.mutable.{HashMap, ArrayBuffer}
 import cc.factorie._
 import cc.factorie.optimize._
-import collection.Set
+import collection.{mutable, Set}
 import util.DoubleAccumulator
 
 /**
@@ -24,15 +24,85 @@ object ModelParams
   //include the segment factors?
   var includeUnaryTerms = false
 
+  // This is only possible if we're doing continuous variables, though
+  var includeColorCompatibilityTerm = false
+
   //ignore the noise segments?
   //var filterNoise = false
 
   //threshold at which to cap the distance
   //var perceptualDistThresh = Double.PositiveInfinity
 
-  var useMLTrainer = false
+    // Which trainer to use?
+    object TrainerType extends Enumeration
+    {
+        type TrainerType = Value
+        val SampleRank, MaximumLikelihood, ContrastiveDivergence = Value
+    }
+    var trainerType = TrainerType.ContrastiveDivergence
+
+    val numTrainingIterationsOverSet = 5
+    val numTrainingIterationsPerMesh = 10
+
+    // MH Sampling / Contrastive divergence params
+    val cdK = 3
+    val minRadius:Double = 0.01
+    val maxRadius:Double = 0.33
+    val minSwapProb:Double = 0.05
+    val maxSwapProb:Double = 0.5
+
+    // Which variable type are we using?
+    val colorVarParams = DiscreteColorVariableParams
 }
 
+/* Different variable types require different model building/training operations */
+trait ColorVariableParams[V<:ColorVariable]
+{
+    type VariableType = V
+    type SamplingContextType = IndexedSeq[VariableType]
+    def variableGenerator:ColorVariableGenerator
+    def newUnarySegmentTemplate(prop:ModelTraining#UnarySegmentProperty):UnarySegmentTemplate[VariableType]
+    def newBinarySegmentTemplate(prop:ModelTraining#BinarySegmentProperty):BinarySegmentTemplate[VariableType]
+    def newGroupTemplate(prop:ModelTraining#ColorGroupProperty):ColorGroupTemplate[VariableType]
+    def newInferenceSampler(model:Model, objective:Model):MHSampler[SamplingContextType]
+    def newTrainingSampler(model:Model):ContrastiveDivergence[SamplingContextType]
+    def initDomain(mesh:SegmentMesh)
+    def supportsMaxLikelihood:Boolean
+    def supportsColorCompatibility:Boolean
+}
+object DiscreteColorVariableParams extends ColorVariableParams[DiscreteColorVariable]
+{
+    def variableGenerator = DiscreteColorVariable
+    def newUnarySegmentTemplate(prop:ModelTraining#UnarySegmentProperty) = new DiscreteUnarySegmentTemplate(prop)
+    def newBinarySegmentTemplate(prop:ModelTraining#BinarySegmentProperty) = new DiscreteBinarySegmentTemplate(prop)
+    def newGroupTemplate(prop:ModelTraining#ColorGroupProperty) = new DiscreteColorGroupTemplate(prop)
+    def newInferenceSampler(model:Model, objective:Model) = new DiscreteColorSampler(model, objective)
+    def newTrainingSampler(model:Model) = new DiscreteColorTrainingSampler(model, ModelParams.cdK)
+    def initDomain(mesh:SegmentMesh)
+    {
+        val palette = ColorPalette(mesh);
+        DiscreteColorVariable.initDomain(palette)
+        for (color <- palette) color.convertTo(LABColorSpace)   // Since most features are in LAB
+    }
+    def supportsMaxLikelihood:Boolean = true
+    def supportsColorCompatibility:Boolean = false
+}
+object ContinuousColorVariableParams extends ColorVariableParams[ContinuousColorVariable]
+{
+    def variableGenerator = ContinuousColorVariable
+    def newUnarySegmentTemplate(prop:ModelTraining#UnarySegmentProperty) = new ContinuousUnarySegmentTemplate(prop)
+    def newBinarySegmentTemplate(prop:ModelTraining#BinarySegmentProperty) = new ContinuousBinarySegmentTemplate(prop)
+    def newGroupTemplate(prop:ModelTraining#ColorGroupProperty) = new ContinuousColorGroupTemplate(prop)
+    def newInferenceSampler(model:Model, objective:Model) =
+        new ContinuousColorSampler(model, objective, ModelParams.minRadius, ModelParams.maxRadius,
+            ModelParams.minSwapProb, ModelParams.maxSwapProb, null)
+    def newTrainingSampler(model:Model) =
+        new ContinuousColorTrainingSampler(model, ModelParams.minRadius, ModelParams.maxRadius,
+            ModelParams.minSwapProb, ModelParams.maxSwapProb, null, ModelParams.cdK)
+    def initDomain(mesh:SegmentMesh) { }
+    def supportsMaxLikelihood:Boolean = false
+    def supportsColorCompatibility:Boolean = true
+}
 
 object ModelTraining
 {
@@ -44,7 +114,6 @@ object ModelTraining
     def colorfulness(c:Color) = Tensor1(c.colorfulness)
     def lightness(c:Color) = Tensor1(c.copyIfNeededTo(LABColorSpace)(0))
     def nameSaliency(c:Color) = Tensor1(namingModel.saliency(c))
-    //    def saturation(c:Color) = Tensor1(c.copyIfNeededTo(HSVColorSpace)(1))
 
     // Binary
     def perceptualDifference(c1:Color, c2:Color) = Tensor1(Color.perceptualDifference(c1, c2))
@@ -52,9 +121,6 @@ object ModelTraining
     def relativeColorfulness(c1:Color, c2:Color) = Tensor1(Color.relativeColorfulness(c1, c2))
     def relativeLightness(c1:Color, c2:Color) = Tensor1(Color.relativeLightness(c1, c2))
     def nameSimilarity(c1:Color, c2:Color) = Tensor1(namingModel.cosineSimilarity(c1, c2))
-    //    def luminanceContrast(c1:Color, c2:Color) = Tensor1(Color.luminanceContrast(c1, c2))
-    //    def hueComplementarity(c1:Color, c2:Color) = Tensor1(Color.hueAngle(c1, c2))
-    //    def relativeSaturation(c1:Color, c2:Color) = Tensor1(Color.relativeSaturation(c1, c2))
 
 
     /* Quantizers */
@@ -90,7 +156,6 @@ class ModelTraining
       unarySegProps += UnarySegmentProperty("Lightness", ModelTraining.lightness, ModelTraining.uniformQuant10)
       unarySegProps += UnarySegmentProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.uniformQuant10)
       unarySegProps += UnarySegmentProperty("Name Saliency", ModelTraining.nameSaliency, ModelTraining.uniformQuant10)
-      //    unarySegProps += UnarySegmentProperty("Saturation", ModelTraining.saturation, ModelTraining.uniformQuant10)
     }
 
     /* Binary segment properties */
@@ -101,9 +166,6 @@ class ModelTraining
     binarySegProps += BinarySegmentProperty("Relative Colorfulness", ModelTraining.relativeColorfulness, ModelTraining.uniformQuant10)
     binarySegProps += BinarySegmentProperty("Relative Lightness", ModelTraining.relativeLightness, ModelTraining.uniformQuant10)
     binarySegProps += BinarySegmentProperty("Name Similarity", ModelTraining.nameSimilarity, ModelTraining.uniformQuant10)
-    //    binarySegProps += BinarySegmentProperty("Luminance Contrast", ModelTraining.luminanceContrast, ModelTraining.uniformQuant10)
-    //    binarySegProps += BinarySegmentProperty("Hue Complementarity", ModelTraining.hueComplementarity, ModelTraining.uniformQuant10)
-    //    binarySegProps += BinarySegmentProperty("Relative Saturation", ModelTraining.relativeSaturation, ModelTraining.uniformQuant10)
 
     /* Color group properties */
     val groupProps = new ArrayBuffer[ColorGroupProperty]()
@@ -152,104 +214,87 @@ class ModelTraining
         }
 
         /** Construct model **/
-        val model = new TemplateColorInferenceModel
+        val spatialModel = new TemplateColorInferenceModel
         for (i <- 0 until unarySegProps.length)
         {
-            val template = new DiscreteUnarySegmentTemplate(unarySegProps(i))
+            val template = ModelParams.colorVarParams.newUnarySegmentTemplate(unarySegProps(i))
             template.setWeight(1.0)
-            model += template
+            spatialModel += template
         }
         for (i <- 0 until binarySegProps.length)
         {
-            val template = new DiscreteBinarySegmentTemplate(binarySegProps(i))
+            val template = ModelParams.colorVarParams.newBinarySegmentTemplate(binarySegProps(i))
             template.setWeight(1.0)
-            model += template
+            spatialModel += template
         }
         for (i <- 0 until groupProps.length)
         {
-            val template = new DiscreteColorGroupTemplate(groupProps(i))
+            val template = ModelParams.colorVarParams.newGroupTemplate(groupProps(i))
             template.setWeight(1.0)
-            model += template
+            spatialModel += template
+        }
+        val model = new CombinedColorInferenceModel(spatialModel)
+        // Include the color compatibility term?
+        if (ModelParams.includeColorCompatibilityTerm && ModelParams.colorVarParams.supportsColorCompatibility)
+        {
+            val cfam = new ColorCompatibilityFamily
+            val cfac = new cfam.Factor
+            val cmodel = new ItemizedColorInferenceModel(cfac.asInstanceOf[Factor])
+            model += cmodel
         }
 
         /** Train weights of the model **/
-
-      //TODO: try other weight trainers, or turn off and on different features?
-      //TODO: weights don't really seem to converge much after the first iteration. we may need a different scoring objective, or add more constraints
-
-       val iterations = 5
-
-      if (ModelParams.useMLTrainer)
-      {
-        TuneWeightsMaxLikelihood(model, trainingMeshes, iterations)
-      } else
-      {
-        TuneWeightsSampleRank(model, trainingMeshes, iterations)
-      }
-
-
-      println("Weights:")
-
-        //print the weights
-        for (t<-model.templates)
+        ModelParams.trainerType match
         {
-          t match
-          {
-            case u:UnarySegmentTemplate[DiscreteColorVariable] => println("unary " + u.propName + " " + u.weights)
-            case b:BinarySegmentTemplate[DiscreteColorVariable] => println("binary " + b.propName + " " + b.weights)
-            case g:ColorGroupTemplate[DiscreteColorVariable] => println("group " + g.propName + " " + g.weights)
-            case _ => null
-          }
+            case ModelParams.TrainerType.SampleRank =>
+                TuneWeightsSampleRank(model, trainingMeshes, ModelParams.numTrainingIterationsOverSet, ModelParams.numTrainingIterationsPerMesh)
+            case ModelParams.TrainerType.MaximumLikelihood if ModelParams.colorVarParams.supportsMaxLikelihood =>
+                TuneWeightsMaxLikelihood(model, trainingMeshes, ModelParams.numTrainingIterationsOverSet)
+            case ModelParams.TrainerType.ContrastiveDivergence =>
+                TuneWeightsContrastiveDivergence(model, trainingMeshes, ModelParams.numTrainingIterationsOverSet, ModelParams.numTrainingIterationsPerMesh, ModelParams.cdK)
+            case _ => throw new Error("No valid trainer type!")
+        }
+
+        // print the weights
+        println("Weights:")
+        for (t <- model.trainables)
+        {
+            println(t.name + " : " + t.weights)
         }
         println()
-
-
 
         model
     }
 
 
-    def TuneWeightsSampleRank(model:ColorInferenceModel, trainingMeshes:Array[SegmentMesh], iterations:Int)
+    def TuneWeightsSampleRank(model:ColorInferenceModel, trainingMeshes:Array[SegmentMesh], outerIterations:Int, innerIterations:Int)
     {
       //TODO: For sample rank, may need to add more constraints. i.e. constraining the original color of one (or more) of the color groups
 
       println("Tuning weights Sample Rank...")
       val objective = new AssignmentScoreTemplate()
-      val trainer = new SampleRank(new VariableSettingsSampler[DiscreteColorVariable](model, objective), new StepwiseGradientAscent)
+      val trainer = new SampleRank(ModelParams.colorVarParams.newInferenceSampler(model, objective), new StepwiseGradientAscent)
 
-      //go through all training meshes
-      //we iterate through each mesh in the inner loop, so as to not bias the tuning towards later meshes
-
-
-      //pre-condition the model and objective on all the meshes
-      //as we increase the number of training meshes, this may or may not be feasible, and we may have to condition the model
-      //on each inner loop iteration
-
-
-      model.conditionOnAll(trainingMeshes)
-      objective.conditionOnAll(trainingMeshes)
+//      model.conditionOnAll(trainingMeshes)
+//      objective.conditionOnAll(trainingMeshes)
 
       var prevWeights = model.trainableWeights
-      for (i <- 0 until iterations)
+      for (i <- 0 until outerIterations)
       {
         var avgAccuracy = 0.0
         for (mesh <- trainingMeshes)
         {
           //set the pattern domain
-          val palette = ColorPalette(mesh)
-          DiscreteColorVariable.initDomain(palette)
+          ModelParams.colorVarParams.initDomain(mesh)
 
-          // Convert colors to LAB space, since most of our factors use LAB features
-          for (color <- palette) color.convertTo(LABColorSpace)
-
-
-          //model.conditionOn(mesh)
-          //objective.conditionOn(mesh)
+          model.conditionOn(mesh)
+          objective.conditionOn(mesh)
 
           //process the variables and learn the weights
-          val vars = mesh.groups.map(g => g.color.asInstanceOf[DiscreteColorVariable])
+          val vars = mesh.groups.map(g => g.color.asInstanceOf[ModelParams.colorVarParams.VariableType])
 
-          trainer.processAll(vars)
+          // TODO: Make this inner iteration count configurable
+          trainer.process(vars, innerIterations)
 
           //print the accuracy
           //println("Iteration "+i+" Training Accuracy: " + objective.accuracy(vars))
@@ -270,13 +315,11 @@ class ModelTraining
   //TODO: This is broken right now...
     def TuneWeightsMaxLikelihood(model:ColorInferenceModel, trainingMeshes:Array[SegmentMesh], iterations:Int)
     {
-
       println("Tuning weights Max Likelihood...")
-
 
       val trainer = new BatchTrainer(new StepwiseGradientAscent, model)
 
-      model.conditionOnAll(trainingMeshes)
+      //model.conditionOnAll(trainingMeshes)
 
       var prevWeights = model.trainableWeights
       for (i <- 0 until iterations)
@@ -284,12 +327,9 @@ class ModelTraining
         var avgLikelihood = 0.0    //well, this might not be comparable across meshes...
         for (mesh <- trainingMeshes)
         {
-          //set the pattern domain
-          val palette = ColorPalette(mesh)
-          DiscreteColorVariable.initDomain(palette)
+          ModelParams.colorVarParams.initDomain(mesh)
 
-          // Convert colors to LAB space, since most of our factors use LAB features
-          for (color <- palette) color.convertTo(LABColorSpace)
+            model.conditionOn(mesh)
 
           //in this case, there's only one example...the observed original assignment
           //TODO: ideally, we might want this to use Loopy BP, but there seems to be a problem with our color variables having a third refvariable and BP requiring it to be a DiscreteTensorVar
@@ -320,8 +360,8 @@ class ModelTraining
     {
         println("Tuning weights by Contrastive Divergence...")
 
-        val trainer = new DiscreteColorTrainingSampler(model, cdK)
-        model.conditionOnAll(trainingMeshes)
+        val trainer = ModelParams.colorVarParams.newTrainingSampler(model)
+        //model.conditionOnAll(trainingMeshes)
         var prevWeights = model.trainableWeights
 
         // Iterate over the whole training set multiple times
@@ -337,12 +377,10 @@ class ModelTraining
             {
                 val mesh = trainingMeshes(m)
                 println("Processing mesh %d/%d".format(m+1, trainingMeshes.length))
-                // Set the domain
-                val palette = ColorPalette(mesh)
-                DiscreteColorVariable.initDomain(palette)
 
-                // Convert colors to LAB space, since most of our factors use LAB features
-                for (color <- palette) color.convertTo(LABColorSpace)
+                ModelParams.colorVarParams.initDomain(mesh)
+
+                model.conditionOn(mesh)
 
                 // Iterate over this mesh multiple times
                 for (j <- 0 until meshIterations)
@@ -357,7 +395,7 @@ class ModelTraining
 
                 // Accumulate the current likelihood of this mesh into the running average
                 mesh.setVariableValuesToObserved()
-                avgLikelihood += model.currentScore(mesh.variablesAs[DiscreteColorVariable])
+                avgLikelihood += model.currentScore(mesh.variablesAs[ModelParams.colorVarParams.VariableType])
             }
 
             // Report!

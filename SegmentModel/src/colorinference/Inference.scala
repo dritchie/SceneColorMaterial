@@ -374,8 +374,10 @@ trait ContinuousColorSampling extends MHSampler[IndexedSeq[ContinuousColorVariab
 
 
 // Concrete subclass for doing normal sampling
-class ContinuousColorSampler(override val model:Model, val minRadius:Double = 0.01, val maxRadius:Double = 0.33,
-                              val minSwapProb:Double = 0.05, val maxSwapProb:Double = 0.5, val diagnostics:ContinuousColorSampling.Diagnostics = null)
+class ContinuousColorSampler(override val model:Model, override val objective:Model = null,
+                             val minRadius:Double = 0.01, val maxRadius:Double = 0.33,
+                             val minSwapProb:Double = 0.05, val maxSwapProb:Double = 0.5,
+                             val diagnostics:ContinuousColorSampling.Diagnostics = null)
     extends MHSampler[IndexedSeq[ContinuousColorVariable]](model) with ContinuousColorSampling
 
 
@@ -451,7 +453,7 @@ trait DiscreteColorSampling extends MHSampler[IndexedSeq[DiscreteColorVariable]]
     }
 }
 
-class DiscreteColorSampler(override val model:Model)
+class DiscreteColorSampler(override val model:Model, override val objective:Model = null)
     extends MHSampler[IndexedSeq[DiscreteColorVariable]](model) with DiscreteColorSampling
 
 class DiscreteColorTrainingSampler(override val model:Model, override val k:Int = 1)

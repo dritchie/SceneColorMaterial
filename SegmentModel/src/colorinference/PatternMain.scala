@@ -55,7 +55,7 @@ object PatternMain {
 
     for (f <- files)
     {
-      meshes.append(new SegmentMesh(DiscreteColorVariable, f.getAbsolutePath))
+      meshes.append(new SegmentMesh(ModelParams.colorVarParams.variableGenerator, f.getAbsolutePath))
     }
 
     var avgTScore:Double = 0
@@ -163,6 +163,12 @@ object PatternMain {
     println("Average Random Score: " + randTScore) */
 
   }
+
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    // NOTE: None of the stuff below currently takes the type of ColorVariable we're using     //
+    // into account. This stuff is only for use when you know you're using Discrete variables. //
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
 
  /** Getting and setting random assignments **/
