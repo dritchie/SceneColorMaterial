@@ -85,7 +85,7 @@ object ContinuousInferenceTestMain
         val img = new BufferedImage(500, 100, BufferedImage.TYPE_INT_ARGB)
         for (c <- 0 until 5; y <- 0 until 100; x <- c*100 until (c+1)*100)
         {
-            val color = cvars(c).value
+            val color = cvars(c).value.copyIfNeededTo(RGBColorSpace)
             val awtcolor = new awt.Color(color(0).toFloat, color(1).toFloat, color(2).toFloat)
             img.setRGB(x, y, awtcolor.getRGB)
         }

@@ -10,6 +10,8 @@ package colorinference
 
 import cc.factorie.la.Tensor1
 import cc.factorie.la.DenseTensor1
+import collection.mutable.HashMap
+import compat.Platform
 
 class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpace) extends DenseTensor1(3)
 {
@@ -21,6 +23,15 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
     def this(comps:IndexedSeq[Double], cspace:ColorSpace) = this(comps(0), comps(1), comps(2), cspace)
     def this(c:Color) = this(c, c.colorspace)
     def this(cspace:ColorSpace) = this(0.0, 0.0, 0.0, cspace)
+
+    // Assignment
+    def :=(color:Color)
+    {
+        update(0, color(0))
+        update(1, color(1))
+        update(2, color(2))
+        colorspace = color.colorspace
+    }
 
     override def toString() : String = colorspace + "(" + this(0) + "," + this(1) + "," + this(2) + ")"
     def componentString : String = "" + this(0) + " " + this(1) + " " + this(2)
@@ -55,11 +66,22 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
     {
         if (cspace != colorspace)
         {
-            val newcomps = (cspace.fromRGB _).tupled(colorspace.toRGB(this(0), this(1), this(2)))
-            update(0, newcomps._1)
-            update(1, newcomps._2)
-            update(2, newcomps._3)
-            colorspace = cspace
+            // Use cached value, if available
+            val cacheVal:Color = Color.ColorSpaceConversionCache.get(this, cspace)
+            if (cacheVal != null)
+                this := cacheVal
+            // Else do the conversion computation
+            else
+            {
+                val newcomps = (cspace.fromRGB _).tupled(colorspace.toRGB(this(0), this(1), this(2)))
+                val newColor = new Color(newcomps._1, newcomps._2, newcomps._3, cspace)
+
+                // Add both the forward and reverse mapping to the cache
+                Color.ColorSpaceConversionCache.add(this, newColor)
+                Color.ColorSpaceConversionCache.add(newColor, this)
+
+                this := newColor
+            }
         }
     }
 
@@ -120,10 +142,60 @@ class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpac
 
 object Color
 {
+    // Convenience constructor methods
     def RGBColor(c1:Double, c2:Double, c3:Double) = new Color(c1, c2, c3, RGBColorSpace)
     def HSVColor(c1:Double, c2:Double, c3:Double) = new Color(c1, c2, c3, HSVColorSpace)
     def LABColor(c1:Double, c2:Double, c3:Double) = new Color(c1, c2, c3, LABColorSpace)
 
+    // Color space conversion caching
+    object ColorSpaceConversionCache
+    {
+        var capacity = 20       // Can increase this, if you want.
+
+        case class Key(c1:Double, c2:Double, c3:Double, srcSpace:ColorSpace, dstSpace:ColorSpace)
+        class Entry(val color:Color, var lastAccessed:Long)
+        private val cache = new HashMap[Key, Entry]
+
+        // Returns the color in the destination space, or NULL if no such cache entry exists
+        def get(color:Color, dstSpace:ColorSpace) : Color =
+        {
+            val key = createKey(color, dstSpace)
+            var entry:Entry = null
+
+            try { entry = cache(key) }
+            catch { case nsee:NoSuchElementException => return null }
+
+            entry.lastAccessed = Platform.currentTime
+            entry.color
+        }
+
+        // Adds this new mapping into the cache
+        def add(srcColor:Color, dstColor:Color)
+        {
+            val key = createKey(srcColor, dstColor.colorSpace)
+
+            // Only add something if this mapping doesn't already exist
+            try {cache(key)}
+            catch { case nsee:NoSuchElementException =>
+            {
+                // Evict least recently used entry if we're at capacity
+                if (cache.size == capacity)
+                    evictLRU()
+
+                // Add the mapping
+                val entry = new Entry(dstColor.copy, Platform.currentTime)
+                cache.put(key, entry)
+            }}
+        }
+
+        private def createKey(c:Color, dstSpace:ColorSpace) = Key(c(0), c(1), c(2), c.colorSpace, dstSpace)
+
+        private def evictLRU()
+        {
+            val lru = cache.reduce((a,b) => if (a._2.lastAccessed < b._2.lastAccessed) a else b)
+            cache.remove(lru._1)
+        }
+    }
 
     // For the time being, this is just Delta E.
     // TODO: Replace this with something more state-of-the-art e.g. CIEDE2000?
