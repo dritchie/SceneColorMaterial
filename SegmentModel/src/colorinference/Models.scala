@@ -204,7 +204,7 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
 
     protected def trainRegressor(property:ModelTraining#UnarySegmentProperty) : HistogramRegressor =
     {
-        ModelParams.regression(property.examples, MathUtils.euclideanDistance, property.quant, WekaMultiClassHistogramRegressor)
+        property.regression(property.examples, MathUtils.euclideanDistance, property.quant, WekaMultiClassHistogramRegressor)
     }
 
     protected def computeStatistics(color:Color, datum:Datum) : Tensor1  =
@@ -316,7 +316,7 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
 
   protected def trainRegressor(property:ModelTraining#BinarySegmentProperty) : HistogramRegressor =
     {
-        ModelParams.regression(property.examples, MathUtils.euclideanDistance, property.quant, WekaMultiClassHistogramRegressor)
+        property.regression(property.examples, MathUtils.euclideanDistance, property.quant, WekaMultiClassHistogramRegressor)
     }
 
     protected def computeStatistics(color1:Color, color2:Color, datum:Datum) : Tensor1  =
@@ -432,7 +432,7 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
 
     protected def trainRegressor(property:ModelTraining#ColorGroupProperty) : HistogramRegressor =
     {
-      ModelParams.regression(property.examples, MathUtils.euclideanDistance, property.quant, WekaMultiClassHistogramRegressor)
+        property.regression(property.examples, MathUtils.euclideanDistance, property.quant, WekaMultiClassHistogramRegressor)
     }
 
     protected def computeStatistics(color:Color, datum:Datum) : Tensor1  =
