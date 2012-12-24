@@ -1,7 +1,7 @@
 package colorinference
 
 import collection.mutable.ArrayBuffer
-import cc.factorie.la.DenseLayeredTensor2
+import cc.factorie.la.{DenseTensor2,DenseLayeredTensor2}
 import io.Source
 import weka.core._
 import neighboursearch.KDTree
@@ -22,6 +22,8 @@ class ColorNamingModel(c3JsonFile:String)
     private var termColSums:IndexedSeq[Int] = null
     private var rowNorms:IndexedSeq[Double] = null
     private var kdtree:KDTree = null
+    private var saliencyCache:ArrayBuffer[Double] = null
+    private var similarityCache:DenseTensor2 = null
 
     load(c3JsonFile)
 
@@ -93,6 +95,10 @@ class ColorNamingModel(c3JsonFile:String)
         }
         kdtree = new KDTree
         kdtree.setInstances(insts)
+
+        // Initialize caches
+        saliencyCache = ArrayBuffer.fill(colors.length)(Double.NaN)
+        similarityCache = new DenseTensor2(colors.length, colors.length, Double.NaN)
     }
 
     private def pwc(w:Int, c:Int) : Double =
@@ -116,15 +122,23 @@ class ColorNamingModel(c3JsonFile:String)
 
     private def saliency(c:Int) : Double =
     {
-        val log2 = math.log(2)
-        var sum = 0.0
-        for (w <- 0 until terms.length)
+        // Check cache
+        val cacheVal = saliencyCache(c)
+        if (!cacheVal.isNaN)
+            cacheVal
+        else
         {
-            val p = pwc(w, c)
-            if (p > 0)
-                sum += p * math.log(p) / log2
+            val log2 = math.log(2)
+            var sum = 0.0
+            for (w <- 0 until terms.length)
+            {
+                val p = pwc(w, c)
+                if (p > 0)
+                    sum += p * math.log(p) / log2
+            }
+            saliencyCache.update(c, sum)
+            sum
         }
-        sum
     }
 
     def saliency(color:Color) : Double =
@@ -135,10 +149,18 @@ class ColorNamingModel(c3JsonFile:String)
 
     private def cosineSimilarity(c1:Int, c2:Int) : Double =
     {
-        var sum = 0.0
-        for (w <- 0 until terms.length)
-            sum += counts(c1, w) * counts(c2, w)
-        sum / math.max(rowNorms(c1)*rowNorms(c2), 1)
+        // Check cache
+        val cacheVal = similarityCache(c1, c2)
+        if (!cacheVal.isNaN) cacheVal
+        else
+        {
+            var sum = 0.0
+            for (w <- 0 until terms.length)
+                sum += counts(c1, w) * counts(c2, w)
+            val result = sum / math.max(rowNorms(c1)*rowNorms(c2), 1)
+            similarityCache.update(c1, c2, result)
+            result
+        }
     }
 
     def cosineSimilarity(color1:Color, color2:Color) : Double =
