@@ -93,7 +93,7 @@ object PatternMain {
     val trainingMeshes = {for (m<-meshes if (!testingMeshes.contains(m))) yield m}
 
     println("Training on " + trainingMeshes.length + " meshes")
-    val model = ModelTraining(trainingMeshes.toArray, params)
+    val model = ModelTraining(trainingMeshes, params)
 
     val (totalScore, randomScore) = testingMeshes.foldLeft[(Double,Double)]((0.0,0.0))((curSum, mesh) =>
     {

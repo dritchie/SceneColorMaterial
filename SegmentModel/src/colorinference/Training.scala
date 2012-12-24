@@ -42,7 +42,7 @@ abstract class ModelTrainingParams
     var trainerType = TrainerType.ContrastiveDivergence
 
     var numTrainingIterationsOverSet = 5
-    var numTrainingIterationsPerMesh = 10
+    var numTrainingIterationsPerMesh = 1
 
     // MH Sampling / Contrastive divergence params
     var cdK = 3
@@ -126,7 +126,7 @@ object ModelTraining
     /* Quantizers */
     val uniformQuant10 = new UniformVectorQuantizer(Array(10))
 
-    def apply(trainingMeshes:Array[SegmentMesh], params:ModelTrainingParams) : ColorInferenceModel =
+    def apply(trainingMeshes:IndexedSeq[SegmentMesh], params:ModelTrainingParams) : ColorInferenceModel =
     {
         val training = new ModelTraining(params)
         training.train(trainingMeshes)
@@ -176,7 +176,7 @@ class ModelTraining(val params:ModelTrainingParams)
     groupProps += ColorGroupProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.uniformQuant10)
     groupProps += ColorGroupProperty("Name Saliency", ModelTraining.nameSaliency, ModelTraining.uniformQuant10)
 
-    def train(trainingMeshes:Array[SegmentMesh]) : ColorInferenceModel =
+    def train(trainingMeshes:IndexedSeq[SegmentMesh]) : ColorInferenceModel =
     {
         /** Extract training data points from meshes **/
 
@@ -270,7 +270,7 @@ class ModelTraining(val params:ModelTrainingParams)
     }
 
 
-    def TuneWeightsSampleRank(model:ColorInferenceModel, trainingMeshes:Array[SegmentMesh], outerIterations:Int, innerIterations:Int)
+    def TuneWeightsSampleRank(model:ColorInferenceModel, trainingMeshes:IndexedSeq[SegmentMesh], outerIterations:Int, innerIterations:Int)
     {
       //TODO: For sample rank, may need to add more constraints. i.e. constraining the original color of one (or more) of the color groups
 
@@ -316,7 +316,7 @@ class ModelTraining(val params:ModelTrainingParams)
     }
 
   //TODO: This is broken right now...
-    def TuneWeightsMaxLikelihood(model:ColorInferenceModel, trainingMeshes:Array[SegmentMesh], iterations:Int)
+    def TuneWeightsMaxLikelihood(model:ColorInferenceModel, trainingMeshes:IndexedSeq[SegmentMesh], iterations:Int)
     {
       println("Tuning weights Max Likelihood...")
 
@@ -359,7 +359,7 @@ class ModelTraining(val params:ModelTrainingParams)
 
     }
 
-    def TuneWeightsContrastiveDivergence(model:ColorInferenceModel, trainingMeshes:Array[SegmentMesh], setIterations:Int, meshIterations:Int, cdK:Int)
+    def TuneWeightsContrastiveDivergence(model:ColorInferenceModel, trainingMeshes:IndexedSeq[SegmentMesh], setIterations:Int, meshIterations:Int, cdK:Int)
     {
         println("Tuning weights by Contrastive Divergence...")
 

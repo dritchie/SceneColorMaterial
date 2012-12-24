@@ -13,6 +13,11 @@ import neighboursearch.KDTree
  * Time: 4:23 PM
  * To change this template use File | Settings | File Templates.
  */
+object ColorNamingModel
+{
+    var saliencyCacheSize = 100
+    var similarityCacheSize = 1000
+}
 class ColorNamingModel(c3JsonFile:String)
 {
     private val colors = new ArrayBuffer[Color]
@@ -22,8 +27,8 @@ class ColorNamingModel(c3JsonFile:String)
     private var termColSums:IndexedSeq[Int] = null
     private var rowNorms:IndexedSeq[Double] = null
     private var kdtree:KDTree = null
-    private var saliencyCache:ArrayBuffer[Double] = null
-    private var similarityCache:DenseTensor2 = null
+    private val saliencyCache = new Cache[Int, Double](ColorNamingModel.saliencyCacheSize)
+    private val similarityCache = new Cache[(Int,Int), Double](ColorNamingModel.similarityCacheSize)
 
     load(c3JsonFile)
 
@@ -95,10 +100,6 @@ class ColorNamingModel(c3JsonFile:String)
         }
         kdtree = new KDTree
         kdtree.setInstances(insts)
-
-        // Initialize caches
-        saliencyCache = ArrayBuffer.fill(colors.length)(Double.NaN)
-        similarityCache = new DenseTensor2(colors.length, colors.length, Double.NaN)
     }
 
     private def pwc(w:Int, c:Int) : Double =
@@ -123,21 +124,22 @@ class ColorNamingModel(c3JsonFile:String)
     private def saliency(c:Int) : Double =
     {
         // Check cache
-        val cacheVal = saliencyCache(c)
-        if (!cacheVal.isNaN)
-            cacheVal
-        else
+        saliencyCache.get(c) match
         {
-            val log2 = math.log(2)
-            var sum = 0.0
-            for (w <- 0 until terms.length)
+            case s:Some[Double] => s.get
+            case None =>
             {
-                val p = pwc(w, c)
-                if (p > 0)
-                    sum += p * math.log(p) / log2
+                val log2 = math.log(2)
+                var sum = 0.0
+                for (w <- 0 until terms.length)
+                {
+                    val p = pwc(w, c)
+                    if (p > 0)
+                        sum += p * math.log(p) / log2
+                }
+                saliencyCache.put(c, sum)
+                sum
             }
-            saliencyCache.update(c, sum)
-            sum
         }
     }
 
@@ -150,16 +152,19 @@ class ColorNamingModel(c3JsonFile:String)
     private def cosineSimilarity(c1:Int, c2:Int) : Double =
     {
         // Check cache
-        val cacheVal = similarityCache(c1, c2)
-        if (!cacheVal.isNaN) cacheVal
-        else
+        val orderedPair = if (c1 < c2) (c1,c2) else (c2,c1)
+        similarityCache.get(orderedPair) match
         {
-            var sum = 0.0
-            for (w <- 0 until terms.length)
-                sum += counts(c1, w) * counts(c2, w)
-            val result = sum / math.max(rowNorms(c1)*rowNorms(c2), 1)
-            similarityCache.update(c1, c2, result)
-            result
+            case s:Some[Double] => s.get
+            case None =>
+            {
+                var sum = 0.0
+                for (w <- 0 until terms.length)
+                    sum += counts(c1, w) * counts(c2, w)
+                val result = sum / math.max(rowNorms(c1)*rowNorms(c2), 1)
+                similarityCache.put(orderedPair, result)
+                result
+            }
         }
     }
 
