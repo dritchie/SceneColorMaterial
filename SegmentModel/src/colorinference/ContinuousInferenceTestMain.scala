@@ -38,7 +38,6 @@ object ContinuousInferenceTestMain
         // Define an itemized model that just contains this one factor
         println("Creating itemized model...")
         val model = new ItemizedColorInferenceModel(factor.asInstanceOf[Factor])
-        val families = model.families
 
 //        // TEST
 //        checkPatternPaletteScores(colorvars, model)
@@ -55,6 +54,14 @@ object ContinuousInferenceTestMain
         val diagnostics = new ContinuousColorSampling.Diagnostics
         val sampler = new ContinuousColorSampler(model, null, 0.01, 0.33, 0.05, 0.5, diagnostics)
 
+//        sampler.proposalHooks += ((p:Proposal) => {
+//            for (c <- colorvars)
+//            {
+//                c.getColor.convertTo(LABColorSpace)
+//                c.getColor.convertTo(RGBColorSpace)
+//            }
+//        })
+
         // Use this sampler to find the MAP assignment
         println("Maximizing...")
         val maximizer = new SamplingMaximizer(sampler)
@@ -69,6 +76,8 @@ object ContinuousInferenceTestMain
         val mapRating = math.exp(mapScore)*5
         println("MAP rating: " + mapRating)
         savePaletteImage(colorvars, "optimalPalette_%1.4f.png".format(mapRating))
+
+        //Color.ColorSpaceConversionCache.report()
 
         // Visualize entire history of accepted moves
         println("Visualizing history of accepted states...")

@@ -10,7 +10,7 @@ package colorinference
 
 import cc.factorie.la.Tensor1
 import cc.factorie.la.DenseTensor1
-import collection.mutable.HashMap
+import collection.mutable
 import compat.Platform
 
 class Color(c1: Double, c2: Double, c3: Double, private var colorspace:ColorSpace) extends DenseTensor1(3)
@@ -154,7 +154,17 @@ object Color
 
         case class Key(c1:Double, c2:Double, c3:Double, srcSpace:ColorSpace, dstSpace:ColorSpace)
         class Entry(val color:Color, var lastAccessed:Long)
-        private val cache = new HashMap[Key, Entry]
+        private val cache = new mutable.HashMap[Key, Entry]
+        private var hits = 0
+        private var misses = 0
+        private var evictions = 0
+
+        def report()
+        {
+            println("hits: " + hits)
+            println("misses: " + misses)
+            println("evictions: " + evictions)
+        }
 
         // Returns the color in the destination space, or NULL if no such cache entry exists
         def get(color:Color, dstSpace:ColorSpace) : Color =
@@ -163,8 +173,9 @@ object Color
             var entry:Entry = null
 
             try { entry = cache(key) }
-            catch { case nsee:NoSuchElementException => return null }
+            catch { case nsee:NoSuchElementException => misses += 1; return null }
 
+            hits += 1
             entry.lastAccessed = Platform.currentTime
             entry.color
         }
@@ -192,6 +203,7 @@ object Color
 
         private def evictLRU()
         {
+            evictions += 1
             val lru = cache.reduce((a,b) => if (a._2.lastAccessed < b._2.lastAccessed) a else b)
             cache.remove(lru._1)
         }
