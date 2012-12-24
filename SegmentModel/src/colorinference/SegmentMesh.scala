@@ -17,11 +17,12 @@ import io.Source
 import java.io.FileWriter
 import collection.mutable
 
+class SegmentAdjacency(val neighbor:Segment, val strength:Double, val originalEnclosure:Double, val neighborEnclosure:Double)
 
 class Segment(val index:Int, val owner:SegmentMesh)
 {
     val features = new mutable.HashMap[String, Tensor1]
-    val adjacencies = new HashSet[Segment]
+    val adjacencies = new HashSet[SegmentAdjacency]
     var group : SegmentGroup = null
 
     // Quick-access to features that are accessed frequently
@@ -123,7 +124,7 @@ class SegmentMesh(private val gen:ColorVariableGenerator)
 
         name = filename
 
-        val adjacencies = new ArrayBuffer[ ArrayBuffer[Int] ]
+        val adjacencies = new ArrayBuffer[ ArrayBuffer[(Int, Double, Double, Double)] ]
 
         val source = Source.fromFile(filename)
         val lineIterator = source.getLines()

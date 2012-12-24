@@ -5,8 +5,8 @@ palettefile > C:/Users/sharon/Documents/ColorTransfer/Colourlovers/patterns.csv
 #where you want to save images
 outdir > C:/Users/sharon/Documents/ColorTransfer/SceneColorMaterial/PatternColorizer/out
 
-#where the input images are
-imagedir > C:/Users/sharon/Documents/ColorTransfer/Colourlovers/data/albenaj
+#where the input images are (the root folder with subdirectories of images)
+imagedir > C:/Users/sharon/Documents/ColorTransfer/Colourlovers/data/
 
 #colornames data file and weights
 json > C:/Users/sharon/Documents/Color/c3/data/xkcd/c3_data.json

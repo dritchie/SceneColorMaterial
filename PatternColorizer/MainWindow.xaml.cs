@@ -32,6 +32,7 @@ namespace PatternColorizer
         String outdir;
         String json;
         String weightsDir;
+        bool outputDebugImages = false; //outputting quantization results and connected components
 
         Dictionary<String, PaletteData> palettes;
 
@@ -127,7 +128,8 @@ namespace PatternColorizer
                         
                     }
 
-                    if (!plist.ContainsKey(key))
+                    //ignore missing palette data
+                    if (!plist.ContainsKey(key) && data.colors.Count()>0)
                         plist.Add(key, data);
                     else
                         throw new IOException("More than one palette per key");
@@ -147,40 +149,46 @@ namespace PatternColorizer
 
             //read in the patterns and save out their layers
             String[] files = System.IO.Directory.GetFiles(System.IO.Path.Combine(imagedir));
-             
-            foreach (String f in files)
+            List<PatternItem> patterns = PatternIO.GetPatterns(imagedir);
+ 
+            foreach (PatternItem p in patterns)
             {
-              
-                Bitmap image= new Bitmap(f);
-                String basename = new FileInfo(f).Name;
-                PaletteData palette = palettes[basename];
+                Bitmap image= new Bitmap(p.FullPath);
+                String basename = p.Name;
+
+                //TODO: sometimes keys are not found in patterns.csv...will need to look into recovering missing info. For now, just ignore those patterns
+                if (!palettes.ContainsKey(basename))
+                    continue;
+
+                PaletteData palette = palettes[basename]; 
 
                 ColorTemplate template = new ColorTemplate(image, palette);
 
                 //output the template descriptor
-                String filename = Path.Combine(outdir, "mesh", Util.ConvertFileName(basename, "", ".txt"));
                 SegmentMesh mesh = new SegmentMesh(template);
-                mesh.WriteToFile(filename);
+                PatternIO.SaveMesh(mesh, p, Path.Combine(outdir, "mesh"));
 
-
-                Bitmap result = template.DebugQuantization();
-                result.Save(Path.Combine(outdir, "quantized", Util.ConvertFileName(basename,"_quantized",".png")));
-                image.Save(Path.Combine(outdir, "quantized", Util.ConvertFileName(basename, "_original", ".png")));
-
-
-                //save the connected components
-                UnionFind<Color> uf = new UnionFind<Color>((a, b) => (a.GetHashCode() == b.GetHashCode()));
-                Color[,] resultArray = Util.BitmapToArray(result);
-                int[,] cc = uf.ConnectedComponentsNoiseRemoval(resultArray);
-
-                int numColors = palette.colors.Count();
-                for (int i = 0; i < numColors; i++)
+                if (outputDebugImages)
                 {
-                    Bitmap debug = uf.RenderComponents(cc, resultArray, palette.colors[i]);
-                    debug.Save(Path.Combine(outdir, "cc", Util.ConvertFileName(basename, "_" + i)));
-                    debug.Dispose();
+                    Bitmap result = template.DebugQuantization();
+                    PatternIO.SavePattern(result, p, Path.Combine(outdir, "quantized"), "_quantized");
+                    PatternIO.SavePattern(result, p, Path.Combine(outdir, "quantized"), "_original");
+
+                    //save the connected components
+                    UnionFind<Color> uf = new UnionFind<Color>((a, b) => (a.GetHashCode() == b.GetHashCode()));
+                    Color[,] resultArray = Util.BitmapToArray(result);
+                    int[,] cc = uf.ConnectedComponentsNoiseRemoval(resultArray);
+
+                    int numColors = palette.colors.Count();
+                    for (int i = 0; i < numColors; i++)
+                    {
+                        Bitmap debug = uf.RenderComponents(cc, resultArray, palette.colors[i]);
+                        PatternIO.SavePattern(debug, p, Path.Combine(outdir, "cc"), "_" + i);
+                        debug.Dispose();
+                    }
+                    result.Dispose();
                 }
-                result.Dispose();
+                image.Dispose();
 
             }
 
@@ -188,23 +196,28 @@ namespace PatternColorizer
 
         private void Recolor()
         {
-            Directory.CreateDirectory(outdir + "\\recolored\\");
+            String suboutdir = Path.Combine(outdir, "recolored");
+            Directory.CreateDirectory(suboutdir);
 
             //read in the patterns and save out their layers
-            String[] files = System.IO.Directory.GetFiles(System.IO.Path.Combine(imagedir));
+            List<PatternItem> patterns = PatternIO.GetPatterns(imagedir);
 
-            foreach (String f in files)
+            foreach (PatternItem p in patterns)
             {
 
-                Bitmap image = new Bitmap(f);
-                String basename = new FileInfo(f).Name;
+                Bitmap image = new Bitmap(p.FullPath);
+                String basename = p.Name;
+
+                if (!palettes.ContainsKey(basename))
+                    continue;
+
                 PaletteData palette = palettes[basename];
 
                 //TODO: save and reload color templates functionality
                 ColorTemplate template = new ColorTemplate(image, palette);
 
                 //Read the recoloring description if available
-                String specs = Path.Combine(outdir, "specs", Util.ConvertFileName(basename,"",".txt"));
+                String specs = Path.Combine(outdir, "specs", p.Directory, Util.ConvertFileName(basename,"",".txt"));
                 PaletteData data = new PaletteData();
                
                 if (File.Exists(specs))
@@ -244,12 +257,12 @@ namespace PatternColorizer
                         groupid++;
                     }
 
-                    Bitmap orig = template.DebugQuantization();
-                    orig.Save(Path.Combine(outdir, "recolored", Util.ConvertFileName(basename, "_original",".png"))); 
+                    Bitmap orig = template.DebugQuantization(); 
+                    PatternIO.SavePattern(orig, p, suboutdir, "_original");
                     orig.Dispose();
 
                     Bitmap result = template.SolidColor(data, slotToColor);
-                    result.Save(Path.Combine(outdir, "recolored", Util.ConvertFileName(basename, "_recolor", ".png")));
+                    PatternIO.SavePattern(result, p, suboutdir, "_recolored");
                     result.Dispose();
                 }
 
@@ -265,13 +278,17 @@ namespace PatternColorizer
             Directory.CreateDirectory(outdir + "\\vis\\");
 
             //read in the patterns and save out their layers
-            String[] files = System.IO.Directory.GetFiles(System.IO.Path.Combine(imagedir));
+            List<PatternItem> patterns = PatternIO.GetPatterns(imagedir);
 
-            foreach (String f in files)
+            foreach (PatternItem p in patterns)
             {
 
-                Bitmap image = new Bitmap(f);
-                String basename = new FileInfo(f).Name;
+                Bitmap image = new Bitmap(p.FullPath);
+                String basename = p.Name;
+
+                if (!palettes.ContainsKey(basename))
+                    continue;
+
                 PaletteData palette = palettes[basename];
 
                 ColorTemplate template = new ColorTemplate(image, palette);
@@ -384,7 +401,7 @@ namespace PatternColorizer
                         nresult++;
                     }
 
-                    vis.Save(Path.Combine(outdir, "viscolor", Util.ConvertFileName(basename, "_vis", ".png")));
+                    PatternIO.SavePattern(vis, p, Path.Combine(outdir, "viscolor"));
                     vis.Dispose();
                 }
 
@@ -398,21 +415,25 @@ namespace PatternColorizer
             Directory.CreateDirectory(Path.Combine(outdir, "\\previews\\"));
 
             //read in the patterns and save out their layers
-            String[] files = System.IO.Directory.GetFiles(System.IO.Path.Combine(imagedir));
+            List<PatternItem> patterns = PatternIO.GetPatterns(imagedir);
 
             int hpadding = 30;
 
-            foreach (String f in files)
+            foreach (PatternItem p in patterns)
             {
 
-                Bitmap image = new Bitmap(f);
-                String basename = new FileInfo(f).Name;
+                Bitmap image = new Bitmap(p.FullPath);
+                String basename = p.Name;
+
+                if (!palettes.ContainsKey(basename))
+                    continue;
+
                 PaletteData palette = palettes[basename];
 
                 ColorTemplate template = new ColorTemplate(image, palette);
                 SegmentMesh mesh = new SegmentMesh(template);
 
-                //create a pattern directory
+                //create a pattern directory (Not using PatternIO here, since each pattern has its own directory anyways)
                 String patternDir = Path.Combine(outdir, "previews", Util.ConvertFileName(basename, "",""));
                 Directory.CreateDirectory(patternDir);
 
@@ -442,8 +463,8 @@ namespace PatternColorizer
                 for (int i = 0; i < segs.Count(); i++)
                 {
                     Bitmap unary = new Bitmap(previewBase);
-                    foreach (var p in segs[i].points)
-                        unary.SetPixel(p.X, p.Y, Color.Orange);
+                    foreach (var point in segs[i].points)
+                        unary.SetPixel(point.X, point.Y, Color.Orange);
                     unary.Save(Path.Combine(patternDir, "s" + i + ".png"));
 
                     foreach (int j in segs[i].adjacencies)
@@ -453,8 +474,8 @@ namespace PatternColorizer
                             Bitmap binary = new Bitmap(unary);
 
                             Segment neighbor = segs[j];
-                            foreach (var p in neighbor.points)
-                                binary.SetPixel(p.X, p.Y, Color.ForestGreen);
+                            foreach (var point in neighbor.points)
+                                binary.SetPixel(point.X, point.Y, Color.ForestGreen);
 
                             binary.Save(Path.Combine(patternDir, "s" + i + "-s" + j + ".png"));
                             binary.Dispose();
@@ -472,8 +493,8 @@ namespace PatternColorizer
                         Segment member = segs[j];
 
                         //color in the points
-                        foreach (var p in member.points)
-                            group.SetPixel(p.X, p.Y, Color.Orange);
+                        foreach (var point in member.points)
+                            group.SetPixel(point.X, point.Y, Color.Orange);
                     }
                     group.Save(Path.Combine(patternDir, "g" + i + ".png"));
                     group.Dispose();
