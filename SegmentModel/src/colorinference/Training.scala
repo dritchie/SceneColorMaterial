@@ -16,22 +16,22 @@ import util.DoubleAccumulator
  */
 
 /* Various parameters for defining/learning the model */
-object ModelParams
+abstract class ModelTrainingParams
 {
-  type RegressionFunction = (Seq[HistogramRegressor.RegressionExample], MathUtils.DistanceMetric, VectorQuantizer, WekaHistogramRegressor) => HistogramRegressor
-  var regression:RegressionFunction = HistogramRegressor.LogisticRegression
+    type RegressionFunction = (Seq[HistogramRegressor.RegressionExample], MathUtils.DistanceMetric, VectorQuantizer, WekaHistogramRegressor) => HistogramRegressor
+    var regression:RegressionFunction = HistogramRegressor.LogisticRegression
 
-  //include the segment factors?
-  var includeUnaryTerms = false
+    //include the segment factors?
+    var includeUnaryTerms = false
 
-  // This is only possible if we're doing continuous variables, though
-  var includeColorCompatibilityTerm = false
+    // This is only possible if we're doing continuous variables, though
+    var includeColorCompatibilityTerm = false
 
-  //ignore the noise segments?
-  //var filterNoise = false
+    //ignore the noise segments?
+    //var filterNoise = false
 
-  //threshold at which to cap the distance
-  //var perceptualDistThresh = Double.PositiveInfinity
+    //threshold at which to cap the distance
+    //var perceptualDistThresh = Double.PositiveInfinity
 
     // Which trainer to use?
     object TrainerType extends Enumeration
@@ -41,31 +41,31 @@ object ModelParams
     }
     var trainerType = TrainerType.ContrastiveDivergence
 
-    val numTrainingIterationsOverSet = 5
-    val numTrainingIterationsPerMesh = 10
+    var numTrainingIterationsOverSet = 5
+    var numTrainingIterationsPerMesh = 1
 
     // MH Sampling / Contrastive divergence params
-    val cdK = 3
-    val minRadius:Double = 0.01
-    val maxRadius:Double = 0.33
-    val minSwapProb:Double = 0.05
-    val maxSwapProb:Double = 0.5
+    var cdK = 3
+    var minRadius:Double = 0.01
+    var maxRadius:Double = 0.33
+    var minSwapProb:Double = 0.05
+    var maxSwapProb:Double = 0.5
 
     // Which variable type are we using?
-    val colorVarParams = DiscreteColorVariableParams
+    type VariableType <: ColorVariable
+    def colorVarParams:ColorVariableParams[VariableType]
 }
 
 /* Different variable types require different model building/training operations */
 trait ColorVariableParams[V<:ColorVariable]
 {
-    type VariableType = V
-    type SamplingContextType = IndexedSeq[VariableType]
+    type SamplingContextType = IndexedSeq[V]
     def variableGenerator:ColorVariableGenerator
-    def newUnarySegmentTemplate(prop:ModelTraining#UnarySegmentProperty):UnarySegmentTemplate[VariableType]
-    def newBinarySegmentTemplate(prop:ModelTraining#BinarySegmentProperty):BinarySegmentTemplate[VariableType]
-    def newGroupTemplate(prop:ModelTraining#ColorGroupProperty):ColorGroupTemplate[VariableType]
-    def newInferenceSampler(model:Model, objective:Model):MHSampler[SamplingContextType]
-    def newTrainingSampler(model:Model):ContrastiveDivergence[SamplingContextType]
+    def newUnarySegmentTemplate(prop:ModelTraining#UnarySegmentProperty):UnarySegmentTemplate[V]
+    def newBinarySegmentTemplate(prop:ModelTraining#BinarySegmentProperty):BinarySegmentTemplate[V]
+    def newGroupTemplate(prop:ModelTraining#ColorGroupProperty):ColorGroupTemplate[V]
+    def newInferenceSampler(model:Model, objective:Model, params:ModelTrainingParams):MHSampler[SamplingContextType]
+    def newTrainingSampler(model:Model, params:ModelTrainingParams):KStepContrastiveDivergence[SamplingContextType]
     def initDomain(mesh:SegmentMesh)
     def supportsMaxLikelihood:Boolean
     def supportsColorCompatibility:Boolean
@@ -76,8 +76,8 @@ object DiscreteColorVariableParams extends ColorVariableParams[DiscreteColorVari
     def newUnarySegmentTemplate(prop:ModelTraining#UnarySegmentProperty) = new DiscreteUnarySegmentTemplate(prop)
     def newBinarySegmentTemplate(prop:ModelTraining#BinarySegmentProperty) = new DiscreteBinarySegmentTemplate(prop)
     def newGroupTemplate(prop:ModelTraining#ColorGroupProperty) = new DiscreteColorGroupTemplate(prop)
-    def newInferenceSampler(model:Model, objective:Model) = new DiscreteColorSampler(model, objective)
-    def newTrainingSampler(model:Model) = new DiscreteColorTrainingSampler(model, ModelParams.cdK)
+    def newInferenceSampler(model:Model, objective:Model, params:ModelTrainingParams) = new DiscreteColorSampler(model, objective)
+    def newTrainingSampler(model:Model, params:ModelTrainingParams) = new DiscreteColorTrainingSampler(model, params.cdK)
     def initDomain(mesh:SegmentMesh)
     {
         val palette = ColorPalette(mesh);
@@ -93,12 +93,12 @@ object ContinuousColorVariableParams extends ColorVariableParams[ContinuousColor
     def newUnarySegmentTemplate(prop:ModelTraining#UnarySegmentProperty) = new ContinuousUnarySegmentTemplate(prop)
     def newBinarySegmentTemplate(prop:ModelTraining#BinarySegmentProperty) = new ContinuousBinarySegmentTemplate(prop)
     def newGroupTemplate(prop:ModelTraining#ColorGroupProperty) = new ContinuousColorGroupTemplate(prop)
-    def newInferenceSampler(model:Model, objective:Model) =
-        new ContinuousColorSampler(model, objective, ModelParams.minRadius, ModelParams.maxRadius,
-            ModelParams.minSwapProb, ModelParams.maxSwapProb, null)
-    def newTrainingSampler(model:Model) =
-        new ContinuousColorTrainingSampler(model, ModelParams.minRadius, ModelParams.maxRadius,
-            ModelParams.minSwapProb, ModelParams.maxSwapProb, null, ModelParams.cdK)
+    def newInferenceSampler(model:Model, objective:Model, params:ModelTrainingParams) =
+        new ContinuousColorSampler(model, objective, params.minRadius, params.maxRadius,
+            params.minSwapProb, params.maxSwapProb, null)
+    def newTrainingSampler(model:Model, params:ModelTrainingParams) =
+        new ContinuousColorTrainingSampler(model, params.minRadius, params.maxRadius,
+            params.minSwapProb, params.maxSwapProb, null, params.cdK)
     def initDomain(mesh:SegmentMesh) { }
     def supportsMaxLikelihood:Boolean = false
     def supportsColorCompatibility:Boolean = true
@@ -126,32 +126,35 @@ object ModelTraining
     /* Quantizers */
     val uniformQuant10 = new UniformVectorQuantizer(Array(10))
 
-    def apply(trainingMeshes:Array[SegmentMesh]) : ColorInferenceModel =
+    def apply(trainingMeshes:IndexedSeq[SegmentMesh], params:ModelTrainingParams) : ColorInferenceModel =
     {
-        val training = new ModelTraining
+        val training = new ModelTraining(params)
         training.train(trainingMeshes)
     }
 }
 
-class ModelTraining
+class ModelTraining(val params:ModelTrainingParams)
 {
     type Examples = ArrayBuffer[HistogramRegressor.RegressionExample]
     case class UnarySegmentProperty(name:String, extractor:UnarySegmentTemplate.ColorPropertyExtractor, quant:VectorQuantizer)
     {
+        val regression = params.regression
         val examples = new Examples
     }
     case class BinarySegmentProperty(name:String, extractor:BinarySegmentTemplate.ColorPropertyExtractor, quant:VectorQuantizer)
     {
+        val regression = params.regression
         val examples = new Examples
     }
     case class ColorGroupProperty(name:String, extractor:ColorGroupTemplate.ColorPropertyExtractor, quant:VectorQuantizer)
     {
+        val regression = params.regression
         val examples = new Examples
     }
 
     /* Unary segment properties */
     val unarySegProps = new ArrayBuffer[UnarySegmentProperty]()
-    if (ModelParams.includeUnaryTerms)
+    if (params.includeUnaryTerms)
     {
       unarySegProps += UnarySegmentProperty("Lightness", ModelTraining.lightness, ModelTraining.uniformQuant10)
       unarySegProps += UnarySegmentProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.uniformQuant10)
@@ -173,7 +176,7 @@ class ModelTraining
     groupProps += ColorGroupProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.uniformQuant10)
     groupProps += ColorGroupProperty("Name Saliency", ModelTraining.nameSaliency, ModelTraining.uniformQuant10)
 
-    def train(trainingMeshes:Array[SegmentMesh]) : ColorInferenceModel =
+    def train(trainingMeshes:IndexedSeq[SegmentMesh]) : ColorInferenceModel =
     {
         /** Extract training data points from meshes **/
 
@@ -217,25 +220,25 @@ class ModelTraining
         val spatialModel = new TemplateColorInferenceModel
         for (i <- 0 until unarySegProps.length)
         {
-            val template = ModelParams.colorVarParams.newUnarySegmentTemplate(unarySegProps(i))
+            val template = params.colorVarParams.newUnarySegmentTemplate(unarySegProps(i))
             template.setWeight(1.0)
             spatialModel += template
         }
         for (i <- 0 until binarySegProps.length)
         {
-            val template = ModelParams.colorVarParams.newBinarySegmentTemplate(binarySegProps(i))
+            val template = params.colorVarParams.newBinarySegmentTemplate(binarySegProps(i))
             template.setWeight(1.0)
             spatialModel += template
         }
         for (i <- 0 until groupProps.length)
         {
-            val template = ModelParams.colorVarParams.newGroupTemplate(groupProps(i))
+            val template = params.colorVarParams.newGroupTemplate(groupProps(i))
             template.setWeight(1.0)
             spatialModel += template
         }
         val model = new CombinedColorInferenceModel(spatialModel)
         // Include the color compatibility term?
-        if (ModelParams.includeColorCompatibilityTerm && ModelParams.colorVarParams.supportsColorCompatibility)
+        if (params.includeColorCompatibilityTerm && params.colorVarParams.supportsColorCompatibility)
         {
             val cfam = new ColorCompatibilityFamily
             val cfac = new cfam.Factor
@@ -244,14 +247,14 @@ class ModelTraining
         }
 
         /** Train weights of the model **/
-        ModelParams.trainerType match
+        params.trainerType match
         {
-            case ModelParams.TrainerType.SampleRank =>
-                TuneWeightsSampleRank(model, trainingMeshes, ModelParams.numTrainingIterationsOverSet, ModelParams.numTrainingIterationsPerMesh)
-            case ModelParams.TrainerType.MaximumLikelihood if ModelParams.colorVarParams.supportsMaxLikelihood =>
-                TuneWeightsMaxLikelihood(model, trainingMeshes, ModelParams.numTrainingIterationsOverSet)
-            case ModelParams.TrainerType.ContrastiveDivergence =>
-                TuneWeightsContrastiveDivergence(model, trainingMeshes, ModelParams.numTrainingIterationsOverSet, ModelParams.numTrainingIterationsPerMesh, ModelParams.cdK)
+            case params.TrainerType.SampleRank =>
+                TuneWeightsSampleRank(model, trainingMeshes, params.numTrainingIterationsOverSet, params.numTrainingIterationsPerMesh)
+            case params.TrainerType.MaximumLikelihood if params.colorVarParams.supportsMaxLikelihood =>
+                TuneWeightsMaxLikelihood(model, trainingMeshes, params.numTrainingIterationsOverSet)
+            case params.TrainerType.ContrastiveDivergence =>
+                TuneWeightsContrastiveDivergence(model, trainingMeshes, params.numTrainingIterationsOverSet, params.numTrainingIterationsPerMesh, params.cdK)
             case _ => throw new Error("No valid trainer type!")
         }
 
@@ -267,13 +270,13 @@ class ModelTraining
     }
 
 
-    def TuneWeightsSampleRank(model:ColorInferenceModel, trainingMeshes:Array[SegmentMesh], outerIterations:Int, innerIterations:Int)
+    def TuneWeightsSampleRank(model:ColorInferenceModel, trainingMeshes:IndexedSeq[SegmentMesh], outerIterations:Int, innerIterations:Int)
     {
       //TODO: For sample rank, may need to add more constraints. i.e. constraining the original color of one (or more) of the color groups
 
       println("Tuning weights Sample Rank...")
       val objective = new AssignmentScoreTemplate()
-      val trainer = new SampleRank(ModelParams.colorVarParams.newInferenceSampler(model, objective), new StepwiseGradientAscent)
+      val trainer = new SampleRank(params.colorVarParams.newInferenceSampler(model, objective, params), new StepwiseGradientAscent)
 
 //      model.conditionOnAll(trainingMeshes)
 //      objective.conditionOnAll(trainingMeshes)
@@ -285,13 +288,13 @@ class ModelTraining
         for (mesh <- trainingMeshes)
         {
           //set the pattern domain
-          ModelParams.colorVarParams.initDomain(mesh)
+          params.colorVarParams.initDomain(mesh)
 
           model.conditionOn(mesh)
           objective.conditionOn(mesh)
 
           //process the variables and learn the weights
-          val vars = mesh.groups.map(g => g.color.asInstanceOf[ModelParams.colorVarParams.VariableType])
+          val vars = mesh.groups.map(g => g.color.asInstanceOf[params.VariableType])
 
           // TODO: Make this inner iteration count configurable
           trainer.process(vars, innerIterations)
@@ -313,7 +316,7 @@ class ModelTraining
     }
 
   //TODO: This is broken right now...
-    def TuneWeightsMaxLikelihood(model:ColorInferenceModel, trainingMeshes:Array[SegmentMesh], iterations:Int)
+    def TuneWeightsMaxLikelihood(model:ColorInferenceModel, trainingMeshes:IndexedSeq[SegmentMesh], iterations:Int)
     {
       println("Tuning weights Max Likelihood...")
 
@@ -327,7 +330,7 @@ class ModelTraining
         var avgLikelihood = 0.0    //well, this might not be comparable across meshes...
         for (mesh <- trainingMeshes)
         {
-          ModelParams.colorVarParams.initDomain(mesh)
+          params.colorVarParams.initDomain(mesh)
 
             model.conditionOn(mesh)
 
@@ -356,11 +359,11 @@ class ModelTraining
 
     }
 
-    def TuneWeightsContrastiveDivergence(model:ColorInferenceModel, trainingMeshes:Array[SegmentMesh], setIterations:Int, meshIterations:Int, cdK:Int)
+    def TuneWeightsContrastiveDivergence(model:ColorInferenceModel, trainingMeshes:IndexedSeq[SegmentMesh], setIterations:Int, meshIterations:Int, cdK:Int)
     {
         println("Tuning weights by Contrastive Divergence...")
 
-        val trainer = ModelParams.colorVarParams.newTrainingSampler(model)
+        val trainer = params.colorVarParams.newTrainingSampler(model, params)
         //model.conditionOnAll(trainingMeshes)
         var prevWeights = model.trainableWeights
 
@@ -378,7 +381,7 @@ class ModelTraining
                 val mesh = trainingMeshes(m)
                 println("Processing mesh %d/%d".format(m+1, trainingMeshes.length))
 
-                ModelParams.colorVarParams.initDomain(mesh)
+                params.colorVarParams.initDomain(mesh)
 
                 model.conditionOn(mesh)
 
@@ -390,12 +393,12 @@ class ModelTraining
                     // Set the initial state of the mesh's color variables to be the observed colors
                     mesh.setVariableValuesToObserved()
                     // Run the MCMC sampling chain for k steps, which will invoke the CD parameter update
-                    trainer.process(mesh.variablesAs[DiscreteColorVariable], cdK)
+                    trainer.process(mesh.variablesAs[params.VariableType], cdK)
                 }
 
                 // Accumulate the current likelihood of this mesh into the running average
                 mesh.setVariableValuesToObserved()
-                avgLikelihood += model.currentScore(mesh.variablesAs[ModelParams.colorVarParams.VariableType])
+                avgLikelihood += model.currentScore(mesh.variablesAs[params.VariableType])
             }
 
             // Report!

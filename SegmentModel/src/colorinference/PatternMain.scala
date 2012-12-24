@@ -53,9 +53,16 @@ object PatternMain {
     if (files.length == 0)
       println("No files found in the input directory!")
 
+      // Setup model training parameters (we'll use Discrete color variables in this test)
+      val params = new ModelTrainingParams
+      {
+          type VariableType = DiscreteColorVariable
+          val colorVarParams = DiscreteColorVariableParams
+      }
+
     for (f <- files)
     {
-      meshes.append(new SegmentMesh(ModelParams.colorVarParams.variableGenerator, f.getAbsolutePath))
+      meshes.append(new SegmentMesh(params.colorVarParams.variableGenerator, f.getAbsolutePath))
     }
 
     var avgTScore:Double = 0
@@ -82,11 +89,11 @@ object PatternMain {
 
 
     //train a model on all patterns, except the ones being considered (train/test set)
-    val testingMeshes = {for (idx<-meshes.indices if (patterns.contains(files(idx).getName().replace(".txt","").toInt))) yield meshes(idx)}
+    val testingMeshes = {for (idx<-meshes.indices if (patterns.contains(files(idx).getName.replace(".txt","").toInt))) yield meshes(idx)}
     val trainingMeshes = {for (m<-meshes if (!testingMeshes.contains(m))) yield m}
 
     println("Training on " + trainingMeshes.length + " meshes")
-    val model = ModelTraining(trainingMeshes.toArray)
+    val model = ModelTraining(trainingMeshes, params)
 
     val (totalScore, randomScore) = testingMeshes.foldLeft[(Double,Double)]((0.0,0.0))((curSum, mesh) =>
     {
@@ -99,7 +106,7 @@ object PatternMain {
     println("Average random score " + randomScore/testingMeshes.length)
 
 
-    OutputVisualizations(patterns, model, HistogramRegressor.LogisticRegression, "histtest.txt")
+    OutputVisualizations(patterns, model, "histtest.txt")
 
 
     //test the model by training and testing on the same mesh, plus a few other meshes
@@ -209,20 +216,24 @@ object PatternMain {
   }
 
   /** Visualization output methods **/
-  def OutputVisualizations(patterns:Array[Int], model:ColorInferenceModel, regression:ModelParams.RegressionFunction, filename:String)
+  def OutputVisualizations(patterns:Array[Int], model:ColorInferenceModel, filename:String)
   {
-    //change the regression type
-    ModelParams.regression = regression
+      // TODO: This isn't possible anymore, given the new treatment of ModelTrainingParams.
+      // TODO: Actually, I don't think this *ever* had any effect. The histogram regressors have already
+      // TODO:   been trained, so changing the regression type doesn't do anything, right?
+//    //change the regression type
+//    ModelParams.regression = regression
+
     val hallfilename = histDir + "/"+ filename //"/allhistknn.txt"
     val file = new File(hallfilename)
     file.delete()
 
     var count=0
     for (idx <- meshes.indices
-         if (patterns.contains(files(idx).getName().replace(".txt","").toInt)))
+         if (patterns.contains(files(idx).getName.replace(".txt","").toInt)))
     {
-      println("Testing mesh " + files(idx).getName())
-      val vfilename = visDir + "/"+files(idx).getName()
+      println("Testing mesh " + files(idx).getName)
+      val vfilename = visDir + "/"+files(idx).getName
 
       val palette = ColorPalette(meshes(idx))
       DiscreteColorVariable.initDomain(palette)
@@ -230,7 +241,7 @@ object PatternMain {
       model.conditionOn(meshes(idx))
 
 
-      val patternId = files(idx).getName().replace(".txt","").toInt
+      val patternId = files(idx).getName.replace(".txt","").toInt
 
       OutputHistograms(meshes(idx), model, hallfilename, patternId, true, count==0)
       OutputAllPermutations(meshes(idx), model, palette, vfilename)

@@ -150,63 +150,31 @@ object Color
     // Color space conversion caching
     object ColorSpaceConversionCache
     {
-        var capacity = 20       // Can increase this, if you want.
-
         case class Key(c1:Double, c2:Double, c3:Double, srcSpace:ColorSpace, dstSpace:ColorSpace)
-        class Entry(val color:Color, var lastAccessed:Long)
-        private val cache = new mutable.HashMap[Key, Entry]
-        private var hits = 0
-        private var misses = 0
-        private var evictions = 0
+        private def createKey(c:Color, dstSpace:ColorSpace) = Key(c(0), c(1), c(2), c.colorSpace, dstSpace)
+        private val cache = new Cache[Key, Color](20)   // Default size is 20; can be increased
 
-        def report()
-        {
-            println("hits: " + hits)
-            println("misses: " + misses)
-            println("evictions: " + evictions)
-        }
+        def setCapacity(capacity:Int) { cache.capacity = capacity }
 
         // Returns the color in the destination space, or NULL if no such cache entry exists
         def get(color:Color, dstSpace:ColorSpace) : Color =
         {
             val key = createKey(color, dstSpace)
-            var entry:Entry = null
-
-            try { entry = cache(key) }
-            catch { case nsee:NoSuchElementException => misses += 1; return null }
-
-            hits += 1
-            entry.lastAccessed = Platform.currentTime
-            entry.color
+            cache.get(key) match
+            {
+                case None => null
+                case s:Some[Color] => s.get
+            }
         }
 
         // Adds this new mapping into the cache
         def add(srcColor:Color, dstColor:Color)
         {
             val key = createKey(srcColor, dstColor.colorSpace)
-
-            // Only add something if this mapping doesn't already exist
-            try {cache(key)}
-            catch { case nsee:NoSuchElementException =>
-            {
-                // Evict least recently used entry if we're at capacity
-                if (cache.size == capacity)
-                    evictLRU()
-
-                // Add the mapping
-                val entry = new Entry(dstColor.copy, Platform.currentTime)
-                cache.put(key, entry)
-            }}
+            cache.put(key, dstColor.copy)
         }
 
-        private def createKey(c:Color, dstSpace:ColorSpace) = Key(c(0), c(1), c(2), c.colorSpace, dstSpace)
-
-        private def evictLRU()
-        {
-            evictions += 1
-            val lru = cache.reduce((a,b) => if (a._2.lastAccessed < b._2.lastAccessed) a else b)
-            cache.remove(lru._1)
-        }
+        def report() { cache.report() }
     }
 
     // For the time being, this is just Delta E.
