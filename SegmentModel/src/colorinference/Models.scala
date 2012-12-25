@@ -337,7 +337,13 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
         var logDensity = MathUtils.safeLog(density)
         // Again, weight by size. This formula should make the total weight sum to 1
         //val sizew  = (datum.seg1.size / datum.seg1.adjacencies.size) + (datum.seg2.size / datum.seg2.adjacencies.size)
-        val sizew = (datum.seg1.adjacencies.find(a=>a.neighbor==datum.seg2).get.strength)
+
+
+        //weight based on adjacency strength seg1->seg2 (which is the number of pixels or seg2 surrounding seg1 divided by
+        //the adjacency strengths of everything, including redundant edges like seg2->seg1)
+        // since the adjacency strength is still not necessarily symmetric, due to the
+        //pixelized nature of the region, add the adjacency strengths of seg2->seg1 and seg1->seg2
+        val sizew = (datum.seg1.adjacencies.find(a=>a.neighbor==datum.seg2).get.strength)+(datum.seg2.adjacencies.find(a=>a.neighbor==datum.seg1).get.strength)
         logDensity *= sizew
         Tensor1(logDensity)
     }
