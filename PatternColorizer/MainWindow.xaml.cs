@@ -291,7 +291,7 @@ namespace PatternColorizer
                 String basename = p.Name;
 
                 //Read the vis permutation description if available
-                String specs = Path.Combine(outdir, "vis", Util.ConvertFileName(basename, "", ".txt"));
+                String specs = Path.Combine(outdir, "vis", p.Directory, Util.ConvertFileName(basename, "", ".txt"));
                 if (!File.Exists(specs))
                     continue;
 

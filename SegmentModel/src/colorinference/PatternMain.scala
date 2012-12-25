@@ -48,8 +48,8 @@ object PatternMain {
     if (!histDirTestFile.exists)
       histDirTestFile.mkdir
 
-    //load all files TODO: to make this manageable, let's try out two subfolders for now
-    patterns = PatternIO.getPatterns(inputDir).filter(p=>(p.directory == "sugar!" || p.directory=="cameo")).toArray
+    //load all files TODO: to make this manageable, let's try out one subfolders for now
+    patterns = PatternIO.getPatterns(inputDir).filter(p=>(p.directory == "sugar!")).toArray// || p.directory=="cameo")).toArray
 
     if (patterns.length == 0)
       println("No files found in the input directory!")
@@ -60,6 +60,7 @@ object PatternMain {
           type VariableType = DiscreteColorVariable
           val colorVarParams = DiscreteColorVariableParams
           regression = HistogramRegressor.LogisticRegression
+          //trainerType = TrainerType.SampleRank
       }
 
     for (p <- patterns)
