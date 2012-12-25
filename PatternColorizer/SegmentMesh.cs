@@ -101,7 +101,7 @@ namespace PatternColorizer
 
             Dictionary<int, Segment> idToSegment = new Dictionary<int, Segment>();
             int totalPerimeter = 0;
-            Dictionary<int, double> idToPerimeter = new Dictionary<int, double>();
+            Dictionary<int, HashSet<Point>> idToPerimeter = new Dictionary<int, HashSet<Point>>();
            
             //populate segments
             int width = image.Width;
@@ -114,7 +114,7 @@ namespace PatternColorizer
                     if (!idToSegment.ContainsKey(id))
                     {
                         idToSegment.Add(id, new Segment(id));
-                        idToPerimeter.Add(id, 0);
+                        idToPerimeter.Add(id, new HashSet<Point>());
                     }
 
                     idToSegment[id].points.Add(new Point(i, j));
@@ -136,13 +136,21 @@ namespace PatternColorizer
                                     idToSegment[id].adjacencies.Add(nid);
                                     
                                     //keep track of the total perimeter, and individual segment perimeters
-                                    idToPerimeter[id] += 1;
-                                    totalPerimeter++;
+                                    //don't double count the same point for each segment
+                                    if (!idToPerimeter[id].Contains(new Point(x, y)))
+                                    {
+                                        idToPerimeter[id].Add(new Point(x, y));
+                                        totalPerimeter++;
 
-                                    //keep track of the adjacecy strength per segment
-                                    if (!idToSegment[id].adjacencyStrength.ContainsKey(nid))
-                                        idToSegment[id].adjacencyStrength.Add(nid, 0);
-                                    idToSegment[id].adjacencyStrength[nid]++;
+                                        //keep track of the adjacecy strength per segment
+                                        if (!idToSegment[id].adjacencyStrength.ContainsKey(nid))
+                                            idToSegment[id].adjacencyStrength.Add(nid, 0);
+                                        idToSegment[id].adjacencyStrength[nid]++;
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine("Point already counted");
+                                    }
                                 }
                             }
                         }
@@ -174,7 +182,7 @@ namespace PatternColorizer
                 {
                     double pixelsAdj = segments[i].adjacencyStrength[nid];
                     renamedAdjStrength.Add(idToIdx[nid], pixelsAdj / totalPerimeter);
-                    segments[i].enclosureStrength.Add(idToIdx[nid], new Tuple<double, double>(pixelsAdj / idToPerimeter[sid], pixelsAdj / idToPerimeter[nid]));
+                    segments[i].enclosureStrength.Add(idToIdx[nid], new Tuple<double, double>(pixelsAdj / idToPerimeter[sid].Count(), pixelsAdj / idToPerimeter[nid].Count()));
                 }
                 segments[i].adjacencyStrength = renamedAdjStrength;
 
