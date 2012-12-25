@@ -401,7 +401,7 @@ abstract class KStepContrastiveDivergence[C](override val model:Model, val k:Int
     def reset()
     {
         stepsDone = 0
-        kStepDiffList.clear()
+        kStepDiffList = new DiffList
     }
 
     override def updateWeights

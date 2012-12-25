@@ -36,8 +36,9 @@ object ColorInferenceModel
     // must mix-in this trait
     trait Trainable extends DotFamily with Named
     {
-        lazy val weights = new DenseTensor1(1)
+        lazy val weights = Tensor1(1.0)
         def setWeight(w:Double) { weights.update(0, w) }
+        def getWeight = weights(0)
     }
 
     // VectorHistogram-based components must implement this trait so
@@ -47,13 +48,6 @@ object ColorInferenceModel
     {
         def summary:IndexedSeq[SummaryItem]
     }
-
-    // This provides a way for factors from a family to retrieve the family instance they
-    // belong to.
-    trait Family extends cc.factorie.Family with Named
-    {
-        val family = this
-    }
 }
 
 trait ColorInferenceModel extends Model
@@ -62,6 +56,19 @@ trait ColorInferenceModel extends Model
     import ColorInferenceModel._
     def trainables:Seq[Trainable] = families.collect{case t:Trainable => t}
     def trainableWeights:Tensor1 = MathUtils.concatVectors(trainables.map(_.weights))
+
+    def normalizeWeights()
+    {
+        var totalWeight = 0.0
+        for (t <- trainables) totalWeight += t.getWeight
+        if (totalWeight > 0.0)
+            for (t <- trainables) t.setWeight(t.getWeight / totalWeight)
+    }
+
+    def randomizeWeights()
+    {
+        for (t <- trainables) t.setWeight(math.random)
+    }
 }
 
 class CombinedColorInferenceModel(theSubModels:Model*) extends CombinedModel(theSubModels:_*) with ColorInferenceModel
@@ -124,7 +131,7 @@ class ItemizedColorInferenceModel(initialFactors:Factor*) extends ItemizedModel(
     // a way to retrieve all of those families (particularly important for training)
     override def families: Seq[cc.factorie.Family] =
     {
-        this.factors.collect{case f:Family#Factor => f.family}.toSeq.distinct
+        this.factors.collect{case f:cc.factorie.Family#Factor => f.family}.toSeq.distinct
     }
 
     def conditionOnAll(meshes:Seq[SegmentMesh])
@@ -204,6 +211,7 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
 
     protected def trainRegressor(property:ModelTraining#UnarySegmentProperty) : HistogramRegressor =
     {
+        println("Training " + name + "...")
         property.regression(property.examples, MathUtils.euclideanDistance, property.quant, WekaMultiClassHistogramRegressor)
     }
 
@@ -316,6 +324,7 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
 
   protected def trainRegressor(property:ModelTraining#BinarySegmentProperty) : HistogramRegressor =
     {
+        println("Training " + name + "...")
         property.regression(property.examples, MathUtils.euclideanDistance, property.quant, WekaMultiClassHistogramRegressor)
     }
 
@@ -432,6 +441,7 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
 
     protected def trainRegressor(property:ModelTraining#ColorGroupProperty) : HistogramRegressor =
     {
+        println("Training " + name + "...")
         property.regression(property.examples, MathUtils.euclideanDistance, property.quant, WekaMultiClassHistogramRegressor)
     }
 
@@ -614,7 +624,7 @@ object ColorCompatibilityFamily
 }
 
 class ColorCompatibilityFamily extends DotFamilyN[ContinuousColorVariable]
-    with ColorInferenceModel.Family with ColorInferenceModel.Trainable
+    with ColorInferenceModel.Trainable
 {
     import ColorInferenceModel._
 

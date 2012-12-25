@@ -31,7 +31,6 @@ object ContinuousInferenceTestMain
         // Create a color compatibility factor over those variables
         println("Creating compatibility factor...")
         val family = new ColorCompatibilityFamily
-        family.setWeight(1.0)
         val factor = new family.Factor
         factor.vars ++= colorvars
 

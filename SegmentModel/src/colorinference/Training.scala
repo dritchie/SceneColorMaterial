@@ -44,6 +44,9 @@ abstract class ModelTrainingParams
     var numTrainingIterationsOverSet = 5
     var numTrainingIterationsPerMesh = 1
 
+    var randomizeInitialWeights = false
+    var normalizeWeights = false
+
     // MH Sampling / Contrastive divergence params
     var cdK = 3
     var minRadius:Double = 0.01
@@ -217,23 +220,23 @@ class ModelTraining(val params:ModelTrainingParams)
         }
 
         /** Construct model **/
+        println("Training Unary Segment Templates...")
         val spatialModel = new TemplateColorInferenceModel
         for (i <- 0 until unarySegProps.length)
         {
             val template = params.colorVarParams.newUnarySegmentTemplate(unarySegProps(i))
-            template.setWeight(1.0)
             spatialModel += template
         }
+        println("Training Binary Segment Templates...")
         for (i <- 0 until binarySegProps.length)
         {
             val template = params.colorVarParams.newBinarySegmentTemplate(binarySegProps(i))
-            template.setWeight(1.0)
             spatialModel += template
         }
+        println("Training Group Templates...")
         for (i <- 0 until groupProps.length)
         {
             val template = params.colorVarParams.newGroupTemplate(groupProps(i))
-            template.setWeight(1.0)
             spatialModel += template
         }
         val model = new CombinedColorInferenceModel(spatialModel)
@@ -247,6 +250,7 @@ class ModelTraining(val params:ModelTrainingParams)
         }
 
         /** Train weights of the model **/
+        println("Learning Weights...")
         params.trainerType match
         {
             case params.TrainerType.SampleRank =>
@@ -262,7 +266,7 @@ class ModelTraining(val params:ModelTrainingParams)
         println("Weights:")
         for (t <- model.trainables)
         {
-            println(t.name + " : " + t.weights)
+            println(t.name + " : " + t.getWeight)
         }
         println()
 
@@ -363,9 +367,27 @@ class ModelTraining(val params:ModelTrainingParams)
     {
         println("Tuning weights by Contrastive Divergence...")
 
+        if (params.randomizeInitialWeights)
+            model.randomizeWeights()
+
+        if (params.normalizeWeights)
+            model.normalizeWeights()
+
         val trainer = params.colorVarParams.newTrainingSampler(model, params)
         //model.conditionOnAll(trainingMeshes)
         var prevWeights = model.trainableWeights
+
+        // Initial average likelihood
+        var initLL = 0.0
+        for (mesh <- trainingMeshes)
+        {
+            params.colorVarParams.initDomain(mesh)
+            model.conditionOn(mesh)
+            mesh.setVariableValuesToObserved()
+            initLL += model.currentScore(mesh.variablesAs[params.VariableType])
+        }
+        initLL /= trainingMeshes.length
+        println("Initial avg. likelihood: " + initLL)
 
         // Iterate over the whole training set multiple times
         for (i <- 0 until setIterations)
@@ -373,9 +395,9 @@ class ModelTraining(val params:ModelTrainingParams)
             // Lower the learning rate as the iterations go on.
             val t = i/(setIterations.toDouble)
             trainer.learningRate = 1-t
+            //trainer.learningRate = 0.01
 
             println("Outer iteration %d/%d".format(i+1, setIterations))
-            var avgLikelihood = 0.0     // Likelihoods aren't strictly comparable across meshes, but whatevs--this is just for printf reporting
             for (m <- 0 until trainingMeshes.length)
             {
                 val mesh = trainingMeshes(m)
@@ -385,7 +407,7 @@ class ModelTraining(val params:ModelTrainingParams)
 
                 model.conditionOn(mesh)
 
-                // Iterate over this mesh multiple times
+                // Iterate over this mesh
                 for (j <- 0 until meshIterations)
                 {
                     println("Inner iteration %d/%d".format(j+1, meshIterations))
@@ -396,16 +418,28 @@ class ModelTraining(val params:ModelTrainingParams)
                     trainer.process(mesh.variablesAs[params.VariableType], cdK)
                 }
 
-                // Accumulate the current likelihood of this mesh into the running average
+//                if (params.normalizeWeights)
+//                    model.normalizeWeights()
+            }
+
+            if (params.normalizeWeights)
+                model.normalizeWeights()
+
+            var avgLikelihood = 0.0     // Likelihoods aren't strictly comparable across meshes, but whatevs--this is just for printf reporting
+            for (mesh <- trainingMeshes)
+            {
+                params.colorVarParams.initDomain(mesh)
+                model.conditionOn(mesh)
                 mesh.setVariableValuesToObserved()
                 avgLikelihood += model.currentScore(mesh.variablesAs[params.VariableType])
             }
+            avgLikelihood /= trainingMeshes.length
 
             // Report!
             val curWeights = model.trainableWeights
             println("\nWeights delta: " + (curWeights-prevWeights).twoNorm)
             prevWeights = curWeights
-            println("Outer Iteration "+(i+1)+" Avg. Likelihood " + avgLikelihood/trainingMeshes.length)
+            println("Outer Iteration "+(i+1)+" Avg. Likelihood " + avgLikelihood)
         }
     }
 

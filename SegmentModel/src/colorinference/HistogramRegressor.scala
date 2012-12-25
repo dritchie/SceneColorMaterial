@@ -68,7 +68,7 @@ abstract class HistogramRegressor(examples:Seq[HistogramRegressor.RegressionExam
     private def getCentroids(examples:Seq[HistogramRegressor.RegressionExample], quantizer:VectorQuantizer) : IndexedSeq[Tensor1] =
     {
         assert(examples.length > 0, {println("HistogramRegressor: cannot train with 0 training examples")})
-        println("Quantizing...")
+        //println("Quantizing...")
         (quantizer(for (ex <- examples) yield ex.target, metric, for(ex <- examples) yield ex.weight))._1
     }
 
@@ -163,7 +163,7 @@ class WekaMultiClassHistogramRegressor(private val classifier:Classifier, exampl
 
     private def train(examples:Seq[HistogramRegressor.RegressionExample])
     {
-        println("Training multi-class histogram regressor...")
+        //println("Training multi-class histogram regressor...")
 
         // Associate training examples with their closest bin
         val assignments = new Array[Int](examples.length)
@@ -254,7 +254,7 @@ class WekaBinByBinHistogramRegressor(classifier:Classifier, examples:Seq[Histogr
 
     private def train(examples:Seq[HistogramRegressor.RegressionExample])
     {
-        println("Training bin-by-bin histogram regressor...")
+        //println("Training bin-by-bin histogram regressor...")
 
         // Build a 'training histogram' so we can evaluate bin probabilities
         val trainingHist = new VectorHistogram(metric)
@@ -263,7 +263,7 @@ class WekaBinByBinHistogramRegressor(classifier:Classifier, examples:Seq[Histogr
         // Train each regressor
         for (b <- 0 until centroids.length)
         {
-            println("Training bin " + b + "...")
+            //println("Training bin " + b + "...")
 
             // Init Weka training set
             val trainingSet = new Instances("trainingSet", attributePrototype, examples.length)
