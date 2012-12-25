@@ -16,6 +16,7 @@ import cc.factorie._
 import la.Tensor1
 import scala.util.Random
 import java.io.FileWriter
+import javax.imageio.stream.FileImageOutputStream
 
 
 object PatternMain {
@@ -26,7 +27,7 @@ object PatternMain {
   val visDir = "../PatternColorizer/out/vis"
 
   var meshes:ArrayBuffer[SegmentMesh] = new ArrayBuffer[SegmentMesh]()
-  var files:Array[File] = null
+  var patterns:Array[PatternItem] = null
   val random = new Random()
   val numIterations = 100
 
@@ -47,10 +48,10 @@ object PatternMain {
     if (!histDirTestFile.exists)
       histDirTestFile.mkdir
 
-    //load all files
-    files = new File(inputDir).listFiles.filter(_.getName.endsWith(".txt"))
+    //load all files TODO: to make this manageable, let's try out two subfolders for now
+    patterns = PatternIO.getPatterns(inputDir).filter(p=>(p.directory == "sugar!" || p.directory=="cameo")).toArray
 
-    if (files.length == 0)
+    if (patterns.length == 0)
       println("No files found in the input directory!")
 
       // Setup model training parameters (we'll use Discrete color variables in this test)
@@ -58,20 +59,16 @@ object PatternMain {
       {
           type VariableType = DiscreteColorVariable
           val colorVarParams = DiscreteColorVariableParams
+          regression = HistogramRegressor.LogisticRegression
       }
 
-    for (f <- files)
+    for (p <- patterns)
     {
-      meshes.append(new SegmentMesh(params.colorVarParams.variableGenerator, f.getAbsolutePath))
+      meshes.append(new SegmentMesh(params.colorVarParams.variableGenerator, p.fullpath))
     }
 
-    var avgTScore:Double = 0
-    var randTScore:Double = 0
-    var tcount = 0
-
-
     //list of patterns to consider
-    val patterns = Array(
+    val pids = Array(
       296605,
       244833,
       231386,
@@ -89,13 +86,13 @@ object PatternMain {
 
 
     //train a model on all patterns, except the ones being considered (train/test set)
-    val testingMeshes = {for (idx<-meshes.indices if (patterns.contains(files(idx).getName.replace(".txt","").toInt))) yield meshes(idx)}
+    val testingMeshes = {for (idx<-meshes.indices if (pids.contains(patterns(idx).name.replace(".txt","").toInt))) yield meshes(idx)}
     val trainingMeshes = {for (m<-meshes if (!testingMeshes.contains(m))) yield m}
 
     println("Training on " + trainingMeshes.length + " meshes")
     val model = ModelTraining(trainingMeshes, params)
 
-    val (totalScore, randomScore) = testingMeshes.foldLeft[(Double,Double)]((0.0,0.0))((curSum, mesh) =>
+    /*val (totalScore, randomScore) = testingMeshes.foldLeft[(Double,Double)]((0.0,0.0))((curSum, mesh) =>
     {
       val (score, rscore) = TestModel(mesh, model)
       (curSum._1+score, curSum._2+rscore)
@@ -103,71 +100,10 @@ object PatternMain {
 
     //higher score is better
     println("Average score " + totalScore/testingMeshes.length)
-    println("Average random score " + randomScore/testingMeshes.length)
+    println("Average random score " + randomScore/testingMeshes.length)*/
 
 
-    OutputVisualizations(patterns, model, "histtest.txt")
-
-
-    //test the model by training and testing on the same mesh, plus a few other meshes
-    /*for (idx<-meshes.indices if (patterns.contains(files(idx).getName().replace(".txt","").toInt)))
-    {
-      println("Testing model on mesh " + files(idx).getName )
-      val trainingMeshes:ArrayBuffer[SegmentMesh] = ArrayBuffer[SegmentMesh]{meshes(idx)}
-
-      val model = ModelTraining(trainingMeshes)
-
-      //pick 4 more random meshes (different)
-     val pool = ArrayBuffer[Int]()
-      pool ++= (0 until meshes.indices.length)
-      pool -= idx
-      while (trainingMeshes.length < 3)
-      {
-        val todrop = pool(random.nextInt(pool.length))
-        trainingMeshes += meshes(todrop)
-        pool -= todrop
-      }
-
-      val (score, rand) = TestModel(meshes(idx), model)
-      avgTScore += score
-      randTScore += rand
-      tcount +=1
-    }
-    avgTScore /= tcount
-    randTScore /= tcount*/
-
-    //for now, just try using the original palette
-    /*var avgScore:Double = 0
-    var count = 0
-    var randScore:Double = 0
-
-    for (idx <- meshes.indices if (patterns.contains(files(idx).getName().replace(".txt","").toInt)))
-    {
-      println("Testing mesh " + count)
-      val segmesh = meshes(idx)
-      count += 1
-      //get all the other meshes
-      val trainingMeshes:Array[SegmentMesh] = {for (tidx<-meshes.indices if tidx != idx) yield meshes(tidx)}.toArray
-
-      val model = ModelTraining(trainingMeshes)
-
-      // Evaluate assignments
-      val (score, rscore) = TestModel(segmesh, model)
-      avgScore += score
-      randScore += rscore
-
-      // Output the result
-      segmesh.saveColorAssignments(outputDir+"/"+files(idx).getName)
-
-    }
-
-    println("Hold-one-out results")
-    println("Average Score: " + (avgScore/count))
-    println("Average Random Score: " + (randScore/count))
-
-    println("\nWhen training and testing on the same mesh..")
-    println("Average Score: " + avgTScore)
-    println("Average Random Score: " + randTScore) */
+    OutputVisualizations(pids, model, "allhist.txt")
 
   }
 
@@ -216,7 +152,7 @@ object PatternMain {
   }
 
   /** Visualization output methods **/
-  def OutputVisualizations(patterns:Array[Int], model:ColorInferenceModel, filename:String)
+  def OutputVisualizations(pids:Array[Int], model:ColorInferenceModel, histfilename:String)
   {
       // TODO: This isn't possible anymore, given the new treatment of ModelTrainingParams.
       // TODO: Actually, I don't think this *ever* had any effect. The histogram regressors have already
@@ -224,16 +160,16 @@ object PatternMain {
 //    //change the regression type
 //    ModelParams.regression = regression
 
-    val hallfilename = histDir + "/"+ filename //"/allhistknn.txt"
+    val hallfilename = histDir + "/"+ histfilename
     val file = new File(hallfilename)
     file.delete()
 
     var count=0
     for (idx <- meshes.indices
-         if (patterns.contains(files(idx).getName.replace(".txt","").toInt)))
+         if (pids.contains(patterns(idx).name.replace(".txt","").toInt)))
     {
-      println("Testing mesh " + files(idx).getName)
-      val vfilename = visDir + "/"+files(idx).getName
+      println("Testing mesh " + patterns(idx).name)
+      val vfilename = PatternIO.ensureAndGetFileName(patterns(idx), visDir, ".txt")//visDir + "/"+patterns(idx).name
 
       val palette = ColorPalette(meshes(idx))
       DiscreteColorVariable.initDomain(palette)
@@ -241,7 +177,7 @@ object PatternMain {
       model.conditionOn(meshes(idx))
 
 
-      val patternId = files(idx).getName.replace(".txt","").toInt
+      val patternId = patterns(idx).name.replace(".txt","").toInt
 
       OutputHistograms(meshes(idx), model, hallfilename, patternId, true, count==0)
       OutputAllPermutations(meshes(idx), model, palette, vfilename)

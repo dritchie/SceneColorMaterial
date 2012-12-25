@@ -17,20 +17,23 @@ import io.Source
 import java.io.FileWriter
 import collection.mutable
 
+class SegmentAdjacency(val neighbor:Segment, val strength:Double, val originEnclosure:Double, val neighborEnclosure:Double)
 
 class Segment(val index:Int, val owner:SegmentMesh)
 {
     val features = new mutable.HashMap[String, Tensor1]
-    val adjacencies = new HashSet[Segment]
+    val adjacencies = new HashSet[SegmentAdjacency]
     var group : SegmentGroup = null
 
     // Quick-access to features that are accessed frequently
     // in inference inner loop
     var size:Double = 0.0
+    var isNoise:Boolean = false
 
     def extractQuickAccessFeatures()
     {
         size = features("RelativeSize")(0)
+        isNoise = features("Label")(2) == 1
     }
 }
 object Segment
@@ -50,12 +53,17 @@ object Segment
         MathUtils.concatVectors(featureList)
     }
 
-    def getBinaryRegressionFeatures(seg1:Segment, seg2:Segment) : Tensor1 =
+    def getBinaryRegressionFeatures(seg1:Segment, adj:SegmentAdjacency) : Tensor1 =
     {
-        val fvec1 = getUnaryRegressionFeatures(seg1)
-        val fvec2 = getUnaryRegressionFeatures(seg2)
+        val seg2 = adj.neighbor
+
+
+        //ad the enclosure strength as a feature
+        val fvec1 = MathUtils.concatVectors(getUnaryRegressionFeatures(seg1), Tensor1(adj.originEnclosure))
+        val fvec2 = MathUtils.concatVectors(getUnaryRegressionFeatures(seg2), Tensor1(adj.neighborEnclosure))
 
         // Sort by distance from the origin in feature space
+      //TODO: maybe we want to sort by something more meaningful, like relative size?
         if (fvec1.twoNormSquared < fvec2.twoNormSquared)
             MathUtils.concatVectors(Array(fvec1, fvec2))
         else
@@ -123,7 +131,7 @@ class SegmentMesh(private val gen:ColorVariableGenerator)
 
         name = filename
 
-        val adjacencies = new ArrayBuffer[ ArrayBuffer[Int] ]
+        val adjacencies = new ArrayBuffer[ ArrayBuffer[(Int, Double, Double, Double)] ]
 
         val source = Source.fromFile(filename)
         val lineIterator = source.getLines()
@@ -145,20 +153,20 @@ class SegmentMesh(private val gen:ColorVariableGenerator)
         {
             val adjlist = adjacencies(i)
             val segment = segments(i)
-            segment.adjacencies ++= (for (index <- adjlist) yield segments(index))
+            segment.adjacencies ++= {for (adj <- adjlist) yield new SegmentAdjacency(segments(adj._1), adj._2, adj._3, adj._4)}
         }
 
         // Finalize group adjacencies
         for (group <- groups)
         {
-            val adjgroups = for (seg <- group.members; aseg <- seg.adjacencies) yield aseg.group
+            val adjgroups = for (seg <- group.members; aseg <- seg.adjacencies) yield aseg.neighbor.group
             group.adjacencies ++= adjgroups.distinct
         }
     }
 
     /** Private helpers **/
 
-    private def parseSegment(adj:ArrayBuffer[ArrayBuffer[Int]], lineIterator:Iterator[String])
+    private def parseSegment(adj: ArrayBuffer[ ArrayBuffer[(Int, Double, Double, Double)] ], lineIterator:Iterator[String])
     {
         val newseg = new Segment(segments.length, this)
         while (lineIterator.hasNext)
@@ -169,10 +177,11 @@ class SegmentMesh(private val gen:ColorVariableGenerator)
             {
                 case "AdjacentTo" =>
                 {
-                    val adjlist = new ArrayBuffer[Int]
+                    val adjlist = new ArrayBuffer[(Int, Double, Double, Double)]
                     for (tok <- tokens slice(1, tokens.length))
                     {
-                        adjlist += tok.toInt
+                        val fields = tok.split('^')
+                        adjlist += ((fields(0).toInt, fields(1).toDouble, fields(2).toDouble, fields(3).toDouble) )
                     }
                     adj += adjlist
                 }

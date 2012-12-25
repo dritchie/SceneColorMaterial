@@ -36,6 +36,8 @@ namespace PatternColorizer
         public List<Point> points;
         public int groupId;
         public int assignmentId;
+        public Dictionary<int,double> adjacencyStrength; //the relative strength of the adjacency (lengthwise)
+        public Dictionary<int, Tuple<double,double>> enclosureStrength; //how enclosed the segment is by the neighbor, and how enclosed the neighbor is by the segment
 
         public Segment(int id)
         {
@@ -43,6 +45,8 @@ namespace PatternColorizer
             features = new List<NamedFeature>();
             points = new List<Point>();
             assignmentId = id;
+            adjacencyStrength = new Dictionary<int, double>();
+            enclosureStrength = new Dictionary<int, Tuple<double, double>>();
         }
     }
 
@@ -96,7 +100,8 @@ namespace PatternColorizer
             
 
             Dictionary<int, Segment> idToSegment = new Dictionary<int, Segment>();
-
+            int totalPerimeter = 0;
+            Dictionary<int, double> idToPerimeter = new Dictionary<int, double>();
            
             //populate segments
             int width = image.Width;
@@ -107,7 +112,10 @@ namespace PatternColorizer
                 {
                     int id = assignments[i, j];
                     if (!idToSegment.ContainsKey(id))
+                    {
                         idToSegment.Add(id, new Segment(id));
+                        idToPerimeter.Add(id, 0);
+                    }
 
                     idToSegment[id].points.Add(new Point(i, j));
                     idToSegment[id].groupId = slotToGroup[template.GetSlotId(i, j)];
@@ -124,7 +132,18 @@ namespace PatternColorizer
                             {
                                 int nid = assignments[x, y];
                                 if (nid != id)
+                                {
                                     idToSegment[id].adjacencies.Add(nid);
+                                    
+                                    //keep track of the total perimeter, and individual segment perimeters
+                                    idToPerimeter[id] += 1;
+                                    totalPerimeter++;
+
+                                    //keep track of the adjacecy strength per segment
+                                    if (!idToSegment[id].adjacencyStrength.ContainsKey(nid))
+                                        idToSegment[id].adjacencyStrength.Add(nid, 0);
+                                    idToSegment[id].adjacencyStrength[nid]++;
+                                }
                             }
                         }
                     }
@@ -146,6 +165,19 @@ namespace PatternColorizer
                 foreach (int a in segments[i].adjacencies)
                     renamedAdj.Add(idToIdx[a]);
                 segments[i].adjacencies = renamedAdj;
+
+                //finalize adjacency strengths
+                int sid = assignments[segments[i].points.First().X, segments[i].points.First().Y];
+
+                Dictionary<int, double> renamedAdjStrength = new Dictionary<int, double>();
+                foreach (int nid in segments[i].adjacencyStrength.Keys)
+                {
+                    double pixelsAdj = segments[i].adjacencyStrength[nid];
+                    renamedAdjStrength.Add(idToIdx[nid], pixelsAdj / totalPerimeter);
+                    segments[i].enclosureStrength.Add(idToIdx[nid], new Tuple<double, double>(pixelsAdj / idToPerimeter[sid], pixelsAdj / idToPerimeter[nid]));
+                }
+                segments[i].adjacencyStrength = renamedAdjStrength;
+
             }
 
             //finalize groups
@@ -415,7 +447,8 @@ namespace PatternColorizer
                     lines.Add(f.name + " " + String.Join(" ", f.values.Select<Double,String>((d)=>d.ToString()).ToArray<String>()));
                 }
 
-                lines.Add("AdjacentTo " + String.Join(" ", s.adjacencies.Select<int, String>((d)=>d.ToString()).ToArray<String>()));
+                //write adjacencies and their respective adjacency strength, enclosure strength of the segment, and enclosure strength of the neighbor
+                lines.Add("AdjacentTo " + String.Join(" ", s.adjacencies.Select<int, String>((d)=>d.ToString()+"^" + s.adjacencyStrength[d].ToString() + "^" + s.enclosureStrength[d].Item1.ToString() + "^" + s.enclosureStrength[d].Item2.ToString()).ToArray<String>()));
 
                 lines.Add("SegmentEnd");
             }

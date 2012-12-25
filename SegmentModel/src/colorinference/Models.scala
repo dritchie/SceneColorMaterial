@@ -218,13 +218,12 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
     protected def computeStatistics(color:Color, datum:Datum) : Tensor1  =
     {
         val props = colorPropExtractor(color)
-        var density = datum.hist.evaluateAt(props)
-        density = MathUtils.safeLog(density)
-
+        val density = datum.hist.evaluateAt(props)
+        var logDensity = MathUtils.safeLog(density)
         // Weight by relative size so that groups with tons of little segments don't get
         // unfairly emphasized
-        density *= datum.seg.size
-        Tensor1(density)
+        logDensity *= datum.seg.size
+        Tensor1(logDensity)
     }
 
     def unroll1(v1:ColorVar) =
@@ -299,9 +298,10 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
     def conditionOnAll(meshes:Seq[SegmentMesh])
     {
       data.clear()
-      for (mesh<-meshes; seg1 <- mesh.segments; seg2 <- seg1.adjacencies if seg1.index < seg2.index)
+      for (mesh<-meshes; seg1 <- mesh.segments; adj <- seg1.adjacencies if seg1.index < adj.neighbor.index)
       {
-        val f = Segment.getBinaryRegressionFeatures(seg1, seg2)
+        val seg2 = adj.neighbor
+        val f = Segment.getBinaryRegressionFeatures(seg1, adj)
         data((seg1, seg2)) = new DatumVariable(Datum(seg1, seg2, regressor.predictHistogram(f)))
       }
     }
@@ -309,9 +309,10 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
     def conditionOn(mesh:SegmentMesh)
     {
         data.clear()
-        for (seg1 <- mesh.segments; seg2 <- seg1.adjacencies if seg1.index < seg2.index)
+        for (seg1 <- mesh.segments; adj <- seg1.adjacencies if seg1.index < adj.neighbor.index)
         {
-            val f = Segment.getBinaryRegressionFeatures(seg1, seg2)
+            val seg2 = adj.neighbor
+            val f = Segment.getBinaryRegressionFeatures(seg1, adj)
             data((seg1, seg2)) = new DatumVariable(Datum(seg1, seg2, regressor.predictHistogram(f)))
         }
     }
@@ -332,26 +333,26 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
     protected def computeStatistics(color1:Color, color2:Color, datum:Datum) : Tensor1  =
     {
         val props = colorPropExtractor(color1, color2)
-        var density = datum.hist.evaluateAt(props)
-        density = MathUtils.safeLog(density)
-
+        val density = datum.hist.evaluateAt(props)
+        var logDensity = MathUtils.safeLog(density)
         // Again, weight by size. This formula should make the total weight sum to 1
-        val sizew  = (datum.seg1.size / datum.seg1.adjacencies.size) + (datum.seg2.size / datum.seg2.adjacencies.size)
-        density *= sizew
-        Tensor1(density)
+        //val sizew  = (datum.seg1.size / datum.seg1.adjacencies.size) + (datum.seg2.size / datum.seg2.adjacencies.size)
+        val sizew = (datum.seg1.adjacencies.find(a=>a.neighbor==datum.seg2).get.strength)
+        logDensity *= sizew
+        Tensor1(logDensity)
     }
 
     def unroll1(v1:ColorVar) =
     {
         // Find all neighbors of v1, yield a factor for each segment pair
-        for (seg1 <- v1.group.members; seg2 <- seg1.adjacencies if seg1.index < seg2.index)
+        for (seg1 <- v1.group.members; seg2 <- seg1.adjacencies.map(_.neighbor) if seg1.index < seg2.index)
             yield Factor(v1, seg2.group.color.asInstanceOf[ColorVar], data((seg1,seg2)))
     }
 
     def unroll2(v2:ColorVar) =
     {
         // Symmetric w.r.t to unroll1
-        for (seg2 <- v2.group.members; seg1 <- seg2.adjacencies if seg1.index < seg2.index)
+        for (seg2 <- v2.group.members; seg1 <- seg2.adjacencies.map(_.neighbor) if seg1.index < seg2.index)
             yield Factor(seg1.group.color.asInstanceOf[ColorVar], v2, data((seg1,seg2)))
     }
 
@@ -450,10 +451,10 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
     protected def computeStatistics(color:Color, datum:Datum) : Tensor1  =
     {
         val props = colorPropExtractor(color)
-        var density = datum.hist.evaluateAt(props)
-        density = MathUtils.safeLog(density)
+        val density = datum.hist.evaluateAt(props)
+        val logDensity = MathUtils.safeLog(density)
         // TODO: Some form of size weighting? I don't think it's needed...
-        Tensor1(density)
+        Tensor1(logDensity)
     }
 
     def unroll1(v1:ColorVar) =
@@ -669,7 +670,6 @@ class ColorCompatibilityFamily extends DotFamilyN[ContinuousColorVariable]
         val rating = retval(0).asInstanceOf[Array[Double]](0)
         val normalizedRating = rating / 5.0
         Tensor1(MathUtils.safeLog(normalizedRating))
-        //Tensor1(normalizedRating)
     }
 
     override def statistics(values:Seq[ContinuousColorVariable#Value]): Tensor =

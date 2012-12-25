@@ -195,15 +195,16 @@ class ModelTraining(val params:ModelTrainingParams)
             }
 
             var checkAdj = 0
-            for (seg1<-mesh.segments; seg2 <- seg1.adjacencies if seg1.index < seg2.index)
+            for (seg1<-mesh.segments; seg2 <- seg1.adjacencies.map(a=>a.neighbor) if seg1.index < seg2.index)
                 checkAdj+=1
 
             val binaryWeight =  2.0/checkAdj
 
             // Binary segment properties
-            for (seg1 <- mesh.segments; seg2 <- seg1.adjacencies if seg1.index < seg2.index)
+            for (seg1 <- mesh.segments; adj <- seg1.adjacencies if seg1.index < adj.neighbor.index)
             {
-                val fvec = Segment.getBinaryRegressionFeatures(seg1, seg2)
+                val seg2 = adj.neighbor
+                val fvec = Segment.getBinaryRegressionFeatures(seg1, adj)
                 for (prop <- binarySegProps) { prop.examples += HistogramRegressor.RegressionExample(prop.extractor(seg1.group.color.observedColor,seg2.group.color.observedColor), fvec, binaryWeight) }
             }
 
