@@ -204,8 +204,6 @@ namespace PatternColorizer
 
             foreach (PatternItem p in patterns)
             {
-
-                Bitmap image = new Bitmap(p.FullPath);
                 String basename = p.Name;
 
                 if (!palettes.ContainsKey(basename))
@@ -213,58 +211,66 @@ namespace PatternColorizer
 
                 PaletteData palette = palettes[basename];
 
+
+                //Read the recoloring description if available
+                String specs = Path.Combine(outdir, "specs", p.Directory, Util.ConvertFileName(basename, "", ".txt"));
+
+                if (!File.Exists(specs))
+                    continue;
+
+
+
+                Bitmap image = new Bitmap(p.FullPath);
+    
+
                 //TODO: save and reload color templates functionality
                 ColorTemplate template = new ColorTemplate(image, palette);
 
-                //Read the recoloring description if available
-                String specs = Path.Combine(outdir, "specs", p.Directory, Util.ConvertFileName(basename,"",".txt"));
                 PaletteData data = new PaletteData();
                
-                if (File.Exists(specs))
+                String[] lines = File.ReadAllLines(specs);
+                int[] slotToColor = new int[template.NumSlots()];
+                Dictionary<int, int> groupToSlot = new Dictionary<int, int>();
+
+                int ngroups = 0;
+                for (int i = 0; i < slotToColor.Count(); i++)
                 {
-                    String[] lines = File.ReadAllLines(specs);
-                    int[] slotToColor = new int[template.NumSlots()];
-                    Dictionary<int, int> groupToSlot = new Dictionary<int, int>();
-
-                    int ngroups = 0;
-                    for (int i = 0; i < slotToColor.Count(); i++)
-                    {
-                        slotToColor[i] = i;
-                        if (template.PixelsInSlot(i) > 0)
-                            groupToSlot.Add(ngroups++, i);
-                    }
-
-
-                    //TODO: handle recoloring when # groups is less than number of original slots, because of quantization issues.
-                    //Right now, this is rather ugly..
-
-                    data.colors = new List<Color>();
-                    data.lab = new List<CIELAB>();
-                    for (int i = 0; i < slotToColor.Count(); i++)
-                    {
-                        data.colors.Add(new Color());
-                        data.lab.Add(new CIELAB());
-                    }
-
-                    int groupid = 0;
-                    foreach (String line in lines)
-                    {
-                        //rgb floats
-                        int[] fields = line.Split(new string[]{" "},StringSplitOptions.RemoveEmptyEntries).Select<String, int>(s=>((int)(Math.Round(double.Parse(s)*255)))).ToArray<int>();
-                        Color color = Color.FromArgb(fields[0], fields[1], fields[2]);
-                        data.colors[groupToSlot[groupid]] = color;
-                        data.lab[groupToSlot[groupid]] = Util.RGBtoLAB(color);
-                        groupid++;
-                    }
-
-                    Bitmap orig = template.DebugQuantization(); 
-                    PatternIO.SavePattern(orig, p, suboutdir, "_original");
-                    orig.Dispose();
-
-                    Bitmap result = template.SolidColor(data, slotToColor);
-                    PatternIO.SavePattern(result, p, suboutdir, "_recolored");
-                    result.Dispose();
+                    slotToColor[i] = i;
+                    if (template.PixelsInSlot(i) > 0)
+                        groupToSlot.Add(ngroups++, i);
                 }
+
+
+                //TODO: handle recoloring when # groups is less than number of original slots, because of quantization issues.
+                //Right now, this is rather ugly..
+
+                data.colors = new List<Color>();
+                data.lab = new List<CIELAB>();
+                for (int i = 0; i < slotToColor.Count(); i++)
+                {
+                    data.colors.Add(new Color());
+                    data.lab.Add(new CIELAB());
+                }
+
+                int groupid = 0;
+                foreach (String line in lines)
+                {
+                    //rgb floats
+                    int[] fields = line.Split(new string[]{" "},StringSplitOptions.RemoveEmptyEntries).Select<String, int>(s=>((int)(Math.Round(double.Parse(s)*255)))).ToArray<int>();
+                    Color color = Color.FromArgb(fields[0], fields[1], fields[2]);
+                    data.colors[groupToSlot[groupid]] = color;
+                    data.lab[groupToSlot[groupid]] = Util.RGBtoLAB(color);
+                    groupid++;
+                }
+
+                Bitmap orig = template.DebugQuantization(); 
+                PatternIO.SavePattern(orig, p, suboutdir, "_original");
+                orig.Dispose();
+
+                Bitmap result = template.SolidColor(data, slotToColor);
+                PatternIO.SavePattern(result, p, suboutdir, "_recolored");
+                result.Dispose();
+                
 
 
             }
@@ -282,10 +288,15 @@ namespace PatternColorizer
 
             foreach (PatternItem p in patterns)
             {
-
-                Bitmap image = new Bitmap(p.FullPath);
                 String basename = p.Name;
 
+                //Read the vis permutation description if available
+                String specs = Path.Combine(outdir, "vis", Util.ConvertFileName(basename, "", ".txt"));
+                if (!File.Exists(specs))
+                    continue;
+
+                Bitmap image = new Bitmap(p.FullPath);
+    
                 if (!palettes.ContainsKey(basename))
                     continue;
 
@@ -293,8 +304,6 @@ namespace PatternColorizer
 
                 ColorTemplate template = new ColorTemplate(image, palette);
 
-                //Read the vis permutation description if available
-                String specs = Path.Combine(outdir, "vis", Util.ConvertFileName(basename, "", ".txt"));
 
 
                 int[] slotToColor = new int[template.NumSlots()];
@@ -304,106 +313,104 @@ namespace PatternColorizer
                 Bitmap vis = null;
                 Graphics g = null;
 
-                if (File.Exists(specs))
-                {
-                    String[] lines = File.ReadAllLines(specs);
+                String[] lines = File.ReadAllLines(specs);
 
-                    PaletteData data = new PaletteData();
+                PaletteData data = new PaletteData();
                     
-                    //read the score and if it's the original or not
-                    double score = 0;
-                    bool orig = false;
+                //read the score and if it's the original or not
+                double score = 0;
+                bool orig = false;
 
-                    int nresult = 0;
-                    int y = 0;
-                    int x = 0;
-                    int ncol = 10;
-                    int iwidth = 100;
-                    int iheight = 100;
-                    int padding = 15;
-                    Font font = new Font("Arial", 8);
+                int nresult = 0;
+                int y = 0;
+                int x = 0;
+                int ncol = 10;
+                int iwidth = 100;
+                int iheight = 100;
+                int padding = 15;
+                Font font = new Font("Arial", 8);
 
-                    foreach (String line in lines)
+                foreach (String line in lines)
+                {
+                    if (line.StartsWith("Count"))
                     {
-                        if (line.StartsWith("Count"))
+                        int count = Int32.Parse(line.Split(' ').Last());
+
+                        //initialize the result image
+                        int nrow = count / ncol + 1;
+                        vis = new Bitmap(ncol*iwidth, nrow*iheight);
+                        g = Graphics.FromImage(vis);
+
+                    } else if (line.StartsWith("Score"))
+                    {
+                        //add the result to the visualization
+                        x = (nresult % ncol)*iwidth;
+                        y = (nresult / ncol)*iheight;
+
+                        if (data.colors.Count() > 0)
                         {
-                            int count = Int32.Parse(line.Split(' ').Last());
+                            Bitmap result = template.SolidColor(data, slotToColor);
+                            g.DrawImage(result, x, y, iwidth-padding, iheight-padding);
 
-                            //initialize the result image
-                            int nrow = count / ncol + 1;
-                            vis = new Bitmap(ncol*iwidth, nrow*iheight);
-                            g = Graphics.FromImage(vis);
-
-                        } else if (line.StartsWith("Score"))
-                        {
-                            //add the result to the visualization
-                            x = (nresult % ncol)*iwidth;
-                            y = (nresult / ncol)*iheight;
-
-                            if (data.colors.Count() > 0)
+                            String label = String.Format("{0:0.00}", score);
+                            Color color = Color.Black;
+                            if (orig)
                             {
-                                Bitmap result = template.SolidColor(data, slotToColor);
-                                g.DrawImage(result, x, y, iwidth-padding, iheight-padding);
-
-                                String label = String.Format("{0:0.00}", score);
-                                Color color = Color.Black;
-                                if (orig)
-                                {
-                                    label += ", ***";
-                                    color = Color.Red;
-                                }
-                                g.DrawString(label, font, new SolidBrush(color), x, y + iheight-padding); 
-
-                                result.Dispose();
-
-                                data.colors.Clear();
-                                data.lab.Clear();
-
-                                nresult++;
+                                label += ", ***";
+                                color = Color.Red;
                             }
-                            score = Double.Parse(line.Split(' ')[1]);
-                            orig = Boolean.Parse(line.Split(' ')[2]);
-                        }
-                        else
-                        {
-                            //rgb floats
-                            int[] fields = line.Split(new string[] { " " }, StringSplitOptions.RemoveEmptyEntries).Select<String, int>(s => ((int)(Math.Round(double.Parse(s) * 255)))).ToArray<int>();
-                            Color color = Color.FromArgb(fields[0], fields[1], fields[2]);
-                            data.colors.Add(color);
-                            data.lab.Add(Util.RGBtoLAB(color));
-                        }
-                    }
+                            g.DrawString(label, font, new SolidBrush(color), x, y + iheight-padding); 
 
-                    //save the last image
-                    if (data.colors.Count() > 0)
+                            result.Dispose();
+
+                            data.colors.Clear();
+                            data.lab.Clear();
+
+                            nresult++;
+                        }
+                        score = Double.Parse(line.Split(' ')[1]);
+                        orig = Boolean.Parse(line.Split(' ')[2]);
+                    }
+                    else
                     {
-                        x = (nresult % ncol) * iwidth;
-                        y = (nresult / ncol) * iheight;
+                        //rgb floats
+                        int[] fields = line.Split(new string[] { " " }, StringSplitOptions.RemoveEmptyEntries).Select<String, int>(s => ((int)(Math.Round(double.Parse(s) * 255)))).ToArray<int>();
+                        Color color = Color.FromArgb(fields[0], fields[1], fields[2]);
+                        data.colors.Add(color);
+                        data.lab.Add(Util.RGBtoLAB(color));
+                    }
+                }
 
-                        Bitmap result = template.SolidColor(data, slotToColor);
-                        g.DrawImage(result, x, y, iwidth - padding, iheight - padding);
-                        Color color = Color.Black;
+                //save the last image
+                if (data.colors.Count() > 0)
+                {
+                    x = (nresult % ncol) * iwidth;
+                    y = (nresult / ncol) * iheight;
 
-                        String label = String.Format("{0:0.00}", score);
-                        if (orig)
-                        {
-                            label += ", ***";
-                            color = Color.Red;
-                        }
+                    Bitmap result = template.SolidColor(data, slotToColor);
+                    g.DrawImage(result, x, y, iwidth - padding, iheight - padding);
+                    Color color = Color.Black;
 
-                        g.DrawString(label, font, new SolidBrush(color), x, y + iheight - padding);
-
-                        result.Dispose();
-
-                        data.colors.Clear();
-                        data.lab.Clear();
-
-                        nresult++;
+                    String label = String.Format("{0:0.00}", score);
+                    if (orig)
+                    {
+                        label += ", ***";
+                        color = Color.Red;
                     }
 
-                    PatternIO.SavePattern(vis, p, Path.Combine(outdir, "viscolor"));
-                    vis.Dispose();
+                    g.DrawString(label, font, new SolidBrush(color), x, y + iheight - padding);
+
+                    result.Dispose();
+
+                    data.colors.Clear();
+                    data.lab.Clear();
+
+                    nresult++;
                 }
+
+                PatternIO.SavePattern(vis, p, Path.Combine(outdir, "viscolor"));
+                vis.Dispose();
+                
 
 
             }

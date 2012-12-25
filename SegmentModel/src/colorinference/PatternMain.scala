@@ -59,6 +59,7 @@ object PatternMain {
       {
           type VariableType = DiscreteColorVariable
           val colorVarParams = DiscreteColorVariableParams
+          regression = HistogramRegressor.LogisticRegression
       }
 
     for (p <- patterns)
@@ -91,7 +92,7 @@ object PatternMain {
     println("Training on " + trainingMeshes.length + " meshes")
     val model = ModelTraining(trainingMeshes, params)
 
-    val (totalScore, randomScore) = testingMeshes.foldLeft[(Double,Double)]((0.0,0.0))((curSum, mesh) =>
+    /*val (totalScore, randomScore) = testingMeshes.foldLeft[(Double,Double)]((0.0,0.0))((curSum, mesh) =>
     {
       val (score, rscore) = TestModel(mesh, model)
       (curSum._1+score, curSum._2+rscore)
@@ -99,10 +100,10 @@ object PatternMain {
 
     //higher score is better
     println("Average score " + totalScore/testingMeshes.length)
-    println("Average random score " + randomScore/testingMeshes.length)
+    println("Average random score " + randomScore/testingMeshes.length)*/
 
 
-    OutputVisualizations(pids, model, "histtest.txt")
+    OutputVisualizations(pids, model, "allhist.txt")
 
   }
 
