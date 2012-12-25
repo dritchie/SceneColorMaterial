@@ -218,12 +218,13 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
     protected def computeStatistics(color:Color, datum:Datum) : Tensor1  =
     {
         val props = colorPropExtractor(color)
-        val density = datum.hist.evaluateAt(props)
-        var logDensity = MathUtils.safeLog(density)
+        var density = datum.hist.evaluateAt(props)
+        density = MathUtils.safeLog(density)
+
         // Weight by relative size so that groups with tons of little segments don't get
         // unfairly emphasized
-        logDensity *= datum.seg.size
-        Tensor1(logDensity)
+        density *= datum.seg.size
+        Tensor1(density)
     }
 
     def unroll1(v1:ColorVar) =
@@ -331,12 +332,13 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
     protected def computeStatistics(color1:Color, color2:Color, datum:Datum) : Tensor1  =
     {
         val props = colorPropExtractor(color1, color2)
-        val density = datum.hist.evaluateAt(props)
-        var logDensity = MathUtils.safeLog(density)
+        var density = datum.hist.evaluateAt(props)
+        density = MathUtils.safeLog(density)
+
         // Again, weight by size. This formula should make the total weight sum to 1
         val sizew  = (datum.seg1.size / datum.seg1.adjacencies.size) + (datum.seg2.size / datum.seg2.adjacencies.size)
-        logDensity *= sizew
-        Tensor1(logDensity)
+        density *= sizew
+        Tensor1(density)
     }
 
     def unroll1(v1:ColorVar) =
@@ -448,10 +450,10 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
     protected def computeStatistics(color:Color, datum:Datum) : Tensor1  =
     {
         val props = colorPropExtractor(color)
-        val density = datum.hist.evaluateAt(props)
-        val logDensity = MathUtils.safeLog(density)
+        var density = datum.hist.evaluateAt(props)
+        density = MathUtils.safeLog(density)
         // TODO: Some form of size weighting? I don't think it's needed...
-        Tensor1(logDensity)
+        Tensor1(density)
     }
 
     def unroll1(v1:ColorVar) =
@@ -667,6 +669,7 @@ class ColorCompatibilityFamily extends DotFamilyN[ContinuousColorVariable]
         val rating = retval(0).asInstanceOf[Array[Double]](0)
         val normalizedRating = rating / 5.0
         Tensor1(MathUtils.safeLog(normalizedRating))
+        //Tensor1(normalizedRating)
     }
 
     override def statistics(values:Seq[ContinuousColorVariable#Value]): Tensor =

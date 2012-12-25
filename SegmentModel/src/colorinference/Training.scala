@@ -41,14 +41,11 @@ abstract class ModelTrainingParams
     }
     var trainerType = TrainerType.ContrastiveDivergence
 
-    var numTrainingIterationsOverSet = 5
-    var numTrainingIterationsPerMesh = 1
-
-    var randomizeInitialWeights = false
-    var normalizeWeights = false
+    var numWeightTuningIterations = 10
 
     // MH Sampling / Contrastive divergence params
-    var cdK = 3
+    var cdK = 1
+    var initialLearningRate = 1.0
     var minRadius:Double = 0.01
     var maxRadius:Double = 0.33
     var minSwapProb:Double = 0.05
@@ -254,11 +251,11 @@ class ModelTraining(val params:ModelTrainingParams)
         params.trainerType match
         {
             case params.TrainerType.SampleRank =>
-                TuneWeightsSampleRank(model, trainingMeshes, params.numTrainingIterationsOverSet, params.numTrainingIterationsPerMesh)
+                TuneWeightsSampleRank(model, trainingMeshes, params.numWeightTuningIterations)
             case params.TrainerType.MaximumLikelihood if params.colorVarParams.supportsMaxLikelihood =>
-                TuneWeightsMaxLikelihood(model, trainingMeshes, params.numTrainingIterationsOverSet)
+                TuneWeightsMaxLikelihood(model, trainingMeshes, params.numWeightTuningIterations)
             case params.TrainerType.ContrastiveDivergence =>
-                TuneWeightsContrastiveDivergence(model, trainingMeshes, params.numTrainingIterationsOverSet, params.numTrainingIterationsPerMesh, params.cdK)
+                TuneWeightsContrastiveDivergence(model, trainingMeshes, params.numWeightTuningIterations, params.cdK)
             case _ => throw new Error("No valid trainer type!")
         }
 
@@ -274,7 +271,7 @@ class ModelTraining(val params:ModelTrainingParams)
     }
 
 
-    def TuneWeightsSampleRank(model:ColorInferenceModel, trainingMeshes:IndexedSeq[SegmentMesh], outerIterations:Int, innerIterations:Int)
+    def TuneWeightsSampleRank(model:ColorInferenceModel, trainingMeshes:IndexedSeq[SegmentMesh], iterations:Int)
     {
       //TODO: For sample rank, may need to add more constraints. i.e. constraining the original color of one (or more) of the color groups
 
@@ -286,7 +283,7 @@ class ModelTraining(val params:ModelTrainingParams)
 //      objective.conditionOnAll(trainingMeshes)
 
       var prevWeights = model.trainableWeights
-      for (i <- 0 until outerIterations)
+      for (i <- 0 until iterations)
       {
         var avgAccuracy = 0.0
         for (mesh <- trainingMeshes)
@@ -300,8 +297,7 @@ class ModelTraining(val params:ModelTrainingParams)
           //process the variables and learn the weights
           val vars = mesh.groups.map(g => g.color.asInstanceOf[params.VariableType])
 
-          // TODO: Make this inner iteration count configurable
-          trainer.process(vars, innerIterations)
+          trainer.process(vars, 1)
 
           //print the accuracy
           //println("Iteration "+i+" Training Accuracy: " + objective.accuracy(vars))
@@ -363,41 +359,33 @@ class ModelTraining(val params:ModelTrainingParams)
 
     }
 
-    def TuneWeightsContrastiveDivergence(model:ColorInferenceModel, trainingMeshes:IndexedSeq[SegmentMesh], setIterations:Int, meshIterations:Int, cdK:Int)
+    def TuneWeightsContrastiveDivergence(model:ColorInferenceModel, trainingMeshes:IndexedSeq[SegmentMesh], iterations:Int, cdK:Int)
     {
         println("Tuning weights by Contrastive Divergence...")
-
-        if (params.randomizeInitialWeights)
-            model.randomizeWeights()
-
-        if (params.normalizeWeights)
-            model.normalizeWeights()
 
         val trainer = params.colorVarParams.newTrainingSampler(model, params)
         //model.conditionOnAll(trainingMeshes)
         var prevWeights = model.trainableWeights
 
-        // Initial average likelihood
-        var initLL = 0.0
-        for (mesh <- trainingMeshes)
-        {
-            params.colorVarParams.initDomain(mesh)
-            model.conditionOn(mesh)
-            mesh.setVariableValuesToObserved()
-            initLL += model.currentScore(mesh.variablesAs[params.VariableType])
-        }
-        initLL /= trainingMeshes.length
-        println("Initial avg. likelihood: " + initLL)
+//        // Initial average likelihood
+//        var initLL = 0.0
+//        for (mesh <- trainingMeshes)
+//        {
+//            params.colorVarParams.initDomain(mesh)
+//            model.conditionOn(mesh)
+//            mesh.setVariableValuesToObserved()
+//            initLL += (model.currentScore(mesh.variablesAs[params.VariableType]) - ExhaustiveInference.logZAllPermutations(mesh, model))
+//        }
+//        println("Initial Log likelihood: " + initLL)
 
         // Iterate over the whole training set multiple times
-        for (i <- 0 until setIterations)
+        for (i <- 0 until iterations)
         {
             // Lower the learning rate as the iterations go on.
-            val t = i/(setIterations.toDouble)
-            trainer.learningRate = 1-t
-            //trainer.learningRate = 0.01
+            val t = i/(iterations.toDouble)
+            trainer.learningRate = (1-t)*params.initialLearningRate
 
-            println("Outer iteration %d/%d".format(i+1, setIterations))
+            println("Iteration %d/%d".format(i+1, iterations))
             for (m <- 0 until trainingMeshes.length)
             {
                 val mesh = trainingMeshes(m)
@@ -407,43 +395,38 @@ class ModelTraining(val params:ModelTrainingParams)
 
                 model.conditionOn(mesh)
 
-                // Iterate over this mesh
-                for (j <- 0 until meshIterations)
-                {
-                    println("Inner iteration %d/%d".format(j+1, meshIterations))
-                    trainer.reset()
-                    // Set the initial state of the mesh's color variables to be the observed colors
-                    mesh.setVariableValuesToObserved()
-                    // Run the MCMC sampling chain for k steps, which will invoke the CD parameter update
-                    trainer.process(mesh.variablesAs[params.VariableType], cdK)
-                }
-
-//                if (params.normalizeWeights)
-//                    model.normalizeWeights()
-            }
-
-            if (params.normalizeWeights)
-                model.normalizeWeights()
-
-            var avgLikelihood = 0.0     // Likelihoods aren't strictly comparable across meshes, but whatevs--this is just for printf reporting
-            for (mesh <- trainingMeshes)
-            {
-                params.colorVarParams.initDomain(mesh)
-                model.conditionOn(mesh)
+                trainer.reset()
+                // Set the initial state of the mesh's color variables to be the observed colors
                 mesh.setVariableValuesToObserved()
-                avgLikelihood += model.currentScore(mesh.variablesAs[params.VariableType])
+                // Run the MCMC sampling chain for k steps, which will invoke the CD parameter update
+                trainer.process(mesh.variablesAs[params.VariableType], cdK)
             }
-            avgLikelihood /= trainingMeshes.length
 
-            // Report!
+//            var ll = 0.0
+//            for (mesh <- trainingMeshes)
+//            {
+//                params.colorVarParams.initDomain(mesh)
+//                model.conditionOn(mesh)
+//                mesh.setVariableValuesToObserved()
+//                ll += (model.currentScore(mesh.variablesAs[params.VariableType]) - ExhaustiveInference.logZAllPermutations(mesh, model))
+//            }
+//            println("Iteration "+(i+1)+" Log Likelihood " + ll)
+
             val curWeights = model.trainableWeights
             println("\nWeights delta: " + (curWeights-prevWeights).twoNorm)
             prevWeights = curWeights
-            println("Outer Iteration "+(i+1)+" Avg. Likelihood " + avgLikelihood)
         }
+
+//        var finalLL = 0.0
+//        for (mesh <- trainingMeshes)
+//        {
+//            params.colorVarParams.initDomain(mesh)
+//            model.conditionOn(mesh)
+//            mesh.setVariableValuesToObserved()
+//            finalLL += (model.currentScore(mesh.variablesAs[params.VariableType]) - ExhaustiveInference.logZAllPermutations(mesh, model))
+//        }
+//        println("Final Log Likelihood " + finalLL)
     }
-
-
 }
 
 

@@ -27,9 +27,7 @@ object WeightLearningTest
             type VariableType = DiscreteColorVariable
             val colorVarParams = DiscreteColorVariableParams
 
-            cdK = 5
-            randomizeInitialWeights = true
-            normalizeWeights = true
+//            initialLearningRate = 0.5
         }
 
         val meshes = for (f <- files) yield new SegmentMesh(params.colorVarParams.variableGenerator, f.getAbsolutePath)
