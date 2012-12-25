@@ -129,9 +129,9 @@ namespace PatternColorizer
                     }
 
                     //ignore missing palette data
-                    if (!plist.ContainsKey(key) && data.colors.Count()>0)
+                    if (!plist.ContainsKey(key) && colors.Count()>0)
                         plist.Add(key, data);
-                    else
+                    else if (plist.ContainsKey(key))
                         throw new IOException("More than one palette per key");
 
                 }
