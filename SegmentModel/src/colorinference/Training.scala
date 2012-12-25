@@ -295,6 +295,9 @@ class ModelTraining(val params:ModelTrainingParams)
           model.conditionOn(mesh)
           objective.conditionOn(mesh)
 
+          // Set the initial state of the mesh's color variables to be the observed colors
+          mesh.setVariableValuesToObserved()
+
           //process the variables and learn the weights
           val vars = mesh.groups.map(g => g.color.asInstanceOf[params.VariableType])
 
