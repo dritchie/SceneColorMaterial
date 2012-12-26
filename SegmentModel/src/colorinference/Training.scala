@@ -249,7 +249,7 @@ class ModelTraining(val params:ModelTrainingParams)
 
         /** Train weights of the model **/
         println("Learning Weights...")
-        /*params.trainerType match
+        params.trainerType match
         {
             case params.TrainerType.SampleRank =>
                 TuneWeightsSampleRank(model, trainingMeshes, params.numWeightTuningIterations)
@@ -258,7 +258,7 @@ class ModelTraining(val params:ModelTrainingParams)
             case params.TrainerType.ContrastiveDivergence =>
                 TuneWeightsContrastiveDivergence(model, trainingMeshes, params.numWeightTuningIterations, params.cdK)
             case _ => throw new Error("No valid trainer type!")
-        } */
+        }
 
         // print the weights
         println("Weights:")

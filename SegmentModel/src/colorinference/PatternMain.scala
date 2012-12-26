@@ -62,8 +62,8 @@ object PatternMain {
           includeUnaryTerms = true
           //trainerType = TrainerType.SampleRank
 
-          regression = HistogramRegressor.KNN
-          //regression = HistogramRegressor.LogisticRegression
+          //regression = HistogramRegressor.KNN
+          regression = HistogramRegressor.LogisticRegression
       }
 
     for (p <- patterns)
@@ -107,10 +107,10 @@ object PatternMain {
     println("Average random score " + randomScore/testingMeshes.length)*/
 
 
-    OutputVisualizations(pids, model,"knn")
+    //OutputVisualizations(pids, model,"knn")
 
 
-    //OutputVisualizations(pids, model, "allhist.txt")
+    OutputVisualizations(pids, model, "allhist.txt")
 
   }
 
@@ -217,7 +217,7 @@ object PatternMain {
             val fn = {if (s.featureNames != null) s.featureNames(f) else "noname"}
             val bn = s.classes(b)
 
-            out.write(s.ttype+","+s.propname+","+bn+","+fn+","+coeff(f)(b)+"\n")
+            out.write(s.ttype+","+s.propname+","+bn.mkString("-")+","+fn+","+coeff(f)(b)+"\n")
         }
       }
     }
