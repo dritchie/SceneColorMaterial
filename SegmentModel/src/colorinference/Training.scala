@@ -22,7 +22,7 @@ abstract class ModelTrainingParams
     var regression:RegressionFunction = HistogramRegressor.LogisticRegression
 
     //include the segment factors?
-    var includeUnaryTerms = false
+    var includeUnaryTerms = true
 
     // This is only possible if we're doing continuous variables, though
     var includeColorCompatibilityTerm = false
@@ -191,7 +191,7 @@ class ModelTraining(val params:ModelTrainingParams)
             for (seg <- mesh.segments)
             {
                 val fvec = Segment.getUnaryRegressionFeatures(seg)
-                for (prop <- unarySegProps) { prop.examples += HistogramRegressor.RegressionExample(prop.extractor(seg.group.color.observedColor), fvec, unaryWeight) }
+                for (prop <- unarySegProps) { prop.examples += HistogramRegressor.RegressionExample(prop.extractor(seg.group.color.observedColor), fvec._1, fvec._2, unaryWeight) }
             }
 
             var checkAdj = 0
@@ -205,7 +205,7 @@ class ModelTraining(val params:ModelTrainingParams)
             {
                 val seg2 = adj.neighbor
                 val fvec = Segment.getBinaryRegressionFeatures(seg1, adj)
-                for (prop <- binarySegProps) { prop.examples += HistogramRegressor.RegressionExample(prop.extractor(seg1.group.color.observedColor,seg2.group.color.observedColor), fvec, binaryWeight) }
+                for (prop <- binarySegProps) { prop.examples += HistogramRegressor.RegressionExample(prop.extractor(seg1.group.color.observedColor,seg2.group.color.observedColor), fvec._1, fvec._2, binaryWeight) }
             }
 
             // Group properties
@@ -213,7 +213,7 @@ class ModelTraining(val params:ModelTrainingParams)
             for (group <- mesh.groups)
             {
                 val fvec = SegmentGroup.getRegressionFeatures(group)
-                for (prop <- groupProps) { prop.examples += HistogramRegressor.RegressionExample(prop.extractor(group.color.observedColor), fvec)}
+                for (prop <- groupProps) { prop.examples += HistogramRegressor.RegressionExample(prop.extractor(group.color.observedColor), fvec._1, fvec._2)}
             }
         }
 
@@ -249,7 +249,7 @@ class ModelTraining(val params:ModelTrainingParams)
 
         /** Train weights of the model **/
         println("Learning Weights...")
-        params.trainerType match
+        /*params.trainerType match
         {
             case params.TrainerType.SampleRank =>
                 TuneWeightsSampleRank(model, trainingMeshes, params.numWeightTuningIterations)
@@ -258,7 +258,7 @@ class ModelTraining(val params:ModelTrainingParams)
             case params.TrainerType.ContrastiveDivergence =>
                 TuneWeightsContrastiveDivergence(model, trainingMeshes, params.numWeightTuningIterations, params.cdK)
             case _ => throw new Error("No valid trainer type!")
-        }
+        } */
 
         // print the weights
         println("Weights:")

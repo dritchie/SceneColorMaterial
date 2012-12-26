@@ -68,6 +68,15 @@ namespace PatternColorizer
             Directory.CreateDirectory(outPath);
             mesh.WriteToFile(Path.Combine(outPath, Util.ConvertFileName(info.Name, "", ".txt")));
         }
+
+        //get a file name and create the needed directories
+        public static String GetAndEnsureFilename(PatternItem info, String outDir, String extension, String label="")
+        {
+            Directory.CreateDirectory(outDir);
+            String outPath = Path.Combine(outDir, info.Directory);
+            String filename = Path.Combine(outPath, Util.ConvertFileName(info.Name, label, extension));
+            return filename;
+        }
     }
 
 

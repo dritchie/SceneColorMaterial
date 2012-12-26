@@ -59,8 +59,11 @@ object PatternMain {
       {
           type VariableType = DiscreteColorVariable
           val colorVarParams = DiscreteColorVariableParams
-          regression = HistogramRegressor.LogisticRegression
+          includeUnaryTerms = true
           //trainerType = TrainerType.SampleRank
+
+          regression = HistogramRegressor.KNN
+          //regression = HistogramRegressor.LogisticRegression
       }
 
     for (p <- patterns)
@@ -104,7 +107,10 @@ object PatternMain {
     println("Average random score " + randomScore/testingMeshes.length)*/
 
 
-    OutputVisualizations(pids, model, "allhist.txt")
+    OutputVisualizations(pids, model,"knn")
+
+
+    //OutputVisualizations(pids, model, "allhist.txt")
 
   }
 
@@ -153,7 +159,7 @@ object PatternMain {
   }
 
   /** Visualization output methods **/
-  def OutputVisualizations(pids:Array[Int], model:ColorInferenceModel, histfilename:String)
+  def OutputVisualizations(pids:Array[Int], model:ColorInferenceModel, label:String)
   {
       // TODO: This isn't possible anymore, given the new treatment of ModelTrainingParams.
       // TODO: Actually, I don't think this *ever* had any effect. The histogram regressors have already
@@ -161,7 +167,8 @@ object PatternMain {
 //    //change the regression type
 //    ModelParams.regression = regression
 
-    val hallfilename = histDir + "/"+ histfilename
+    val hallfilename = histDir + "/allhist"+ label+".txt"
+    val cfilename = histDir + "/coeff"+label+".txt"
     val file = new File(hallfilename)
     file.delete()
 
@@ -180,14 +187,46 @@ object PatternMain {
 
       val patternId = patterns(idx).name.replace(".txt","").toInt
 
-      OutputHistograms(meshes(idx), model, hallfilename, patternId, true, count==0)
+      OutputHistograms(model, hallfilename, patternId, true, count==0)
       OutputAllPermutations(meshes(idx), model, palette, vfilename)
       count+=1
 
     }
+
+    //coefficients are shared across all test patterns
+    OutputCoefficients(model, cfilename)
+  }
+  def OutputCoefficients(model:ColorInferenceModel, filename:String)
+  {
+     //output the coefficients of the regression if applicable
+    val out = new FileWriter(filename)
+    val summary = model.summary
+    out.write("\"factortype\",\"property\",\"bin\",\"feature\",\"coefficient\"\n")
+    for (s<- summary.coefficients)
+    {
+      //output the factortype, property name, bin, feature, and coefficient
+      val coeff = s.coefficients
+      val numFeatures = coeff.length
+
+      if (coeff.length>0)
+      {
+        val numBins = coeff(0).length
+
+        for (b <- 0 until numBins; f <- 0 until numFeatures)
+        {
+            val fn = {if (s.featureNames != null) s.featureNames(f) else "noname"}
+            val bn = s.classes(b)
+
+            out.write(s.ttype+","+s.propname+","+bn+","+fn+","+coeff(f)(b)+"\n")
+        }
+      }
+    }
+
+    out.close()
   }
 
-  def OutputHistograms(mesh:SegmentMesh, model:ColorInferenceModel, filename:String, patternId:Int, append:Boolean, headers:Boolean)
+
+  def OutputHistograms(model:ColorInferenceModel, filename:String, patternId:Int, append:Boolean, headers:Boolean)
   {
     //output the histograms in a csv format
     //TODO: output group marginals
@@ -199,7 +238,7 @@ object PatternMain {
 
     val summary = model.summary
 
-    for (s <- summary)
+    for (s <- summary.histograms)
     {
       val name = s.ttype
       val prop = s.propname

@@ -39,10 +39,11 @@ class Segment(val index:Int, val owner:SegmentMesh)
 object Segment
 {
 
-    def getUnaryRegressionFeatures(seg:Segment) : Tensor1 =
+    def getUnaryRegressionFeatures(seg:Segment) : (Tensor1, Array[String]) =
     {
         val blockList = Set("HuMoments","RelativeCentroid")
         val featureList = seg.features.filterKeys(name => !blockList.contains(name)).values
+        val featureNames = seg.features.filterKeys(name=> !blockList.contains(name)).keys
 
         //check for Nans
         for (f<-featureList; i<-f)
@@ -50,31 +51,43 @@ object Segment
           assert(i == i, "Segment: getUnaryRegressionFeatures: NaNs detected!")
         }
 
-        MathUtils.concatVectors(featureList)
+        val repeatFeatureNames = new ArrayBuffer[String]
+        for (k<-featureNames; i<-seg.features(k))
+        {
+           repeatFeatureNames += k
+        }
+
+        (MathUtils.concatVectors(featureList), repeatFeatureNames.toArray)
     }
 
-    def getBinaryRegressionFeatures(seg1:Segment, adj:SegmentAdjacency) : Tensor1 =
+    def getBinaryRegressionFeatures(seg1:Segment, adj:SegmentAdjacency) : (Tensor1, Array[String]) =
     {
         val seg2 = adj.neighbor
 
+        val f1 = getUnaryRegressionFeatures(seg1)
+        val f2 = getUnaryRegressionFeatures(seg2)
 
-        //ad the enclosure strength as a feature
-        val fvec1 = MathUtils.concatVectors(getUnaryRegressionFeatures(seg1), Tensor1(adj.originEnclosure))
-        val fvec2 = MathUtils.concatVectors(getUnaryRegressionFeatures(seg2), Tensor1(adj.neighborEnclosure))
+        //add the enclosure strength as a feature
+        val fvec1 = MathUtils.concatVectors(f1._1, Tensor1(adj.originEnclosure))
+        val fvec2 = MathUtils.concatVectors(f2._1, Tensor1(adj.neighborEnclosure))
+
+        //modify the feature names
+        val fnames1 = Array.concat(f1._2 , Array("enclosure"))
+        val fnames2 = Array.concat(f2._2, Array("enclosure"))
 
         // Sort by distance from the origin in feature space
       //TODO: maybe we want to sort by something more meaningful, like relative size?
         if (fvec1.twoNormSquared < fvec2.twoNormSquared)
-            MathUtils.concatVectors(Array(fvec1, fvec2))
+            (MathUtils.concatVectors(Array(fvec1, fvec2)),Array.concat(fnames1, fnames2))
         else
-            MathUtils.concatVectors(Array(fvec2, fvec1))
+            (MathUtils.concatVectors(Array(fvec2, fvec1)), Array.concat(fnames2, fnames1))
 
     }
 
     def orderSegmentsByFeatures(seg1:Segment, seg2:Segment): (Segment, Segment) =
     {
-        val fvec1 = getUnaryRegressionFeatures(seg1)
-        val fvec2 = getUnaryRegressionFeatures(seg2)
+        val fvec1 = getUnaryRegressionFeatures(seg1)._1
+        val fvec2 = getUnaryRegressionFeatures(seg2)._1
 
         // Sort by distance from the origin in feature space
         if (fvec1.twoNormSquared < fvec2.twoNormSquared)
@@ -102,10 +115,11 @@ class SegmentGroup(val index:Int, val owner:SegmentMesh)
 }
 object SegmentGroup
 {
-    def getRegressionFeatures(seg:SegmentGroup) : Tensor1 =
+    def getRegressionFeatures(seg:SegmentGroup) : (Tensor1, Array[String]) =
     {
         val blockList = Set[String]()
         val featureList = seg.features.filterKeys(name => !blockList.contains(name)).values
+        val featureNames = seg.features.filterKeys(name=> !blockList.contains(name)).keys
 
         //check for Nans
         for (f<-featureList; i<-f)
@@ -113,7 +127,13 @@ object SegmentGroup
           assert(i == i, "SegmentGroup: getRegressionFeatures: NaNs detected!")
         }
 
-        MathUtils.concatVectors(featureList)
+        val repeatFeatureNames = new ArrayBuffer[String]
+        for (k<-featureNames; i<-seg.features(k))
+        {
+          repeatFeatureNames += k
+        }
+
+        (MathUtils.concatVectors(featureList), repeatFeatureNames.toArray)
     }
 }
 

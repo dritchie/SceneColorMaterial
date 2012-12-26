@@ -44,9 +44,22 @@ object ColorInferenceModel
     // VectorHistogram-based components must implement this trait so
     // that we can spit out & analyze their contents
     class SummaryItem(val ttype:String, val propname:String, val ids:Array[String], val hist:VectorHistogram)
+    class CoefficientsItem(val ttype:String, val propname:String, val classes:Seq[Tensor1], val featureNames:Seq[String], val coefficients:Array[Array[Double]])
+    class Summary
+    {
+      var histograms:mutable.IndexedSeq[SummaryItem] = new ArrayBuffer[SummaryItem]
+      var coefficients:mutable.IndexedSeq[CoefficientsItem] = new ArrayBuffer[CoefficientsItem]
+
+      def ++= (other:Summary)
+      {
+        histograms ++= other.histograms
+        coefficients ++= other.coefficients
+      }
+
+    }
     trait Summarizable
     {
-        def summary:IndexedSeq[SummaryItem]
+        def summary:Summary
     }
 }
 
@@ -88,9 +101,9 @@ class CombinedColorInferenceModel(theSubModels:Model*) extends CombinedModel(the
             c.conditionOn(mesh)
     }
 
-    def summary:IndexedSeq[SummaryItem] =
+    def summary:Summary =
     {
-        var summary = new ArrayBuffer[SummaryItem]
+        var summary = new Summary
         for (s <- this.subModels.collect{case s:Summarizable => s})
             summary ++= s.summary
         summary
@@ -114,9 +127,9 @@ class TemplateColorInferenceModel(theSubModels:ModelAsTemplate*) extends Templat
             c.conditionOn(mesh)
     }
 
-    def summary:IndexedSeq[SummaryItem] =
+    def summary:Summary =
     {
-        var summary = new ArrayBuffer[SummaryItem]
+        var summary = new Summary
         for (s <- this.templates.collect{case s:Summarizable => s})
             summary ++= s.summary
         summary
@@ -150,9 +163,9 @@ class ItemizedColorInferenceModel(initialFactors:Factor*) extends ItemizedModel(
             c.conditionOn(mesh)
     }
 
-    def summary:IndexedSeq[SummaryItem] =
+    def summary:Summary =
     {
-        var summary = new ArrayBuffer[SummaryItem]
+        var summary = new Summary//new ArrayBuffer[SummaryItem]
         for (s <- this.factors.collect{case s:Summarizable => s})
             summary ++= s.summary
         for (s <- this.families.collect{case s:Summarizable => s})
@@ -187,7 +200,7 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
       data.clear()
       for (mesh<-meshes; seg <- mesh.segments)
       {
-        val f = Segment.getUnaryRegressionFeatures(seg)
+        val f = Segment.getUnaryRegressionFeatures(seg)._1
         data(seg) = new DatumVariable(Datum(seg, regressor.predictHistogram(f)))
       }
     }
@@ -198,15 +211,19 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
         data.clear()
         for (seg <- mesh.segments)
         {
-            val f = Segment.getUnaryRegressionFeatures(seg)
+            val f = Segment.getUnaryRegressionFeatures(seg)._1
             data(seg) = new DatumVariable(Datum(seg, regressor.predictHistogram(f)))
         }
     }
 
-    def summary:IndexedSeq[SummaryItem] =
+    def summary:Summary =
     {
+      val s = new Summary
       val items = data.keys.map(s => new SummaryItem("unarysegment", propName, Array("s"+s.index), data(s).value.hist))
-      items.toArray[SummaryItem]
+      s.histograms = items.toArray[SummaryItem]
+
+      s.coefficients = Array(new CoefficientsItem("unarysegment", propName, regressor.getCentroids, regressor.getFeatureNames, regressor.getCoefficients))
+      s
     }
 
     protected def trainRegressor(property:ModelTraining#UnarySegmentProperty) : HistogramRegressor =
@@ -301,7 +318,7 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
       for (mesh<-meshes; seg1 <- mesh.segments; adj <- seg1.adjacencies if seg1.index < adj.neighbor.index)
       {
         val seg2 = adj.neighbor
-        val f = Segment.getBinaryRegressionFeatures(seg1, adj)
+        val f = Segment.getBinaryRegressionFeatures(seg1, adj)._1
         data((seg1, seg2)) = new DatumVariable(Datum(seg1, seg2, regressor.predictHistogram(f)))
       }
     }
@@ -312,15 +329,20 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
         for (seg1 <- mesh.segments; adj <- seg1.adjacencies if seg1.index < adj.neighbor.index)
         {
             val seg2 = adj.neighbor
-            val f = Segment.getBinaryRegressionFeatures(seg1, adj)
+            val f = Segment.getBinaryRegressionFeatures(seg1, adj)._1
             data((seg1, seg2)) = new DatumVariable(Datum(seg1, seg2, regressor.predictHistogram(f)))
         }
     }
 
-  def summary:IndexedSeq[SummaryItem] =
+  def summary:Summary =
   {
+    val s = new Summary
     val items = data.keys.map(s => new SummaryItem("binarysegment", propName, Array("s"+s._1.index, "s"+s._2.index), data(s).value.hist))
-    items.toArray[SummaryItem]
+    s.histograms = items.toArray[SummaryItem]
+
+    s.coefficients = Array(new CoefficientsItem("binarysegment", propName, regressor.getCentroids, regressor.getFeatureNames, regressor.getCoefficients))
+
+    s
   }
 
 
@@ -426,7 +448,7 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
       data.clear()
       for (mesh<-meshes; group <- mesh.groups)
       {
-        val f = SegmentGroup.getRegressionFeatures(group)
+        val f = SegmentGroup.getRegressionFeatures(group)._1
         data(group) = new DatumVariable(Datum(group, regressor.predictHistogram(f)))
       }
     }
@@ -437,15 +459,19 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
         data.clear()
         for (group <- mesh.groups)
         {
-            val f = SegmentGroup.getRegressionFeatures(group)
+            val f = SegmentGroup.getRegressionFeatures(group)._1
             data(group) = new DatumVariable(Datum(group, regressor.predictHistogram(f)))
         }
     }
 
-    def summary:IndexedSeq[SummaryItem] =
+    def summary:Summary =
     {
+      val s = new Summary
       val items = data.keys.map(g => new SummaryItem("unarygroup", propName, Array("g"+g.index), data(g).value.hist))
-      items.toArray[SummaryItem]
+      s.histograms = items.toArray[SummaryItem]
+
+      s.coefficients = Array(new CoefficientsItem("unarygroup", propName, regressor.getCentroids, regressor.getFeatureNames, regressor.getCoefficients))
+      s
     }
 
     protected def trainRegressor(property:ModelTraining#ColorGroupProperty) : HistogramRegressor =

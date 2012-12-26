@@ -15,10 +15,11 @@ import weka.classifiers.functions.supportVector.RBFKernel
 import weka.classifiers.functions.{SMO, Logistic}
 import weka.core._
 import neighboursearch.KDTree
+import colorinference.ColorInferenceModel.CoefficientsItem
 
 object HistogramRegressor
 {
-    case class RegressionExample(target:Tensor1, features:Tensor1, weight:Double=1) {}
+    case class RegressionExample(target:Tensor1, features:Tensor1, featureNames:Array[String]=null, weight:Double=1) {}
 
     def KNN(examples:Seq[HistogramRegressor.RegressionExample], metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer, generator:WekaHistogramRegressor) =
     {
@@ -63,9 +64,9 @@ object HistogramRegressor
 
 abstract class HistogramRegressor(examples:Seq[HistogramRegressor.RegressionExample], private val metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer)
 {
-    protected val centroids:IndexedSeq[Tensor1] = getCentroids(examples, quantizer)
+    protected val centroids:IndexedSeq[Tensor1] = computeCentroids(examples, quantizer)
 
-    private def getCentroids(examples:Seq[HistogramRegressor.RegressionExample], quantizer:VectorQuantizer) : IndexedSeq[Tensor1] =
+    private def computeCentroids(examples:Seq[HistogramRegressor.RegressionExample], quantizer:VectorQuantizer) : IndexedSeq[Tensor1] =
     {
         assert(examples.length > 0, {println("HistogramRegressor: cannot train with 0 training examples")})
         //println("Quantizing...")
@@ -94,6 +95,14 @@ abstract class HistogramRegressor(examples:Seq[HistogramRegressor.RegressionExam
         hist.setData(centroids, bins)
         hist
     }
+
+    def getCentroids:Seq[Tensor1] = centroids
+
+    //assume feature names for all examples is the same, plus the extra class feature
+    def getFeatureNames:Seq[String] = Array.concat(examples(0).featureNames, Array("class"))
+
+    def getCoefficients:Array[Array[Double]]
+
 }
 
 /*
@@ -124,6 +133,16 @@ class WekaMultiClassHistogramRegressor(private val classifier:Classifier, exampl
     dummyDataset.setClassIndex(attributePrototype.size - 1)
 
     train(examples)
+
+
+    def getCoefficients:Array[Array[Double]] =
+    {
+      //get coefficients if applicable , second dimension is classes/centroids, first dimension is features
+      classifier match {
+        case logistic:Logistic => logistic.coefficients()
+        case _ => {println("WekaMultiHistogramRegressor: getCoefficients hasn't been implemented for this classifier"); Array()} //otherwise, it doesn't apply...
+      }
+    }
 
     private def buildAttributePrototype(examples:Seq[HistogramRegressor.RegressionExample]) : FastVector =
     {
@@ -199,6 +218,9 @@ class WekaMultiClassHistogramRegressor(private val classifier:Classifier, exampl
         val distrib = classifier.distributionForInstance(instance)
         Array.copy(distrib, 0, bins, 0, bins.length)
     }
+
+
+
 }
 
 object WekaBinByBinHistogramRegressor extends WekaHistogramRegressor
@@ -294,4 +316,10 @@ class WekaBinByBinHistogramRegressor(classifier:Classifier, examples:Seq[Histogr
         for (b <- 0 until centroids.length)
             bins(b) = regressors(b).classifyInstance(instance)
     }
+
+    def getCoefficients:Array[Array[Double]] =
+    {
+      throw new Error("getCoefficients not implemented in WekaBinByBinHistogramRegressor yet")
+    }
+
 }
