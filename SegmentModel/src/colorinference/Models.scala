@@ -233,7 +233,7 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
     protected def colorPropExtractor:ColorPropertyExtractor
     protected val data = new Data
     def propName:String
-    def name = propName
+    def name = "Unary "+propName
 
     def conditionOnAll(meshes:Seq[SegmentMesh])
     {
@@ -350,7 +350,7 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
     import BinarySegmentTemplate._
 
     def propName:String
-    def name = propName
+    def name = "Binary " + propName
     protected def colorPropExtractor:ColorPropertyExtractor
     protected val data = new Data
 
@@ -483,7 +483,7 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
     import ColorGroupTemplate._
 
     def propName:String
-    def name = propName
+    def name = "Group " + propName
     protected def colorPropExtractor:ColorPropertyExtractor
     protected val data = new Data
 

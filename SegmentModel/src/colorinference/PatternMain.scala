@@ -64,6 +64,10 @@ object PatternMain {
 
           //regression = HistogramRegressor.KNN
           regression = HistogramRegressor.LogisticRegression
+                    saveRegressorsIfPossible = true
+                    saveWeightsIfPossible = true
+                    loadRegressorsIfPossible = true
+                    loadWeightsIfPossible = true
       }
 
     for (p <- patterns)
@@ -96,7 +100,7 @@ object PatternMain {
     println("Training on " + trainingMeshes.length + " meshes")
     val model = ModelTraining(trainingMeshes, params)
 
-    /*val (totalScore, randomScore) = testingMeshes.foldLeft[(Double,Double)]((0.0,0.0))((curSum, mesh) =>
+    val (totalScore, randomScore) = testingMeshes.foldLeft[(Double,Double)]((0.0,0.0))((curSum, mesh) =>
     {
       val (score, rscore) = TestModel(mesh, model)
       (curSum._1+score, curSum._2+rscore)
@@ -104,13 +108,13 @@ object PatternMain {
 
     //higher score is better
     println("Average score " + totalScore/testingMeshes.length)
-    println("Average random score " + randomScore/testingMeshes.length)*/
+    println("Average random score " + randomScore/testingMeshes.length)
 
 
     //OutputVisualizations(pids, model,"knn")
 
 
-    OutputVisualizations(pids, model, "allhist.txt")
+    //OutputVisualizations(pids, model, "")
 
   }
 
@@ -214,7 +218,7 @@ object PatternMain {
 
         for (b <- 0 until numBins; f <- 0 until numFeatures)
         {
-            val fn = {if (s.featureNames != null) s.featureNames(f) else "noname"}
+            val fn = {if (s.featureNames != null && f<s.featureNames.length) s.featureNames(f) else "noname"}
             val bn = s.classes(b)
 
             out.write(s.ttype+","+s.propname+","+bn.mkString("-")+","+fn+","+coeff(f)(b)+"\n")
