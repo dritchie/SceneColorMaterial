@@ -64,10 +64,10 @@ object PatternMain {
 
           //regression = HistogramRegressor.KNN
           regression = HistogramRegressor.LogisticRegression
-                    saveRegressorsIfPossible = true
-                    saveWeightsIfPossible = true
-                    loadRegressorsIfPossible = true
-                    loadWeightsIfPossible = true
+            saveRegressorsIfPossible = true
+            saveWeightsIfPossible = true
+            loadRegressorsIfPossible = true
+            loadWeightsIfPossible = true
       }
 
     for (p <- patterns)

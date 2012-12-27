@@ -18,27 +18,6 @@ import neighboursearch.KDTree
 import java.io.{FileNotFoundException, FileWriter}
 import io.Source
 
-// A subclass of weka's logistic regression that allows us to manually set the model parameters.
-// This lets us save/load models
-class LogisticWithSettableParams extends Logistic
-{
-    // The onus is on the caller to make sure that the dimensions of coeffs are correct
-    def setCoefficients(coeffs:Array[Array[Double]])
-    {
-        this.m_Par = coeffs
-    }
-
-    def setClassIndex(index:Int)
-    {
-        this.m_ClassIndex = index
-    }
-
-    def setNumPredictors(num:Int)
-    {
-        this.m_NumPredictors = num
-    }
-}
-
 object HistogramRegressor
 {
     case class RegressionExample(target:Tensor1, features:Tensor1, featureNames:Array[String]=null, weight:Double=1) {}
@@ -56,7 +35,7 @@ object HistogramRegressor
 
     def LogisticRegression(metric:MathUtils.DistanceMetric, generator:WekaHistogramRegressor) =
     {
-        val classifier = new LogisticWithSettableParams()
+        val classifier = new Logistic()
 
         generator(classifier, metric)
     }
@@ -178,7 +157,7 @@ object WekaMultiClassHistogramRegressor extends WekaHistogramRegressor
     def apply(classifier:Classifier, metric:MathUtils.DistanceMetric) = new WekaMultiClassHistogramRegressor(classifier, metric)
 }
 
-class WekaMultiClassHistogramRegressor(private val classifier:Classifier, metric:MathUtils.DistanceMetric)
+class WekaMultiClassHistogramRegressor(private var classifier:Classifier, metric:MathUtils.DistanceMetric)
     extends HistogramRegressor(metric)
 {
     private var attributePrototype:FastVector = null
@@ -186,18 +165,8 @@ class WekaMultiClassHistogramRegressor(private val classifier:Classifier, metric
 
     override def saveRegressor(fileBaseName:String)
     {
-        // Save logistic coefficients
-        val c = classifier.asInstanceOf[LogisticWithSettableParams]
-        val fw = new FileWriter(fileBaseName + ".coeffs")
-        for (i <- 0 until c.coefficients.length)
-        {
-            for (j <- 0 until c.coefficients()(i).length)
-            {
-                fw.write("%f ".format(c.coefficients()(i)(j)))
-            }
-            fw.write("\n")
-        }
-        fw.close()
+        // Save the classifier
+        weka.core.SerializationHelper.write(fileBaseName+".regressor", classifier)
     }
 
     override def loadRegressor(fileBaseName:String) : Boolean =
@@ -205,10 +174,9 @@ class WekaMultiClassHistogramRegressor(private val classifier:Classifier, metric
         print("Attempting to load regressor...")
         try
         {
-            // Load logistic coefficients
-            val coeffs = Source.fromFile(fileBaseName + ".coeffs").getLines().map(_.split(' ').map(_.toDouble)).toArray
-            classifier.asInstanceOf[LogisticWithSettableParams].setCoefficients(coeffs)
-        } catch { case e:FileNotFoundException => println("FAILED"); return false }
+            // Load classifier
+            classifier = weka.core.SerializationHelper.read(fileBaseName+".regressor").asInstanceOf[Classifier]
+        } catch { case e:Exception => println("FAILED"); return false }
         println("SUCCESS")
         true
     }
@@ -266,40 +234,29 @@ class WekaMultiClassHistogramRegressor(private val classifier:Classifier, metric
         dummyDataset = new Instances("dummySet", attributePrototype, 0)
         dummyDataset.setClassIndex(attributePrototype.size - 1)
 
-        // Associate training examples with their closest bin
-        val assignments = new Array[Int](examples.length)
-        for (i <- 0 until examples.length)
-            assignments(i) = MathUtils.closestVectorBruteForce(examples(i).target, centroids, metric)
-
-        // Init Weka training set
-        val trainingSet = new Instances("trainingSet", attributePrototype, examples.length)
-        // Don't forget to tell it where in the attribute vector the class is!
-        trainingSet.setClassIndex(attributePrototype.size - 1)
-
-        // Populate training set
-        // If we're loading, then we just stick one instance in there (to make Weka happy)
-        val loading = !loadFrom.isEmpty && loadRegressor(loadFrom)
-        val numInsts = if (loading) 1 else examples.length
-        for (i <- 0 until numInsts)
+        // We only need to go further if we're not loading or if
+        // we can't load the classifier
+        if (loadFrom.isEmpty || !loadRegressor(loadFrom))
         {
-            val instance = convertToWekaInstance(examples(i).features, examples(i).weight, assignments(i))
-            trainingSet.add(instance)
-        }
+            // Associate training examples with their closest bin
+            val assignments = new Array[Int](examples.length)
+            for (i <- 0 until examples.length)
+                assignments(i) = MathUtils.closestVectorBruteForce(examples(i).target, centroids, metric)
 
-        // Train the model
-        if (loading)
-        {
-            val c = classifier.asInstanceOf[LogisticWithSettableParams]
-            val savedCoeffs = c.coefficients
-            c.buildClassifier(trainingSet)
-            c.setCoefficients(savedCoeffs)
-            // We also have to set the following two members, since Weka will filter out all of our
-            // attributes as 'useless' if there's just one training example
-            c.setClassIndex(trainingSet.classIndex)
-            c.setNumPredictors(trainingSet.numAttributes - 1)
+            // Init Weka training set
+            val trainingSet = new Instances("trainingSet", attributePrototype, examples.length)
+            // Don't forget to tell it where in the attribute vector the class is!
+            trainingSet.setClassIndex(attributePrototype.size - 1)
 
+            // Populate training set
+            for (i <- 0 until examples.length)
+            {
+                val instance = convertToWekaInstance(examples(i).features, examples(i).weight, assignments(i))
+                trainingSet.add(instance)
+            }
+
+            classifier.buildClassifier(trainingSet)
         }
-        else classifier.buildClassifier(trainingSet)
     }
 
     protected def fillBins(featureVec:Tensor1, bins:Array[Double])
