@@ -281,6 +281,37 @@ class SegmentMesh(private val gen:ColorVariableGenerator)
         for (group <- groups) yield group.color.asInstanceOf[ColorVar]
     }
 
+    def randomizeVariableAssignments()
+    {
+        val c = groups(0).color
+        c match
+        {
+            case dc:DiscreteColorVariable => discreteRandomizeVariableAssignments()
+            case cc:ContinuousColorVariable => continuousRandomizeVariableAssignments()
+        }
+    }
+
+    private def discreteRandomizeVariableAssignments()
+    {
+        val numVals = DiscreteColorVariable.domain.size
+        val allPerms = (0 until numVals).toList.permutations.toList
+        val randP = allPerms(util.Random.nextInt(allPerms.length))
+
+        for (i <-groups.indices)
+        {
+            groups(i).color.setColor(DiscreteColorVariable.domain.category(randP(i)))
+        }
+    }
+
+    private def continuousRandomizeVariableAssignments()
+    {
+        for (g <- groups)
+        {
+            val c = Color.RGBColor(math.random, math.random, math.random)
+            g.color.setColor(c)
+        }
+    }
+
     /** Output **/
     def saveColorAssignments(filename:String)
     {

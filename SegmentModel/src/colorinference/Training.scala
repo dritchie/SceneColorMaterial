@@ -33,6 +33,8 @@ abstract class ModelTrainingParams
     //threshold at which to cap the distance
     //var perceptualDistThresh = Double.PositiveInfinity
 
+    var doWeightTuning = true
+
     // Which trainer to use?
     object TrainerType extends Enumeration
     {
@@ -247,26 +249,29 @@ class ModelTraining(val params:ModelTrainingParams)
             model += cmodel
         }
 
-        /** Train weights of the model **/
-        println("Learning Weights...")
-        params.trainerType match
+        if (params.doWeightTuning)
         {
-            case params.TrainerType.SampleRank =>
-                TuneWeightsSampleRank(model, trainingMeshes, params.numWeightTuningIterations)
-            case params.TrainerType.MaximumLikelihood if params.colorVarParams.supportsMaxLikelihood =>
-                TuneWeightsMaxLikelihood(model, trainingMeshes, params.numWeightTuningIterations)
-            case params.TrainerType.ContrastiveDivergence =>
-                TuneWeightsContrastiveDivergence(model, trainingMeshes, params.numWeightTuningIterations, params.cdK)
-            case _ => throw new Error("No valid trainer type!")
-        }
+            /** Train weights of the model **/
+            println("Learning Weights...")
+            params.trainerType match
+            {
+                case params.TrainerType.SampleRank =>
+                    TuneWeightsSampleRank(model, trainingMeshes, params.numWeightTuningIterations)
+                case params.TrainerType.MaximumLikelihood if params.colorVarParams.supportsMaxLikelihood =>
+                    TuneWeightsMaxLikelihood(model, trainingMeshes, params.numWeightTuningIterations)
+                case params.TrainerType.ContrastiveDivergence =>
+                    TuneWeightsContrastiveDivergence(model, trainingMeshes, params.numWeightTuningIterations, params.cdK)
+                case _ => throw new Error("No valid trainer type!")
+            }
 
-        // print the weights
-        println("Weights:")
-        for (t <- model.trainables)
-        {
-            println(t.name + " : " + t.getWeight)
+            // print the weights
+            println("Weights:")
+            for (t <- model.trainables)
+            {
+                println(t.name + " : " + t.getWeight)
+            }
+            println()
         }
-        println()
 
         model
     }
