@@ -306,27 +306,27 @@ object PatternMain {
     //Start with Score number isOrig
     //then color assignments
     val out = new FileWriter(filename)
-    out.write("Count " + allPerms.length +"\n")
-    for (r <- results)
-    {
-      val p = allPerms(r._1)
-      val score = r._2
-
-      //check if it is the original
-      var orig = true
-      for (i <- mesh.groups.indices)
+      out.write("Count " + allPerms.length +"\n")
+      for (r <- results)
       {
-        if (palette(p(i)).distance(mesh.groups(i).color.observedColor) > 0)
-          orig = false
-      }
+          val p = allPerms(r._1)
+          val score = r._2
 
-      out.write("Score " + score + " " + orig+"\n")
-      for (i <- mesh.groups.indices)
-      {
-        out.write(palette(p(i)).copyIfNeededTo(RGBColorSpace).componentString + "\n")
+          //check if it is the original
+          var orig = true
+          for (i <- mesh.groups.indices)
+          {
+              if (palette(p(i)).distance(mesh.groups(i).color.observedColor) > 0)
+                  orig = false
+          }
+
+          out.write("Score " + score + " " + orig+"\n")
+          for (i <- mesh.groups.indices)
+          {
+              out.write(palette(p(i)).copyIfNeededTo(RGBColorSpace).componentString + "\n")
+          }
       }
-    }
-    out.close()
+      out.close()
 
   }
 

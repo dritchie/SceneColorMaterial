@@ -43,7 +43,7 @@ object PatternIO {
       suboutDir.mkdir()
 
       val filename = new File(suboutDir, info.name.replace(".txt","").replace(".png","")+extension) //just handle the .png and .txt filename extensions for now...
-      filename.getAbsolutePath()
+      filename.getAbsolutePath
   }
 
 

@@ -280,9 +280,9 @@ class ContinuousUnarySegmentTemplate(property:ModelTraining#UnarySegmentProperty
 {
     import UnarySegmentTemplate._
 
+    val propName = property.name
     protected val colorPropExtractor = property.extractor
     protected val regressor = trainRegressor(property)
-    val propName = property.name
 
     override def statistics(v1:ContinuousColorVariable#Value, v2:DatumVariable#Value) : Tensor =
     {
