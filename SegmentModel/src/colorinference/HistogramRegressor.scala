@@ -8,20 +8,42 @@ package colorinference
  * To change this template use File | Settings | File Templates.
  */
 
-import cc.factorie.la.Tensor1
+import cc.factorie.la.{DenseTensor1, Tensor1}
 import weka.classifiers.`lazy`.{LWL, IBk}
 import weka.classifiers.Classifier
 import weka.classifiers.functions.supportVector.RBFKernel
 import weka.classifiers.functions.{SMO, Logistic}
 import weka.core._
 import neighboursearch.KDTree
-import colorinference.ColorInferenceModel.CoefficientsItem
+import java.io.{FileNotFoundException, FileWriter}
+import io.Source
+
+// A subclass of weka's logistic regression that allows us to manually set the model parameters.
+// This lets us save/load models
+class LogisticWithSettableParams extends Logistic
+{
+    // The onus is on the caller to make sure that the dimensions of coeffs are correct
+    def setCoefficients(coeffs:Array[Array[Double]])
+    {
+        this.m_Par = coeffs
+    }
+
+    def setClassIndex(index:Int)
+    {
+        this.m_ClassIndex = index
+    }
+
+    def setNumPredictors(num:Int)
+    {
+        this.m_NumPredictors = num
+    }
+}
 
 object HistogramRegressor
 {
     case class RegressionExample(target:Tensor1, features:Tensor1, featureNames:Array[String]=null, weight:Double=1) {}
 
-    def KNN(examples:Seq[HistogramRegressor.RegressionExample], metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer, generator:WekaHistogramRegressor) =
+    def KNN(metric:MathUtils.DistanceMetric, generator:WekaHistogramRegressor) =
     {
         val classifier = new IBk()
         classifier.setDistanceWeighting(new SelectedTag(IBk.WEIGHT_INVERSE, IBk.TAGS_WEIGHTING))
@@ -29,17 +51,17 @@ object HistogramRegressor
         classifier.setMeanSquared(true)
         classifier.setNearestNeighbourSearchAlgorithm(new KDTree())
 
-        generator(classifier, examples, metric, quantizer)
+        generator(classifier, metric)
     }
 
-    def LogisticRegression(examples:Seq[HistogramRegressor.RegressionExample], metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer, generator:WekaHistogramRegressor) =
+    def LogisticRegression(metric:MathUtils.DistanceMetric, generator:WekaHistogramRegressor) =
     {
-        val classifier = new Logistic()
+        val classifier = new LogisticWithSettableParams()
 
-        generator(classifier, examples, metric, quantizer)
+        generator(classifier, metric)
     }
 
-    def LWLR(examples:Seq[HistogramRegressor.RegressionExample], metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer, generator:WekaHistogramRegressor) =
+    def LWLR(metric:MathUtils.DistanceMetric, generator:WekaHistogramRegressor) =
     {
         val classifier = new Logistic()
         val enhancer = new LWL()
@@ -47,10 +69,10 @@ object HistogramRegressor
         enhancer.setNearestNeighbourSearchAlgorithm(new KDTree())
         enhancer.setKNN(100)
 
-        generator(enhancer, examples, metric, quantizer)
+        generator(enhancer, metric)
     }
 
-    def SVM(examples:Seq[HistogramRegressor.RegressionExample], metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer, generator:WekaHistogramRegressor) =
+    def SVM(metric:MathUtils.DistanceMetric, generator:WekaHistogramRegressor) =
     {
         val classifier = new SMO()
         classifier.setNumFolds(10)
@@ -58,13 +80,14 @@ object HistogramRegressor
         val kernel = new RBFKernel()
         classifier.setKernel(kernel)
 
-        generator(classifier, examples, metric, quantizer)
+        generator(classifier, metric)
     }
 }
 
-abstract class HistogramRegressor(examples:Seq[HistogramRegressor.RegressionExample], private val metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer)
+abstract class HistogramRegressor(private val metric:MathUtils.DistanceMetric)
 {
-    protected val centroids:IndexedSeq[Tensor1] = computeCentroids(examples, quantizer)
+    protected var centroids:IndexedSeq[Tensor1] = null
+    protected var featureNames:Seq[String] = null
 
     private def computeCentroids(examples:Seq[HistogramRegressor.RegressionExample], quantizer:VectorQuantizer) : IndexedSeq[Tensor1] =
     {
@@ -74,6 +97,39 @@ abstract class HistogramRegressor(examples:Seq[HistogramRegressor.RegressionExam
     }
 
     protected def fillBins(featureVec:Tensor1, bins:Array[Double])
+
+    def train(examples:Seq[HistogramRegressor.RegressionExample], quantizer:VectorQuantizer, loadFrom:String = "")
+    {
+        featureNames = examples(0).featureNames
+        if (loadFrom.isEmpty || !loadCentroids(loadFrom))
+            centroids = computeCentroids(examples, quantizer)
+        trainRegressor(examples, loadFrom)
+    }
+    def trainRegressor(examples:Seq[HistogramRegressor.RegressionExample], loadFrom:String = "")
+
+    def saveCentroids(fileBaseName:String)
+    {
+        val fw = new FileWriter(fileBaseName + ".centroids")
+        for (c <- centroids)
+        {
+            for (i <- 0 until c.length)
+                fw.write("%f ".format(c(i)))
+            fw.write("\n")
+        }
+        fw.close()
+    }
+    def loadCentroids(fileBaseName:String) : Boolean =
+    {
+        print("Attemping to load centroids...")
+        try
+        {
+            centroids = Source.fromFile(fileBaseName + ".centroids").getLines().map(l => Tensor1(l.split(' ').map(_.toDouble):_*)).toArray[DenseTensor1]
+        } catch { case e:FileNotFoundException => println("FAILED"); return false }
+        println("SUCCESS")
+        true
+    }
+    def saveRegressor(fileBaseName:String) {}
+    def loadRegressor(fileBaseName:String) : Boolean =  { false }
 
     def predictHistogram(featureVec:Tensor1) : VectorHistogram =
     {
@@ -99,7 +155,7 @@ abstract class HistogramRegressor(examples:Seq[HistogramRegressor.RegressionExam
     def getCentroids:Seq[Tensor1] = centroids
 
     //assume feature names for all examples is the same, plus the extra class feature
-    def getFeatureNames:Seq[String] = Array.concat(examples(0).featureNames, Array("class"))
+    def getFeatureNames:Seq[String] = featureNames
 
     def getCoefficients:Array[Array[Double]]
 
@@ -114,26 +170,48 @@ I don't know which one will work better, so it's probably best to try both and s
 
 trait WekaHistogramRegressor
 {
-    def apply(classifier:Classifier, examples:Seq[HistogramRegressor.RegressionExample],
-                          metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer) : HistogramRegressor
+    def apply(classifier:Classifier, metric:MathUtils.DistanceMetric) : HistogramRegressor
 }
 
 object WekaMultiClassHistogramRegressor extends WekaHistogramRegressor
 {
-    def apply(classifier:Classifier, examples:Seq[HistogramRegressor.RegressionExample],
-                          metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer) = new WekaMultiClassHistogramRegressor(classifier, examples, metric, quantizer)
+    def apply(classifier:Classifier, metric:MathUtils.DistanceMetric) = new WekaMultiClassHistogramRegressor(classifier, metric)
 }
 
-class WekaMultiClassHistogramRegressor(private val classifier:Classifier, examples:Seq[HistogramRegressor.RegressionExample], metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer)
-    extends HistogramRegressor(examples, metric, quantizer)
+class WekaMultiClassHistogramRegressor(private val classifier:Classifier, metric:MathUtils.DistanceMetric)
+    extends HistogramRegressor(metric)
 {
-    private val attributePrototype = buildAttributePrototype(examples)
+    private var attributePrototype:FastVector = null
+    private var dummyDataset:Instances = null
 
-    private val dummyDataset = new Instances("dummySet", attributePrototype, 0)
-    dummyDataset.setClassIndex(attributePrototype.size - 1)
+    override def saveRegressor(fileBaseName:String)
+    {
+        // Save logistic coefficients
+        val c = classifier.asInstanceOf[LogisticWithSettableParams]
+        val fw = new FileWriter(fileBaseName + ".coeffs")
+        for (i <- 0 until c.coefficients.length)
+        {
+            for (j <- 0 until c.coefficients()(i).length)
+            {
+                fw.write("%f ".format(c.coefficients()(i)(j)))
+            }
+            fw.write("\n")
+        }
+        fw.close()
+    }
 
-    train(examples)
-
+    override def loadRegressor(fileBaseName:String) : Boolean =
+    {
+        print("Attempting to load regressor...")
+        try
+        {
+            // Load logistic coefficients
+            val coeffs = Source.fromFile(fileBaseName + ".coeffs").getLines().map(_.split(' ').map(_.toDouble)).toArray
+            classifier.asInstanceOf[LogisticWithSettableParams].setCoefficients(coeffs)
+        } catch { case e:FileNotFoundException => println("FAILED"); return false }
+        println("SUCCESS")
+        true
+    }
 
     def getCoefficients:Array[Array[Double]] =
     {
@@ -180,9 +258,13 @@ class WekaMultiClassHistogramRegressor(private val classifier:Classifier, exampl
         instance
     }
 
-    private def train(examples:Seq[HistogramRegressor.RegressionExample])
+    def trainRegressor(examples:Seq[HistogramRegressor.RegressionExample], loadFrom:String = "")
     {
         //println("Training multi-class histogram regressor...")
+
+        attributePrototype = buildAttributePrototype(examples)
+        dummyDataset = new Instances("dummySet", attributePrototype, 0)
+        dummyDataset.setClassIndex(attributePrototype.size - 1)
 
         // Associate training examples with their closest bin
         val assignments = new Array[Int](examples.length)
@@ -195,14 +277,29 @@ class WekaMultiClassHistogramRegressor(private val classifier:Classifier, exampl
         trainingSet.setClassIndex(attributePrototype.size - 1)
 
         // Populate training set
-        for (i <- 0 until examples.length)
+        // If we're loading, then we just stick one instance in there (to make Weka happy)
+        val loading = !loadFrom.isEmpty && loadRegressor(loadFrom)
+        val numInsts = if (loading) 1 else examples.length
+        for (i <- 0 until numInsts)
         {
             val instance = convertToWekaInstance(examples(i).features, examples(i).weight, assignments(i))
             trainingSet.add(instance)
         }
 
         // Train the model
-        classifier.buildClassifier(trainingSet)
+        if (loading)
+        {
+            val c = classifier.asInstanceOf[LogisticWithSettableParams]
+            val savedCoeffs = c.coefficients
+            c.buildClassifier(trainingSet)
+            c.setCoefficients(savedCoeffs)
+            // We also have to set the following two members, since Weka will filter out all of our
+            // attributes as 'useless' if there's just one training example
+            c.setClassIndex(trainingSet.classIndex)
+            c.setNumPredictors(trainingSet.numAttributes - 1)
+
+        }
+        else classifier.buildClassifier(trainingSet)
     }
 
     protected def fillBins(featureVec:Tensor1, bins:Array[Double])
@@ -225,21 +322,15 @@ class WekaMultiClassHistogramRegressor(private val classifier:Classifier, exampl
 
 object WekaBinByBinHistogramRegressor extends WekaHistogramRegressor
 {
-    def apply(classifier:Classifier, examples:Seq[HistogramRegressor.RegressionExample],
-              metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer) = new WekaBinByBinHistogramRegressor(classifier, examples, metric, quantizer)
+    def apply(classifier:Classifier, metric:MathUtils.DistanceMetric) = new WekaBinByBinHistogramRegressor(classifier, metric)
 }
 
-class WekaBinByBinHistogramRegressor(classifier:Classifier, examples:Seq[HistogramRegressor.RegressionExample], metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer)
-    extends HistogramRegressor(examples, metric, quantizer)
+class WekaBinByBinHistogramRegressor(classifier:Classifier, metric:MathUtils.DistanceMetric)
+    extends HistogramRegressor(metric)
 {
     private val regressors = Classifier.makeCopies(classifier, centroids.length)
-
-    private val attributePrototype = buildAttributePrototype(examples)
-
-    private val dummyDataset = new Instances("dummySet", attributePrototype, 0)
-    dummyDataset.setClassIndex(attributePrototype.size - 1)
-
-    train(examples)
+    private var attributePrototype:FastVector = null
+    private var dummyDataset:Instances = null
 
     private def buildAttributePrototype(examples:Seq[HistogramRegressor.RegressionExample]) : FastVector =
     {
@@ -274,9 +365,13 @@ class WekaBinByBinHistogramRegressor(classifier:Classifier, examples:Seq[Histogr
         instance
     }
 
-    private def train(examples:Seq[HistogramRegressor.RegressionExample])
+    def trainRegressor(examples:Seq[HistogramRegressor.RegressionExample], loadFrom:String = "")
     {
         //println("Training bin-by-bin histogram regressor...")
+
+        attributePrototype = buildAttributePrototype(examples)
+        dummyDataset = new Instances("dummySet", attributePrototype, 0)
+        dummyDataset.setClassIndex(attributePrototype.size - 1)
 
         // Build a 'training histogram' so we can evaluate bin probabilities
         val trainingHist = new VectorHistogram(metric)

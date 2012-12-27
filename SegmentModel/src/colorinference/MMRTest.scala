@@ -41,6 +41,10 @@ object MMRTest
             val colorVarParams = ContinuousColorVariableParams
 
             doWeightTuning = false
+//            saveRegressorsIfPossible = true
+////            saveWeightsIfPossible = true
+//            loadRegressorsIfPossible = true
+//            loadWeightsIfPossible = true
             initialLearningRate = 0.5
             //includeColorCompatibilityTerm = true
         }

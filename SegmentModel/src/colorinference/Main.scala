@@ -199,10 +199,8 @@ object Main
 
         // Train a HistogramRegressor
         println("Training HistogramRegressor...")
-        //val hr = HistogramRegressor.KNN(samples, MathUtils.euclideanDistance, new KMeansVectorQuantizer(20), WekaMultiClassHistogramRegressor)
-        val hr = HistogramRegressor.LogisticRegression(samples, MathUtils.euclideanDistance, new KMeansVectorQuantizer(20), WekaMultiClassHistogramRegressor)
-        //val hr = HistogramRegressor.LWLR(samples, MathUtils.euclideanDistance, new KMeansVectorQuantizer(20), WekaMultiClassHistogramRegressor)
-        //val hr = HistogramRegressor.SVM(samples, MathUtils.euclideanDistance, new KMeansVectorQuantizer(20), WekaMultiClassHistogramRegressor)
+        val hr = HistogramRegressor.LogisticRegression(MathUtils.euclideanDistance, WekaMultiClassHistogramRegressor)
+        hr.train(samples, new KMeansVectorQuantizer(20))
 
         // Predict histograms for the means of each feature class, convert to densitymaps and save images
         for (i <- 0 until numClasses)

@@ -6,6 +6,7 @@ import cc.factorie._
 import cc.factorie.optimize._
 import collection.{mutable, Set}
 import util.DoubleAccumulator
+import java.io.File
 
 /**
  * Created with IntelliJ IDEA.
@@ -18,7 +19,7 @@ import util.DoubleAccumulator
 /* Various parameters for defining/learning the model */
 abstract class ModelTrainingParams
 {
-    type RegressionFunction = (Seq[HistogramRegressor.RegressionExample], MathUtils.DistanceMetric, VectorQuantizer, WekaHistogramRegressor) => HistogramRegressor
+    type RegressionFunction = (MathUtils.DistanceMetric, WekaHistogramRegressor) => HistogramRegressor
     var regression:RegressionFunction = HistogramRegressor.LogisticRegression
 
     //include the segment factors?
@@ -32,6 +33,14 @@ abstract class ModelTrainingParams
 
     //threshold at which to cap the distance
     //var perceptualDistThresh = Double.PositiveInfinity
+
+    // Saving and loading model components so iterating on experiments doesn't
+    // take forever
+    var modelSaveDirectory = "savedModel"   // Change to whatever
+    var saveWeightsIfPossible = false
+    var loadWeightsIfPossible = false
+    var saveRegressorsIfPossible = false
+    var loadRegressorsIfPossible = false
 
     var doWeightTuning = true
 
@@ -63,9 +72,9 @@ trait ColorVariableParams[V<:ColorVariable]
 {
     type SamplingContextType = IndexedSeq[V]
     def variableGenerator:ColorVariableGenerator
-    def newUnarySegmentTemplate(prop:ModelTraining#UnarySegmentProperty):UnarySegmentTemplate[V]
-    def newBinarySegmentTemplate(prop:ModelTraining#BinarySegmentProperty):BinarySegmentTemplate[V]
-    def newGroupTemplate(prop:ModelTraining#ColorGroupProperty):ColorGroupTemplate[V]
+    def newUnarySegmentTemplate(prop:ModelTraining#UnarySegmentProperty, loadFrom:String = ""):UnarySegmentTemplate[V]
+    def newBinarySegmentTemplate(prop:ModelTraining#BinarySegmentProperty, loadFrom:String = ""):BinarySegmentTemplate[V]
+    def newGroupTemplate(prop:ModelTraining#ColorGroupProperty, loadFrom:String = ""):ColorGroupTemplate[V]
     def newInferenceSampler(model:Model, objective:Model, params:ModelTrainingParams):MHSampler[SamplingContextType]
     def newTrainingSampler(model:Model, params:ModelTrainingParams):KStepContrastiveDivergence[SamplingContextType]
     def initDomain(mesh:SegmentMesh)
@@ -75,9 +84,9 @@ trait ColorVariableParams[V<:ColorVariable]
 object DiscreteColorVariableParams extends ColorVariableParams[DiscreteColorVariable]
 {
     def variableGenerator = DiscreteColorVariable
-    def newUnarySegmentTemplate(prop:ModelTraining#UnarySegmentProperty) = new DiscreteUnarySegmentTemplate(prop)
-    def newBinarySegmentTemplate(prop:ModelTraining#BinarySegmentProperty) = new DiscreteBinarySegmentTemplate(prop)
-    def newGroupTemplate(prop:ModelTraining#ColorGroupProperty) = new DiscreteColorGroupTemplate(prop)
+    def newUnarySegmentTemplate(prop:ModelTraining#UnarySegmentProperty, loadFrom:String = "") = new DiscreteUnarySegmentTemplate(prop,loadFrom)
+    def newBinarySegmentTemplate(prop:ModelTraining#BinarySegmentProperty, loadFrom:String = "") = new DiscreteBinarySegmentTemplate(prop,loadFrom)
+    def newGroupTemplate(prop:ModelTraining#ColorGroupProperty, loadFrom:String = "") = new DiscreteColorGroupTemplate(prop,loadFrom)
     def newInferenceSampler(model:Model, objective:Model, params:ModelTrainingParams) = new DiscreteColorSampler(model, objective)
     def newTrainingSampler(model:Model, params:ModelTrainingParams) = new DiscreteColorTrainingSampler(model, params.cdK)
     def initDomain(mesh:SegmentMesh)
@@ -92,9 +101,9 @@ object DiscreteColorVariableParams extends ColorVariableParams[DiscreteColorVari
 object ContinuousColorVariableParams extends ColorVariableParams[ContinuousColorVariable]
 {
     def variableGenerator = ContinuousColorVariable
-    def newUnarySegmentTemplate(prop:ModelTraining#UnarySegmentProperty) = new ContinuousUnarySegmentTemplate(prop)
-    def newBinarySegmentTemplate(prop:ModelTraining#BinarySegmentProperty) = new ContinuousBinarySegmentTemplate(prop)
-    def newGroupTemplate(prop:ModelTraining#ColorGroupProperty) = new ContinuousColorGroupTemplate(prop)
+    def newUnarySegmentTemplate(prop:ModelTraining#UnarySegmentProperty, loadFrom:String = "") = new ContinuousUnarySegmentTemplate(prop,loadFrom)
+    def newBinarySegmentTemplate(prop:ModelTraining#BinarySegmentProperty, loadFrom:String = "") = new ContinuousBinarySegmentTemplate(prop,loadFrom)
+    def newGroupTemplate(prop:ModelTraining#ColorGroupProperty, loadFrom:String = "") = new ContinuousColorGroupTemplate(prop,loadFrom)
     def newInferenceSampler(model:Model, objective:Model, params:ModelTrainingParams) =
         new ContinuousColorSampler(model, objective, params.minRadius, params.maxRadius,
             params.minSwapProb, params.maxSwapProb, null)
@@ -222,21 +231,22 @@ class ModelTraining(val params:ModelTrainingParams)
         /** Construct model **/
         println("Training Unary Segment Templates...")
         val spatialModel = new TemplateColorInferenceModel
+        val loadDir = if (params.loadRegressorsIfPossible) params.modelSaveDirectory else ""
         for (i <- 0 until unarySegProps.length)
         {
-            val template = params.colorVarParams.newUnarySegmentTemplate(unarySegProps(i))
+            val template = params.colorVarParams.newUnarySegmentTemplate(unarySegProps(i), loadDir)
             spatialModel += template
         }
         println("Training Binary Segment Templates...")
         for (i <- 0 until binarySegProps.length)
         {
-            val template = params.colorVarParams.newBinarySegmentTemplate(binarySegProps(i))
+            val template = params.colorVarParams.newBinarySegmentTemplate(binarySegProps(i), loadDir)
             spatialModel += template
         }
         println("Training Group Templates...")
         for (i <- 0 until groupProps.length)
         {
-            val template = params.colorVarParams.newGroupTemplate(groupProps(i))
+            val template = params.colorVarParams.newGroupTemplate(groupProps(i), loadDir)
             spatialModel += template
         }
         val model = new CombinedColorInferenceModel(spatialModel)
@@ -249,10 +259,21 @@ class ModelTraining(val params:ModelTrainingParams)
             model += cmodel
         }
 
-        if (params.doWeightTuning)
+        // Load weights?
+        var allLoaded = true
+        if (params.loadWeightsIfPossible)
+        {
+            println("Attempting to load weights...")
+            for (t <- model.trainables) allLoaded &= t.loadWeight(params.modelSaveDirectory)
+        }
+        if (!allLoaded) println("Not all weights successfully loaded")
+
+        if (params.loadWeightsIfPossible && allLoaded && params.doWeightTuning)
+            println("Skipping weight tuning because all weights were successfully loaded")
+        else if (params.doWeightTuning)
         {
             /** Train weights of the model **/
-            println("Learning Weights...")
+            println("Tuning weights...")
             params.trainerType match
             {
                 case params.TrainerType.SampleRank =>
@@ -271,6 +292,25 @@ class ModelTraining(val params:ModelTrainingParams)
                 println(t.name + " : " + t.getWeight)
             }
             println()
+        }
+
+        // Save stuff?
+        if (params.saveRegressorsIfPossible || params.saveWeightsIfPossible)
+        {
+            // Ensure directory exists
+            val dir = new File(params.modelSaveDirectory)
+            if (!dir.exists)
+                dir.mkdir
+        }
+        if (params.saveWeightsIfPossible)
+        {
+            println("Saving weights...")
+            model.trainables.foreach(_.saveWeight(params.modelSaveDirectory))
+        }
+        if (params.saveRegressorsIfPossible)
+        {
+            println("Saving regressors...")
+            model.regressionBasedComps.foreach(_.saveRegressorIfPossible(params.modelSaveDirectory))
         }
 
         model
