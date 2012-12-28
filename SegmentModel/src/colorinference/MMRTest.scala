@@ -16,15 +16,15 @@ object MMRTest
     val randVisDir = "../PatternColorizer/out/vis_rand"
     val mmrVisDir = "../PatternColorizer/out/vis_mmr"
     val numSamplesToOutput = 40
-    val mmrLambda = 1.0
+    val mmrLambda = 0.75
 
     def main(args:Array[String])
     {
         // Verify that visDirs exists
-        var visDirTestFile = new File(randVisDir)
-        if (!visDirTestFile.exists)
-            visDirTestFile.mkdir
-        visDirTestFile = new File(mmrVisDir)
+//        var visDirTestFile = new File(randVisDir)
+//        if (!visDirTestFile.exists)
+//            visDirTestFile.mkdir
+        val visDirTestFile = new File(mmrVisDir)
         if (!visDirTestFile.exists)
             visDirTestFile.mkdir
 
@@ -40,11 +40,11 @@ object MMRTest
             type VariableType = ContinuousColorVariable
             val colorVarParams = ContinuousColorVariableParams
 
-            doWeightTuning = false
+            doWeightTuning = true
 //            saveRegressorsIfPossible = true
-////            saveWeightsIfPossible = true
-//            loadRegressorsIfPossible = true
-//            loadWeightsIfPossible = true
+//            saveWeightsIfPossible = true
+            loadRegressorsIfPossible = true
+            loadWeightsIfPossible = true
             initialLearningRate = 0.5
             //includeColorCompatibilityTerm = true
         }
@@ -81,7 +81,7 @@ object MMRTest
             val pattern = patterns(i)
             println("Generating patterns for mesh %s...".format(pattern.name))
             val mesh = meshes(i)
-            outputRandomPatterns(mesh, pattern, model)
+            //outputRandomPatterns(mesh, pattern, model)
             outputOptimizedPatterns(mesh, pattern, model)
         }
     }
@@ -106,15 +106,33 @@ object MMRTest
         println("Generating MMR-optimized patterns...")
         val sampler = new ContinuousColorSampler(model)
         val varsOfInterest = mesh.variablesAs[ContinuousColorVariable]
-        val maximizer = new MMRSamplingMaximizer[IndexedSeq[ContinuousColorVariable], ContinuousColorVariable](sampler, varsOfInterest, mmrSimilarity, mmrLambda)
+        val metric = genMMRSimilarityMetric(varsOfInterest)
+        val maximizer = new MMRSamplingMaximizer[IndexedSeq[ContinuousColorVariable], ContinuousColorVariable](sampler, varsOfInterest, metric, mmrLambda)
         val iterations = 2000
         val initTemp = 1.0
         val finalTemp = 0.01
         val rounds = 40
         model.conditionOn(mesh)
         maximizer.maximize(Array(mesh.variablesAs[ContinuousColorVariable]), iterations, initTemp, finalTemp, rounds)
-        val rankedSamples = maximizer.getRankedSamples(numSamplesToOutput)
-        savePatterns(rankedSamples, mmrVisDir, pattern)
+
+        // Convert sampled values to LAB first, since our similarity metric operates in LAB space
+        maximizer.getRawSamples.foreach(_.values.foreach(_.convertTo(LABColorSpace)))
+
+        // Spit out a bunch of different versions for different lambdas
+        val lambdas = Array(1.0, 0.75, 0.5, 0.25, 0.0)
+        for (lambda <- lambdas)
+        {
+            val dirName = "%s/%1.2f".format(mmrVisDir, lambda)
+
+            // Ensure directory exits
+            val dir = new File(dirName)
+            if (!dir.exists)
+                dir.mkdir
+
+            maximizer.lambda = lambda
+            val rankedSamples = maximizer.getRankedSamples(numSamplesToOutput)
+            savePatterns(rankedSamples, dirName, pattern)
+        }
     }
 
     def savePatterns(rankedPatterns:Seq[MMRSamplingMaximizer.SampleRecord[Color]], dir:String, pattern:PatternItem)
@@ -133,12 +151,21 @@ object MMRTest
         out.close()
     }
 
-    def mmrSimilarity(vars:Seq[ContinuousColorVariable], vals1:Seq[Color], vals2:Seq[Color]) : Double =
+    // This is the maximum possible distance between two colors in LAB space
+    private val maxLABdist = math.sqrt(100*100 + 200*200 + 200*200)
+    def genMMRSimilarityMetric(vars:Seq[ContinuousColorVariable]) : (Seq[Color], Seq[Color]) => Double =
     {
-        // Size-weighted Delta E
-        var dist = 0.0
-        for (i <- 0 until vars.length)
-            dist += (vars(i).group.size * Color.perceptualDifference(vals1(i), vals2(i)))
-        -dist
+        val maxDist = vars.map(_.group.size * maxLABdist).sum
+
+        def metric(vals1:Seq[Color], vals2:Seq[Color]) : Double =
+        {
+            // Size-weighted Delta E, normalized by maximum possible difference
+            var dist = 0.0
+            for (i <- 0 until vars.length)
+                dist += (vars(i).group.size * Color.perceptualDifference(vals1(i), vals2(i)))
+            1.0 - (dist / maxDist)
+        }
+
+        metric
     }
 }

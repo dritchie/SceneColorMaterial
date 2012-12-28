@@ -10,6 +10,7 @@ package colorinference
 
 import cc.factorie._
 import collection.mutable.ArrayBuffer
+import collection.mutable
 
 /*
  * Has the same sampling/annealing behavior as SamplingMaximizer, but it also builds up a ranked list of all the samples
@@ -17,7 +18,8 @@ import collection.mutable.ArrayBuffer
  * See http://dl.acm.org/citation.cfm?id=291025
  * It is possible to call 'getRankedSamples' multiple times with different lambdas after a single run of the maximizer.
  *  - 'varsOfInterest' are the variables whose state we wish to track/do MMR on. Currently, these must all be of the same type.
- *  - 'simMetric' is a similarity metric between variable values. It should return larger numbers for more similar sets of values
+ *  - 'simMetric' is a similarity metric between variable values. It should return 1 for identical arguments, 0 for totally dissimilar
+ *    arguments, and values between 0 and 1 for arguments with partial similarity.
  *  - 'lambda' controls the tradeoff between score and diversity. Lambda = 1 means only look at score, Lambda = 0 means
  *    only look at diversity
  */
@@ -26,16 +28,20 @@ object MMRSamplingMaximizer
     case class SampleRecord[ValType](values:Seq[ValType], score:Double) { var normalizedScore = Double.NaN}
 }
 class MMRSamplingMaximizer[C, V<:Variable](override val sampler:ProposalSampler[C], val varsOfInterest:Seq[V],
-                                 val simMetric:(Seq[V],Seq[V#Value],Seq[V#Value]) => Double, var lambda:Double)
+                                 val simMetric:(Seq[V#Value],Seq[V#Value]) => Double, var lambda:Double)
     extends SamplingMaximizer[C](sampler)
 {
     type SampleRecord = MMRSamplingMaximizer.SampleRecord[V#Value]
 
-    private val sampleRecords = new ArrayBuffer[SampleRecord]
+    private var lastAcceptedSample:SampleRecord = null.asInstanceOf[SampleRecord]
+    private var sampleRecords = new ArrayBuffer[SampleRecord]
     private var currScore = Double.NegativeInfinity
     private var maxScore = Double.NegativeInfinity
     private var minsim = Double.NaN
     private var maxsim = Double.NaN
+
+    // Call this after 'maximize' has finished running.
+    def getRawSamples : IndexedSeq[SampleRecord] = sampleRecords
 
     // Call this after 'maximize' has finished running.
     def getRankedSamples(numToRetrieve:Int) : IndexedSeq[SampleRecord] =
@@ -46,64 +52,70 @@ class MMRSamplingMaximizer[C, V<:Variable](override val sampler:ProposalSampler[
         val maxScore = sampleRecords.map(_.score).max
         val scoreRange = maxScore - minScore
 
-        // Normalize scores
+        // Normalize & sorting scores
         if (sampleRecords(0).normalizedScore.isNaN)
         {
             println("Normalizing scores...")
             sampleRecords.foreach(s => s.normalizedScore = (s.score - minScore)/scoreRange)
+            sampleRecords = sampleRecords.sortWith(_.normalizedScore > _.normalizedScore)
         }
 
         // Normalize similarities
         if (minsim.isNaN || maxsim.isNaN)
-            computeSimilarityNormalization()
-        val simRange = maxsim - minsim
+            computeSimNormalization()
 
         // Greedily build up the result list
         println("Building ranked list...")
-        val remainingSamples = new ArrayBuffer[SampleRecord]; remainingSamples ++= sampleRecords
-        val chosenSamples = new ArrayBuffer[SampleRecord]
+        val chosenSamples = new mutable.HashSet[SampleRecord]
+        val resultList = new ArrayBuffer[SampleRecord]
         for (resultIndex <- 0 until numToRetrieve)
         {
-            var bestScore = 0.0
+            var bestScore = Double.NegativeInfinity
             var bestCandidate:SampleRecord = null.asInstanceOf[SampleRecord]
             // Consider all samples as the next possible candidate for insertion
-            for (sample <- remainingSamples)
+            def findBestCandidate()
             {
-                // Diversity part of the score is based on the maximum similarity between this
-                // sample and any of the samples we've already chosen
-                val maxSim = if (chosenSamples.length == 0) 0 else chosenSamples.map(s => (simMetric(varsOfInterest, s.values, sample.values) - minsim)/simRange).max
-                val score = lambda*sample.normalizedScore - (1-lambda)*maxSim
-                if (score > bestScore)
+                for (sample <- sampleRecords if (!chosenSamples.contains(sample)))
                 {
-                    bestScore = score
-                    bestCandidate = sample
+                    // Since the samples are sorted by normalized score, we might be able
+                    // to cut off the search early.
+                    val bestPossibleScore = lambda*sample.normalizedScore
+                    if (bestPossibleScore < bestScore) return
+
+                    // Diversity part of the score is based on the maximum similarity between this
+                    // sample and any of the samples we've already chosen
+                    // TODO: Consider caching similarity metric computations?
+                    val maxSim = if (chosenSamples.size == 0) 0 else chosenSamples.map(s => simMetric(s.values, sample.values)).max
+                    val score = bestPossibleScore - (1-lambda)*maxSim
+                    if (score > bestScore)
+                    {
+                        bestScore = score
+                        bestCandidate = sample
+                    }
                 }
             }
-            // Add the best candidate to the set of chosen samples, remove it
-            // from the list of samples under consideration
+            findBestCandidate()
+            // Add the best candidate to the set of chosen samples
+            resultList += bestCandidate
             chosenSamples += bestCandidate
-            remainingSamples -= bestCandidate
         }
 
         // Return the results
-        chosenSamples
+        resultList
     }
 
-    private def computeSimilarityNormalization()
+    private def computeSimNormalization()
     {
-        // TODO: This is probably really slow, but I can't think of a great way around it.
-        // TODO: Also, if we're doing all this, it'd be nice to save the similarity matrix
-        // TODO: (but that's too big to fit in memory, in general)
+        println("Normalizing similarities...")
         minsim = 0.0
         maxsim = 1.0
         if (lambda < 1.0)
         {
             minsim = Double.PositiveInfinity
             maxsim = Double.NegativeInfinity
-            println("Normalizing similarities...")
-            for (i <- 0 until sampleRecords.length-1; j <- i+1 until sampleRecords.length)
+            for (i <- 0 until sampleRecords.length-1; j <- 0 until sampleRecords.length)
             {
-                val sim = simMetric(varsOfInterest, sampleRecords(i).values, sampleRecords(j).values)
+                val sim = simMetric(sampleRecords(i).values, sampleRecords(j).values)
                 minsim = math.min(sim, minsim)
                 maxsim = math.max(sim, maxsim)
             }
@@ -113,10 +125,11 @@ class MMRSamplingMaximizer[C, V<:Variable](override val sampler:ProposalSampler[
     // Overrides of SamplingMaximizer methods that we need in order to correctly keep track of stuff
     override def maximize(varying:Iterable[C], iterations:Int = 50, initialTemperature: Double = 1.0, finalTemperature: Double = 0.01, rounds:Int = 5): Iterable[Variable] =
     {
+        lastAcceptedSample = null
         sampleRecords.clear()
+        maxScore = sampler.model.currentScore(varsOfInterest)
         minsim = Double.NaN
         maxsim = Double.NaN
-        maxScore = sampler.model.currentScore(varsOfInterest)
         super.maximize(varying, iterations, initialTemperature, finalTemperature, rounds)
     }
     override def maximize(varying:Iterable[C], iterations:Int): Iterable[Variable] =
@@ -124,17 +137,23 @@ class MMRSamplingMaximizer[C, V<:Variable](override val sampler:ProposalSampler[
         currScore = maxScore
 
         // Called after the proposed change is actually made
-        def proposalHook(p:Proposal)
+        def trackSamples(p:Proposal)
         {
             currScore += p.modelScore
             maxScore = math.max(currScore, maxScore)
             val curValues = varsOfInterest.map(_.value.asInstanceOf[V#Value])
-            sampleRecords += MMRSamplingMaximizer.SampleRecord(curValues, currScore)
+            val sample = MMRSamplingMaximizer.SampleRecord(curValues, currScore)
+            if (!sample.equals(lastAcceptedSample))
+            {
+                sampleRecords += sample
+                lastAcceptedSample = sample
+            }
         }
 
-        sampler.proposalHooks += proposalHook
+        val trackingHook: Proposal=>Unit = trackSamples _
+        sampler.proposalHooks += trackingHook
         val retval = super.maximize(varying, iterations)
-        sampler.proposalHooks -= proposalHook
+        sampler.proposalHooks -= trackingHook
         retval
     }
 }

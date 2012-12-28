@@ -152,7 +152,7 @@ object Color
     {
         case class Key(c1:Double, c2:Double, c3:Double, srcSpace:ColorSpace, dstSpace:ColorSpace)
         private def createKey(c:Color, dstSpace:ColorSpace) = Key(c(0), c(1), c(2), c.colorSpace, dstSpace)
-        private val cache = new Cache[Key, Color](20)   // Default size is 20; can be increased
+        private val cache = new Cache[Key, Color](100)   // Default size is 20; can be increased
 
         def setCapacity(capacity:Int) { cache.capacity = capacity }
 

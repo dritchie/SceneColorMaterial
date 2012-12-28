@@ -61,6 +61,9 @@ object DiscreteColorVariable extends ColorVariableGenerator
 
 class ContinuousColorVariable(val group:SegmentGroup, val observedColor:Color = null) extends MutableTensorVar[Color] with ColorVariable
 {
+    // Initialize value to random
+    set(Color.RGBColor(math.random, math.random, math.random))(null)
+
     def domain = TensorDomain
     def setColor(color:Color)
     {
