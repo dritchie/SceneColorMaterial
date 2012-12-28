@@ -237,12 +237,14 @@ class ModelTraining(val params:ModelTrainingParams)
             val template = params.colorVarParams.newUnarySegmentTemplate(unarySegProps(i), loadDir)
             spatialModel += template
         }
+        DebugRuntime.printStats
         println("Training Binary Segment Templates...")
         for (i <- 0 until binarySegProps.length)
         {
             val template = params.colorVarParams.newBinarySegmentTemplate(binarySegProps(i), loadDir)
             spatialModel += template
         }
+        DebugRuntime.printStats
         println("Training Group Templates...")
         for (i <- 0 until groupProps.length)
         {
