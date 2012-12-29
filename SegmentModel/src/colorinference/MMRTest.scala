@@ -40,13 +40,16 @@ object MMRTest
             type VariableType = ContinuousColorVariable
             val colorVarParams = ContinuousColorVariableParams
 
+            modelSaveDirectory = "savedModel_withCompat"
             doWeightTuning = true
 //            saveRegressorsIfPossible = true
-//            saveWeightsIfPossible = true
+            saveWeightsIfPossible = true
             loadRegressorsIfPossible = true
-            loadWeightsIfPossible = true
+            loadWeightsIfPossible = false
+            includeColorCompatibilityTerm = true
+
             initialLearningRate = 0.5
-            //includeColorCompatibilityTerm = true
+            //cdK = 5
         }
 
         val meshes = for (p <- patterns) yield new SegmentMesh(params.colorVarParams.variableGenerator, p.fullpath)

@@ -253,10 +253,27 @@ class ModelTraining(val params:ModelTrainingParams)
         // Include the color compatibility term?
         if (params.includeColorCompatibilityTerm && params.colorVarParams.supportsColorCompatibility)
         {
+            println("Adding color compatibility factor...")
             val cfam = new ColorCompatibilityFamily
             val cfac = new cfam.Factor
-            val cmodel = new ItemizedColorInferenceModel(cfac.asInstanceOf[Factor])
+            val cmodel = new ItemizedColorInferenceModel
+            cmodel.addConditionalFactor(cfac.asInstanceOf[cmodel.ConditionalFactor])
             model += cmodel
+        }
+
+        // Save stuff?
+        if (params.saveRegressorsIfPossible || params.saveWeightsIfPossible)
+        {
+            // Ensure directory exists
+            val dir = new File(params.modelSaveDirectory)
+            if (!dir.exists)
+                dir.mkdir
+        }
+
+        if (params.saveRegressorsIfPossible)
+        {
+            println("Saving regressors...")
+            model.regressionBasedComps.foreach(_.saveRegressorIfPossible(params.modelSaveDirectory))
         }
 
         // Load weights?
@@ -294,23 +311,10 @@ class ModelTraining(val params:ModelTrainingParams)
             println()
         }
 
-        // Save stuff?
-        if (params.saveRegressorsIfPossible || params.saveWeightsIfPossible)
-        {
-            // Ensure directory exists
-            val dir = new File(params.modelSaveDirectory)
-            if (!dir.exists)
-                dir.mkdir
-        }
         if (params.saveWeightsIfPossible)
         {
             println("Saving weights...")
             model.trainables.foreach(_.saveWeight(params.modelSaveDirectory))
-        }
-        if (params.saveRegressorsIfPossible)
-        {
-            println("Saving regressors...")
-            model.regressionBasedComps.foreach(_.saveRegressorIfPossible(params.modelSaveDirectory))
         }
 
         model

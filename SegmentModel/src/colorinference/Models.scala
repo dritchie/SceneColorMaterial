@@ -176,29 +176,52 @@ class TemplateColorInferenceModel(theSubModels:ModelAsTemplate*) extends Templat
     }
 }
 
-class ItemizedColorInferenceModel(initialFactors:Factor*) extends ItemizedModel(initialFactors:_*) with ColorInferenceModel
+class ItemizedColorInferenceModel extends ItemizedModel with ColorInferenceModel
 {
     import ColorInferenceModel._
+
+    type ConditionalFactor = Factor with Conditional
+
+    private val conditionalFactors = new mutable.HashSet[ConditionalFactor]
 
     // Some of this model's factors might come from families, so we must provide
     // a way to retrieve all of those families (particularly important for training)
     override def families: Seq[cc.factorie.Family] =
     {
-        this.factors.collect{case f:cc.factorie.Family#Factor => f.family}.toSeq.distinct
+        (this.factors ++ this.conditionalFactors).collect{case f:cc.factorie.Family#Factor => f.family}.toSeq.distinct
+    }
+
+    def addConditionalFactor(cf:ConditionalFactor)
+    {
+        conditionalFactors += cf
+        this.+=(cf)
+    }
+    def removeConditionalFactor(cf:ConditionalFactor)
+    {
+        conditionalFactors -= cf
+        this.-=(cf)
     }
 
     def conditionOnAll(meshes:Seq[SegmentMesh])
     {
-        for (c <- this.factors.collect{case c:Conditional => c})
-            c.conditionOnAll(meshes)
+        for (cf <- conditionalFactors)
+        {
+            this.-=(cf) // This will remove any existing variable->factor mappings
+            cf.conditionOnAll(meshes)   // This changes cf.variables
+            this.+=(cf) // This adds the new variable->factor mappings
+        }
         for (c <- this.families.collect{case c:Conditional => c})
             c.conditionOnAll(meshes)
     }
 
     def conditionOn(mesh:SegmentMesh)
     {
-        for (c <- this.factors.collect{case c:Conditional => c})
-            c.conditionOn(mesh)
+        for (cf <- conditionalFactors)
+        {
+            this.-=(cf) // This will remove any existing variable->factor mappings
+            cf.conditionOn(mesh)   // This changes cf.variables
+            this.+=(cf) // This adds the new variable->factor mappings
+        }
         for (c <- this.families.collect{case c:Conditional => c})
             c.conditionOn(mesh)
     }
@@ -722,38 +745,39 @@ class ColorCompatibilityFamily extends DotFamilyN[ContinuousColorVariable]
 
         override def conditionOn(mesh:SegmentMesh)
         {
-            // This factor touches the 5 largest color groups
+            // This factor touches (at most) the 5 largest color groups
             vars.clear()
             val sortedGroups = mesh.groups.sortWith((g1, g2) => g1.size > g2.size)
-            for (i <- 0 until 5)
+            val n = math.min(sortedGroups.length, 5)
+            for (i <- 0 until n)
                 vars += sortedGroups(i).color.asInstanceOf[ContinuousColorVariable]
         }
     }
 
-    private def colorsToArray(c1:Color, c2:Color, c3:Color, c4:Color, c5:Color) : Array[Double] =
+    private def colorsToArray(colors:Seq[Color]) : Array[Double] =
     {
-        MathUtils.concatVectors(c1.copyIfNeededTo(RGBColorSpace),
-                                c2.copyIfNeededTo(RGBColorSpace),
-                                c3.copyIfNeededTo(RGBColorSpace),
-                                c4.copyIfNeededTo(RGBColorSpace),
-                                c5.copyIfNeededTo(RGBColorSpace)).toArray
-    }
-
-    def statistics(c1:Color, c2:Color, c3:Color, c4:Color, c5:Color) : Tensor1 =
-    {
-        ColorCompatibilityFamily.ensureMatlabConnection()
-
-        // TODO: Permutations?
-        val retval = ColorCompatibilityFamily.matlabProxy.returningFeval("getRating", 1, colorsToArray(c1,c2,c3,c4,c5))
-        val rating = retval(0).asInstanceOf[Array[Double]](0)
-        val normalizedRating = rating / 5.0
-        Tensor1(MathUtils.safeLog(normalizedRating))
+        MathUtils.concatVectors(colors.map(_.copyIfNeededTo(RGBColorSpace))).toArray
     }
 
     override def statistics(values:Seq[ContinuousColorVariable#Value]): Tensor =
     {
-        assert(values.length == 5, {println("ColorCompatibilityFactor.statistics - values list does not have 5 elements")})
-        statistics(values(0), values(1), values(2), values(3), values(4))
+        assert(values.length <= 5, {println("ColorCompatibilityFactor.statistics - values list has more than 5 elements")})
+
+        ColorCompatibilityFamily.ensureMatlabConnection()
+
+        // If we have less than 5 colors, then (partially) cycle the available colors(?)
+        // These will be the colors of the n largest color groups, since we sorted the variables
+        // NOTE: This is only guaranteed to be true if this method was invoked via 'currentStatistics'
+        //  If it was invoked via e.g. 'assignmentStatistics,' then the order of the variables could get scrambled
+        val c = new Array[Color](5)
+        val n = values.length
+        for (i <- 0 until 5) c.update(i, values(i % n))
+
+        // TODO: Permutations?
+        val retval = ColorCompatibilityFamily.matlabProxy.returningFeval("getRating", 1, colorsToArray(c))
+        val rating = retval(0).asInstanceOf[Array[Double]](0)
+        val normalizedRating = rating / 5.0
+        Tensor1(MathUtils.safeLog(normalizedRating))
     }
 }
 
