@@ -114,12 +114,9 @@ trait ColorInferenceModel extends Model
     def trainableWeights:Tensor1 = MathUtils.concatVectors(trainables.map(_.weights))
     def regressionBasedComps:Seq[RegressionBased] = families.collect{case rb:RegressionBased => rb}
 
-    def normalizeWeights()
+    def enforceMinimumWeight(minWeight:Double)
     {
-        var totalWeight = 0.0
-        for (t <- trainables) totalWeight += t.getWeight
-        if (totalWeight > 0.0)
-            for (t <- trainables) t.setWeight(t.getWeight / totalWeight)
+        trainables.foreach(t => t.setWeight(math.max(minWeight, t.getWeight)))
     }
 
     def randomizeWeights()
@@ -302,12 +299,12 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
     protected def computeStatistics(color:Color, datum:Datum) : Tensor1  =
     {
         val props = colorPropExtractor(color)
-        val density = datum.hist.evaluateAt(props)
-        var logDensity = MathUtils.safeLog(density)
+        var density = datum.hist.evaluateAt(props)
+        density = MathUtils.safeLog(density)
         // Weight by relative size so that groups with tons of little segments don't get
         // unfairly emphasized
-        logDensity *= datum.seg.size
-        Tensor1(logDensity)
+        density *= datum.seg.size
+        Tensor1(density)
     }
 
     def unroll1(v1:ColorVar) =
@@ -424,8 +421,9 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
     protected def computeStatistics(color1:Color, color2:Color, datum:Datum) : Tensor1  =
     {
         val props = colorPropExtractor(color1, color2)
-        val density = datum.hist.evaluateAt(props)
-        var logDensity = MathUtils.safeLog(density)
+        var density = datum.hist.evaluateAt(props)
+        density = MathUtils.safeLog(density)
+
         // Again, weight by size. This formula should make the total weight sum to 1
         //val sizew  = (datum.seg1.size / datum.seg1.adjacencies.size) + (datum.seg2.size / datum.seg2.adjacencies.size)
 
@@ -435,8 +433,9 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
         // since the adjacency strength is still not necessarily symmetric, due to the
         //pixelized nature of the region, add the adjacency strengths of seg2->seg1 and seg1->seg2
         val sizew = (datum.seg1.adjacencies.find(a=>a.neighbor==datum.seg2).get.strength)+(datum.seg2.adjacencies.find(a=>a.neighbor==datum.seg1).get.strength)
-        logDensity *= sizew
-        Tensor1(logDensity)
+
+        density *= sizew
+        Tensor1(density)
     }
 
     def unroll1(v1:ColorVar) =
@@ -554,10 +553,10 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
     protected def computeStatistics(color:Color, datum:Datum) : Tensor1  =
     {
         val props = colorPropExtractor(color)
-        val density = datum.hist.evaluateAt(props)
-        val logDensity = MathUtils.safeLog(density)
+        var density = datum.hist.evaluateAt(props)
+        density = MathUtils.safeLog(density)
         // TODO: Some form of size weighting? I don't think it's needed...
-        Tensor1(logDensity)
+        Tensor1(density)
     }
 
     def unroll1(v1:ColorVar) =

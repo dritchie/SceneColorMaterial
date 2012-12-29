@@ -17,6 +17,11 @@ object ColorNamingModel
 {
     var saliencyCacheSize = 100
     var similarityCacheSize = 1000
+
+    // For normalization
+    val minSaliency = -4.5
+    val maxSaliency = 0.0
+    val saliencyRange = maxSaliency - minSaliency
 }
 class ColorNamingModel(c3JsonFile:String)
 {
@@ -138,6 +143,7 @@ class ColorNamingModel(c3JsonFile:String)
                     if (p > 0)
                         sum += p * math.log(p) / log2
                 }
+                sum = (sum-ColorNamingModel.minSaliency)/ColorNamingModel.saliencyRange //Normalize!
                 saliencyCache.put(c, sum)
                 sum
             }
@@ -162,7 +168,8 @@ class ColorNamingModel(c3JsonFile:String)
                 var sum = 0.0
                 for (w <- 0 until terms.length)
                     sum += counts(c1, w) * counts(c2, w)
-                val result = sum / math.max(rowNorms(c1)*rowNorms(c2), 1)
+                var result = sum / math.max(rowNorms(c1)*rowNorms(c2), 1)
+                result = (result + 1)*0.5   // normalize to the range (0,1)
                 similarityCache.put(orderedPair, result)
                 result
             }

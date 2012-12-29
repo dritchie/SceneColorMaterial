@@ -45,14 +45,17 @@ object MMRTest
             doWeightTuning = true
             saveRegressorsIfPossible = true
             saveWeightsIfPossible = true
-            loadRegressorsIfPossible = false
+            loadRegressorsIfPossible = true
             loadWeightsIfPossible = false
 
-            //includeColorCompatibilityTerm = true
+            includeColorCompatibilityTerm = true
 
-            initialLearningRate = 0.25
-            numWeightTuningIterations = 15
-            //cdK = 5
+            initialLearningRate = 0.2
+            numWeightTuningIterations = 20
+            //cdK = 100
+
+            enforceMinimumWeight = true
+            minWeight = 1.0
         }
 
         val meshes = for (p <- patterns) yield new SegmentMesh(params.colorVarParams.variableGenerator, p.fullpath)

@@ -53,6 +53,8 @@ abstract class ModelTrainingParams
     var trainerType = TrainerType.ContrastiveDivergence
 
     var numWeightTuningIterations = 10
+    var enforceMinimumWeight = false
+    var minWeight = 0.0
 
     // MH Sampling / Contrastive divergence params
     var cdK = 1
@@ -456,6 +458,9 @@ class ModelTraining(val params:ModelTrainingParams)
                 mesh.setVariableValuesToObserved()
                 // Run the MCMC sampling chain for k steps, which will invoke the CD parameter update
                 trainer.process(mesh.variablesAs[params.VariableType], cdK)
+
+                if (params.enforceMinimumWeight)
+                    model.enforceMinimumWeight(params.minWeight)
             }
 
 //            var ll = 0.0
