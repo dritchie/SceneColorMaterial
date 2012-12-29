@@ -86,6 +86,19 @@ abstract class HistogramRegressor(private val metric:MathUtils.DistanceMetric)
     }
     def trainRegressor(examples:Seq[HistogramRegressor.RegressionExample], loadFrom:String = "")
 
+    // For testing
+    def avgLogLikelihood(examples:Seq[HistogramRegressor.RegressionExample]) : Double =
+    {
+        var ll = 0.0
+        for (ex <- examples)
+        {
+            val hist = predictHistogram(ex.features)
+            val p = hist.evaluateAt(ex.target)
+            ll += MathUtils.safeLog(p)
+        }
+        ll / examples.length
+    }
+
     def saveCentroids(fileBaseName:String)
     {
         val fw = new FileWriter(fileBaseName + ".centroids")

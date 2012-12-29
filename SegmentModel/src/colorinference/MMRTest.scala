@@ -28,8 +28,9 @@ object MMRTest
         if (!visDirTestFile.exists)
             visDirTestFile.mkdir
 
-        //load all files TODO: to make this manageable, let's try out one subfolders for now
-        val patterns = PatternIO.getPatterns(inputDir).filter(p=>(p.directory == "sugar!")).toArray// || p.directory=="cameo")).toArray
+        val testingArtist = "sugar!"
+        val trainingArtist = "davidgav"
+        val patterns = PatternIO.getPatterns(inputDir).filter(p=>(p.directory == testingArtist || p.directory == trainingArtist)).toArray// || p.directory=="cameo")).toArray
 
         if (patterns.length == 0)
             println("No files found in the input directory!")
@@ -40,21 +41,23 @@ object MMRTest
             type VariableType = ContinuousColorVariable
             val colorVarParams = ContinuousColorVariableParams
 
-            modelSaveDirectory = "savedModel_withCompat"
+            modelSaveDirectory = "savedModel"
             doWeightTuning = true
-//            saveRegressorsIfPossible = true
+            saveRegressorsIfPossible = true
             saveWeightsIfPossible = true
-            loadRegressorsIfPossible = true
+            loadRegressorsIfPossible = false
             loadWeightsIfPossible = false
-            includeColorCompatibilityTerm = true
 
-            initialLearningRate = 0.5
+            //includeColorCompatibilityTerm = true
+
+            initialLearningRate = 0.25
+            numWeightTuningIterations = 15
             //cdK = 5
         }
 
         val meshes = for (p <- patterns) yield new SegmentMesh(params.colorVarParams.variableGenerator, p.fullpath)
 
-        //list of patterns to consider
+        // These are the ids of the patterns we will test on
         val pids = Array(
             296605,
             244833,
@@ -72,9 +75,9 @@ object MMRTest
             798455)
 
 
-        //train a model on all patterns, except the ones being considered (train/test set)
         val testingMeshes = {for (idx<-meshes.indices if (pids.contains(patterns(idx).name.replace(".txt","").toInt))) yield meshes(idx)}
-        val trainingMeshes = {for (m<-meshes if (!testingMeshes.contains(m))) yield m}
+        val trainingMeshes = for (idx <- meshes.indices if (patterns(idx).directory == trainingArtist)) yield meshes(idx)
+        //val trainingMeshes = testingMeshes
 
         println("Training on " + trainingMeshes.length + " meshes")
         val model = ModelTraining(trainingMeshes, params)

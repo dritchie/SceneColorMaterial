@@ -136,6 +136,7 @@ object ModelTraining
 
     /* Quantizers */
     val uniformQuant10 = new UniformVectorQuantizer(Array(10))
+    val adaptiveQuant10 = new KMeansVectorQuantizer(10)
 
     def apply(trainingMeshes:IndexedSeq[SegmentMesh], params:ModelTrainingParams) : ColorInferenceModel =
     {
@@ -167,25 +168,25 @@ class ModelTraining(val params:ModelTrainingParams)
     val unarySegProps = new ArrayBuffer[UnarySegmentProperty]()
     if (params.includeUnaryTerms)
     {
-      unarySegProps += UnarySegmentProperty("Lightness", ModelTraining.lightness, ModelTraining.uniformQuant10)
-      unarySegProps += UnarySegmentProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.uniformQuant10)
-      unarySegProps += UnarySegmentProperty("Name Saliency", ModelTraining.nameSaliency, ModelTraining.uniformQuant10)
+      unarySegProps += UnarySegmentProperty("Lightness", ModelTraining.lightness, ModelTraining.adaptiveQuant10)
+      unarySegProps += UnarySegmentProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.adaptiveQuant10)
+      unarySegProps += UnarySegmentProperty("Name Saliency", ModelTraining.nameSaliency, ModelTraining.adaptiveQuant10)
     }
 
     /* Binary segment properties */
     // The assumption for the binary properties thus far is that they're symmetric (no directionality between the variables), which is probably ok
     val binarySegProps = new ArrayBuffer[BinarySegmentProperty]()
-    binarySegProps += BinarySegmentProperty("Perceptual Difference", ModelTraining.perceptualDifference, ModelTraining.uniformQuant10)
-    binarySegProps += BinarySegmentProperty("Chroma Difference", ModelTraining.chromaDifference, ModelTraining.uniformQuant10)
-    binarySegProps += BinarySegmentProperty("Relative Colorfulness", ModelTraining.relativeColorfulness, ModelTraining.uniformQuant10)
-    binarySegProps += BinarySegmentProperty("Relative Lightness", ModelTraining.relativeLightness, ModelTraining.uniformQuant10)
-    binarySegProps += BinarySegmentProperty("Name Similarity", ModelTraining.nameSimilarity, ModelTraining.uniformQuant10)
+    binarySegProps += BinarySegmentProperty("Perceptual Difference", ModelTraining.perceptualDifference, ModelTraining.adaptiveQuant10)
+    binarySegProps += BinarySegmentProperty("Chroma Difference", ModelTraining.chromaDifference, ModelTraining.adaptiveQuant10)
+    binarySegProps += BinarySegmentProperty("Relative Colorfulness", ModelTraining.relativeColorfulness, ModelTraining.adaptiveQuant10)
+    binarySegProps += BinarySegmentProperty("Relative Lightness", ModelTraining.relativeLightness, ModelTraining.adaptiveQuant10)
+    binarySegProps += BinarySegmentProperty("Name Similarity", ModelTraining.nameSimilarity, ModelTraining.adaptiveQuant10)
 
     /* Color group properties */
     val groupProps = new ArrayBuffer[ColorGroupProperty]()
-    groupProps += ColorGroupProperty("Lightness", ModelTraining.lightness, ModelTraining.uniformQuant10)
-    groupProps += ColorGroupProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.uniformQuant10)
-    groupProps += ColorGroupProperty("Name Saliency", ModelTraining.nameSaliency, ModelTraining.uniformQuant10)
+    groupProps += ColorGroupProperty("Lightness", ModelTraining.lightness, ModelTraining.adaptiveQuant10)
+    groupProps += ColorGroupProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.adaptiveQuant10)
+    groupProps += ColorGroupProperty("Name Saliency", ModelTraining.nameSaliency, ModelTraining.adaptiveQuant10)
 
     def train(trainingMeshes:IndexedSeq[SegmentMesh]) : ColorInferenceModel =
     {
@@ -470,6 +471,13 @@ class ModelTraining(val params:ModelTrainingParams)
             val curWeights = model.trainableWeights
             println("\nWeights delta: " + (curWeights-prevWeights).twoNorm)
             prevWeights = curWeights
+            // print the weights
+            println("Weights:")
+            for (t <- model.trainables)
+            {
+                println(t.name + " : " + t.getWeight)
+            }
+            println()
         }
 
 //        var finalLL = 0.0
