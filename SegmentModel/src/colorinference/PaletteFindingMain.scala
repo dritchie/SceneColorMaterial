@@ -53,7 +53,8 @@ object PaletteFindingMain {
 
       // Define an itemized model that just contains this one factor
       println("Creating itemized model...")
-      val model = new ItemizedColorInferenceModel(factor.asInstanceOf[Factor])
+      val model = new ItemizedColorInferenceModel
+      model.addConditionalFactor(factor.asInstanceOf[model.ConditionalFactor])
 
 
       outputPatternPaletteScores(colorvars, model, filename)
