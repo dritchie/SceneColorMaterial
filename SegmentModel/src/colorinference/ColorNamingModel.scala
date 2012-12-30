@@ -33,7 +33,6 @@ class ColorNamingModel(c3JsonFile:String)
     private var rowNorms:IndexedSeq[Double] = null
     private var kdtree:KDTree = null
     private val saliencyCache = new Cache[Int, Double](ColorNamingModel.saliencyCacheSize)
-
     private val similarityCache = new Cache[(Int,Int), Double](ColorNamingModel.similarityCacheSize)
 
     load(c3JsonFile)

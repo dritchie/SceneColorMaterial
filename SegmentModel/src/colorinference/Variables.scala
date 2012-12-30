@@ -18,6 +18,11 @@ trait ColorVariable extends Variable
     def getColor:Color
 }
 
+trait CopyableVariable extends Variable
+{
+    def copy:Variable
+}
+
 trait ColorVariableGenerator
 {
     def apply(group:SegmentGroup, observedColor:Color = null) : ColorVariable
@@ -28,7 +33,8 @@ trait ColorVariableGenerator
  * (i.e. when we have a restricted palette)
  */
 
-class DiscreteColorVariable(val group:SegmentGroup, val observedColor:Color = null) extends CategoricalVariable[Color] with ColorVariable with LabeledVar
+class DiscreteColorVariable(val group:SegmentGroup, val observedColor:Color = null) extends CategoricalVariable[Color]
+    with ColorVariable with LabeledVar with CopyableVariable
 {
     def domain = DiscreteColorVariable.domain
     def setColor(color:Color)
@@ -36,6 +42,8 @@ class DiscreteColorVariable(val group:SegmentGroup, val observedColor:Color = nu
         set(domain.index(color))(null)
     }
     def getColor:Color = value.category
+
+    def copy:DiscreteColorVariable = new DiscreteColorVariable(this.group, this.observedColor)
 
     def targetValue = domain.value(observedColor)//observedColor.asInstanceOf[DiscreteColorVariable#Value]
     override def valueIsTarget = value.category.distance(observedColor) == 0
@@ -59,7 +67,8 @@ object DiscreteColorVariable extends ColorVariableGenerator
  * to draw from and we allow our assignments to range over the entire color space
  */
 
-class ContinuousColorVariable(val group:SegmentGroup, val observedColor:Color = null) extends MutableTensorVar[Color] with ColorVariable
+class ContinuousColorVariable(val group:SegmentGroup, val observedColor:Color = null) extends MutableTensorVar[Color]
+    with ColorVariable with CopyableVariable
 {
     // Initialize value to random
     set(Color.RGBColor(math.random, math.random, math.random))(null)
@@ -70,6 +79,8 @@ class ContinuousColorVariable(val group:SegmentGroup, val observedColor:Color = 
         set(color)(null)
     }
     def getColor = value
+
+    def copy:ContinuousColorVariable = new ContinuousColorVariable(this.group, this.observedColor)
 }
 
 object ContinuousColorVariable extends ColorVariableGenerator

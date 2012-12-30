@@ -16,8 +16,13 @@ object MMRTest
     val inputDir = "../PatternColorizer/out/mesh"
     val randVisDir = "../PatternColorizer/out/vis_rand"
     val mmrVisDir = "../PatternColorizer/out/vis_mmr"
+    val lambdas = Array(0.25, 0.5, 0.75)
     val numSamplesToOutput = 40
-    val mmrLambda = 0.75
+    val numParallelChains = 5
+    val iterations = 2000
+    val initTemp = 1.0
+    val finalTemp = 0.01
+    val rounds = 40
 
     def main(args:Array[String])
     {
@@ -114,22 +119,19 @@ object MMRTest
     def outputOptimizedPatterns(mesh:SegmentMesh, pattern:PatternItem, model:ColorInferenceModel)
     {
         println("Generating MMR-optimized patterns...")
-        val sampler = new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable]
-        val maximizer = new SamplingMaximizer(sampler)
-        val iterations = 2000
-        val initTemp = 1.0
-        val finalTemp = 0.01
-        val rounds = 40
+        //val sampler = new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable]
+        //val maximizer = new SamplingMaximizer(sampler)
+        val samplerGenerator = () => new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable]
+        val maximizer = new ParallelMAPInferencer(samplerGenerator, numParallelChains)
         model.conditionOn(mesh)
-        maximizer.maximize(Array(mesh.variablesAs[ContinuousColorVariable]), iterations, initTemp, finalTemp, rounds)
+        maximizer.maximize(mesh.variablesAs[ContinuousColorVariable], iterations, initTemp, finalTemp, rounds)
 
         // Convert sampled values to LAB first, since our similarity metric operates in LAB space
-        sampler.samples.foreach(_.values.foreach(_.convertTo(LABColorSpace)))
+        maximizer.samples.foreach(_.values.foreach(_.convertTo(LABColorSpace)))
 
         // Spit out a bunch of different versions for different lambdas
         val metric = genMMRSimilarityMetric(mesh.variablesAs[ContinuousColorVariable])
-        val mmr = new MMR(sampler.samples, metric)
-        val lambdas = Array(1.0, 0.75, 0.5, 0.25, 0.0)
+        val mmr = new MMR(maximizer.samples, metric)
         for (lambda <- lambdas)
         {
             val dirName = "%s/%1.2f".format(mmrVisDir, lambda)
