@@ -17,6 +17,11 @@ object ColorNamingModel
 {
     var saliencyCacheSize = 100
     var similarityCacheSize = 1000
+
+    // For normalization
+    val minSaliency = -4.5
+    val maxSaliency = 0.0
+    val saliencyRange = maxSaliency - minSaliency
 }
 class ColorNamingModel(c3JsonFile:String)
 {
@@ -28,7 +33,6 @@ class ColorNamingModel(c3JsonFile:String)
     private var rowNorms:IndexedSeq[Double] = null
     private var kdtree:KDTree = null
     private val saliencyCache = new Cache[Int, Double](ColorNamingModel.saliencyCacheSize)
-
     private val similarityCache = new Cache[(Int,Int), Double](ColorNamingModel.similarityCacheSize)
 
     load(c3JsonFile)
@@ -118,7 +122,7 @@ class ColorNamingModel(c3JsonFile:String)
         val c = color.copyIfNeededTo(LABColorSpace)
         val inst = new Instance(1.0, Array(c(0), c(1), c(2), -1))
         inst.setDataset(kdtree.getInstances)
-        val nn = kdtree.nearestNeighbour(inst)
+        val nn = kdtree.synchronized(kdtree.nearestNeighbour(inst))
         nn.classValue.toInt
     }
 
@@ -138,6 +142,7 @@ class ColorNamingModel(c3JsonFile:String)
                     if (p > 0)
                         sum += p * math.log(p) / log2
                 }
+                sum = (sum-ColorNamingModel.minSaliency)/ColorNamingModel.saliencyRange //Normalize!
                 saliencyCache.put(c, sum)
                 sum
             }
@@ -162,7 +167,8 @@ class ColorNamingModel(c3JsonFile:String)
                 var sum = 0.0
                 for (w <- 0 until terms.length)
                     sum += counts(c1, w) * counts(c2, w)
-                val result = sum / math.max(rowNorms(c1)*rowNorms(c2), 1)
+                var result = sum / math.max(rowNorms(c1)*rowNorms(c2), 1)
+                result = (result + 1)*0.5   // normalize to the range (0,1)
                 similarityCache.put(orderedPair, result)
                 result
             }

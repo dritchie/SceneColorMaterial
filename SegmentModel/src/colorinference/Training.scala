@@ -53,6 +53,8 @@ abstract class ModelTrainingParams
     var trainerType = TrainerType.ContrastiveDivergence
 
     var numWeightTuningIterations = 10
+    var enforceMinimumWeight = false
+    var minWeight = 0.0
 
     // MH Sampling / Contrastive divergence params
     var cdK = 1
@@ -214,13 +216,13 @@ class ModelTraining(val params:ModelTrainingParams)
             }
 
             var checkAdj = 0
-            for (seg1<-mesh.segments; seg2 <- seg1.adjacencies.map(a=>a.neighbor) if seg1.index < seg2.index)
+            for (seg1<-mesh.segments; seg2 <- seg1.adjacencies.values.map(a=>a.neighbor) if seg1.index < seg2.index)
                 checkAdj+=1
 
             val binaryWeight =  2.0/checkAdj
 
             // Binary segment properties
-            for (seg1 <- mesh.segments; adj <- seg1.adjacencies if seg1.index < adj.neighbor.index)
+            for (seg1 <- mesh.segments; adj <- seg1.adjacencies.values if seg1.index < adj.neighbor.index)
             {
                 val seg2 = adj.neighbor
                 val fvec = Segment.getBinaryRegressionFeatures(seg1, adj)
@@ -463,6 +465,9 @@ class ModelTraining(val params:ModelTrainingParams)
                 mesh.setVariableValuesToObserved()
                 // Run the MCMC sampling chain for k steps, which will invoke the CD parameter update
                 trainer.process(mesh.variablesAs[params.VariableType], cdK)
+
+                if (params.enforceMinimumWeight)
+                    model.enforceMinimumWeight(params.minWeight)
             }
 
 //            var ll = 0.0

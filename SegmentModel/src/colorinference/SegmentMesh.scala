@@ -11,6 +11,7 @@ package colorinference
 import collection.mutable.ArrayBuffer
 import collection.mutable.HashSet
 import collection.mutable.HashMap
+import cc.factorie.Variable
 import cc.factorie.la.Tensor1
 import cc.factorie.la.DenseTensor1
 import io.Source
@@ -19,10 +20,10 @@ import collection.mutable
 
 class SegmentAdjacency(val neighbor:Segment, val strength:Double, val originEnclosure:Double, val neighborEnclosure:Double)
 
-class Segment(val index:Int, val owner:SegmentMesh)
+class Segment(val index:Int, var owner:SegmentMesh)
 {
     val features = new mutable.HashMap[String, Tensor1]
-    val adjacencies = new HashSet[SegmentAdjacency]
+    val adjacencies = new mutable.HashMap[Segment, SegmentAdjacency]
     var group : SegmentGroup = null
 
     // Quick-access to features that are accessed frequently
@@ -76,28 +77,16 @@ object Segment
         val fnames2 = Array.concat(f2._2, Array("enclosure"))
 
         // Sort by distance from the origin in feature space
-      //TODO: maybe we want to sort by something more meaningful, like relative size?
+        //TODO: maybe we want to sort by something more meaningful, like relative size?
         if (fvec1.twoNormSquared < fvec2.twoNormSquared)
             (MathUtils.concatVectors(Array(fvec1, fvec2)),Array.concat(fnames1, fnames2))
         else
             (MathUtils.concatVectors(Array(fvec2, fvec1)), Array.concat(fnames2, fnames1))
 
     }
-
-    def orderSegmentsByFeatures(seg1:Segment, seg2:Segment): (Segment, Segment) =
-    {
-        val fvec1 = getUnaryRegressionFeatures(seg1)._1
-        val fvec2 = getUnaryRegressionFeatures(seg2)._1
-
-        // Sort by distance from the origin in feature space
-        if (fvec1.twoNormSquared < fvec2.twoNormSquared)
-            (seg1, seg2)
-        else
-            (seg2, seg1)
-    }
 }
 
-class SegmentGroup(val index:Int, val owner:SegmentMesh)
+class SegmentGroup(val index:Int, var owner:SegmentMesh)
 {
     var color:ColorVariable = null
     val features = new mutable.HashMap[String, Tensor1]
@@ -137,18 +126,37 @@ object SegmentGroup
     }
 }
 
-class SegmentMesh(private val gen:ColorVariableGenerator)
+trait VariableStructure
+{
+    def variablesAs[V<:Variable] : IndexedSeq[V]
+}
+
+class SegmentMesh(private val gen:ColorVariableGenerator) extends VariableStructure with Copyable[SegmentMesh]
 {
     /** Data members **/
     val segments = new ArrayBuffer[Segment]
     val groups = new ArrayBuffer[SegmentGroup]
     var name:String = "NO FILE LOADED"
 
+    def copy: SegmentMesh =
+    {
+        // Seriously, it's easiest just to reload the damn file.
+        val newmesh = new SegmentMesh(this.gen, this.name)
+        // TODO: If we make any changes to the mesh after loading it (e.g. marking some variables
+        // TODO: as observed, those will need to be manually propagated here.
+        newmesh
+    }
+
     /** Constructor **/
     def this(gen:ColorVariableGenerator, filename:String)
     {
         this(gen)
 
+        load(filename)
+    }
+
+    private def load(filename:String)
+    {
         name = filename
 
         val adjacencies = new ArrayBuffer[ ArrayBuffer[(Int, Double, Double, Double)] ]
@@ -157,7 +165,7 @@ class SegmentMesh(private val gen:ColorVariableGenerator)
         val lineIterator = source.getLines()
         while (lineIterator.hasNext)
         {
-            val line = lineIterator.next
+            val line = lineIterator.next()
             val tokens = line.split(" ")
             tokens(0) match
             {
@@ -173,13 +181,13 @@ class SegmentMesh(private val gen:ColorVariableGenerator)
         {
             val adjlist = adjacencies(i)
             val segment = segments(i)
-            segment.adjacencies ++= {for (adj <- adjlist) yield new SegmentAdjacency(segments(adj._1), adj._2, adj._3, adj._4)}
+            segment.adjacencies ++= {for (adj <- adjlist) yield (segments(adj._1), new SegmentAdjacency(segments(adj._1), adj._2, adj._3, adj._4))}
         }
 
         // Finalize group adjacencies
         for (group <- groups)
         {
-            val adjgroups = for (seg <- group.members; aseg <- seg.adjacencies) yield aseg.neighbor.group
+            val adjgroups = for (seg <- group.members; aseg <- seg.adjacencies.values) yield aseg.neighbor.group
             group.adjacencies ++= adjgroups.distinct
         }
     }
@@ -276,9 +284,9 @@ class SegmentMesh(private val gen:ColorVariableGenerator)
         for (group <- groups) group.color.setColor(group.color.observedColor)
     }
 
-    def variablesAs[ColorVar<:ColorVariable] : IndexedSeq[ColorVar] =
+    def variablesAs[V<:Variable] : IndexedSeq[V] =
     {
-        for (group <- groups) yield group.color.asInstanceOf[ColorVar]
+        for (group <- groups) yield group.color.asInstanceOf[V]
     }
 
     def randomizeVariableAssignments()

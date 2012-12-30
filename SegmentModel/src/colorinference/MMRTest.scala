@@ -9,14 +9,20 @@ package colorinference
  */
 
 import java.io.{FileWriter, File}
+import cc.factorie.SamplingMaximizer
 
 object MMRTest
 {
     val inputDir = "../PatternColorizer/out/mesh"
     val randVisDir = "../PatternColorizer/out/vis_rand"
     val mmrVisDir = "../PatternColorizer/out/vis_mmr"
+    val lambdas = Array(0.25, 0.5, 0.75)
     val numSamplesToOutput = 40
-    val mmrLambda = 0.75
+    val numParallelChains = 5
+    val iterations = 2000
+    val initTemp = 1.0
+    val finalTemp = 0.01
+    val rounds = 40
 
     def main(args:Array[String])
     {
@@ -30,7 +36,7 @@ object MMRTest
 
         val testingArtist = "sugar!"
         val trainingArtist = "davidgav"
-        val patterns = PatternIO.getPatterns(inputDir).filter(p=>(p.directory == testingArtist || p.directory == trainingArtist)).toArray// || p.directory=="cameo")).toArray
+        val patterns = PatternIO.getPatterns(inputDir).filter(p=>(p.directory == testingArtist || p.directory == trainingArtist)).toArray
 
         if (patterns.length == 0)
             println("No files found in the input directory!")
@@ -45,14 +51,17 @@ object MMRTest
             doWeightTuning = true
             saveRegressorsIfPossible = true
             saveWeightsIfPossible = true
-            loadRegressorsIfPossible = false
-            loadWeightsIfPossible = false
+            loadRegressorsIfPossible = true
+            loadWeightsIfPossible = true
 
-            //includeColorCompatibilityTerm = true
+            includeColorCompatibilityTerm = true
 
-            initialLearningRate = 0.25
-            numWeightTuningIterations = 15
-            //cdK = 5
+            initialLearningRate = 0.2
+            numWeightTuningIterations = 20
+            //cdK = 100
+
+            enforceMinimumWeight = true
+            minWeight = 0.0
         }
 
         val meshes = for (p <- patterns) yield new SegmentMesh(params.colorVarParams.variableGenerator, p.fullpath)
@@ -101,7 +110,7 @@ object MMRTest
             val variables = mesh.variablesAs[ContinuousColorVariable]
             model.conditionOn(mesh)
             val score = model.currentScore(variables)
-            MMRSamplingMaximizer.SampleRecord(variables.map(_.getColor), score)
+            ScoredValue(variables.map(_.getColor), score)
         }).sortWith(_.score > _.score)
 
         savePatterns(samples, randVisDir, pattern)
@@ -110,22 +119,22 @@ object MMRTest
     def outputOptimizedPatterns(mesh:SegmentMesh, pattern:PatternItem, model:ColorInferenceModel)
     {
         println("Generating MMR-optimized patterns...")
-        val sampler = new ContinuousColorSampler(model)
-        val varsOfInterest = mesh.variablesAs[ContinuousColorVariable]
-        val metric = genMMRSimilarityMetric(varsOfInterest)
-        val maximizer = new MMRSamplingMaximizer[IndexedSeq[ContinuousColorVariable], ContinuousColorVariable](sampler, varsOfInterest, metric, mmrLambda)
-        val iterations = 2000
-        val initTemp = 1.0
-        val finalTemp = 0.01
-        val rounds = 40
+//        val sampler = new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable]
+//        val maximizer = new SamplingMaximizer(sampler)
+        val samplerGenerator = () => new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable]
+        val maximizer = new ParallelMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, numParallelChains)
         model.conditionOn(mesh)
-        maximizer.maximize(Array(mesh.variablesAs[ContinuousColorVariable]), iterations, initTemp, finalTemp, rounds)
+        maximizer.maximize(mesh, iterations, initTemp, finalTemp, rounds)
+        //maximizer.maximize(Array(mesh.variablesAs[ContinuousColorVariable]), iterations, initTemp, finalTemp, rounds)
 
         // Convert sampled values to LAB first, since our similarity metric operates in LAB space
-        maximizer.getRawSamples.foreach(_.values.foreach(_.convertTo(LABColorSpace)))
+        maximizer.samples.foreach(_.values.foreach(_.convertTo(LABColorSpace)))
+        //sampler.samples.foreach(_.values.foreach(_.convertTo(LABColorSpace)))
 
         // Spit out a bunch of different versions for different lambdas
-        val lambdas = Array(1.0, 0.75, 0.5, 0.25, 0.0)
+        val metric = genMMRSimilarityMetric(mesh.variablesAs[ContinuousColorVariable])
+        val mmr = new MMR(maximizer.samples, metric)
+        //val mmr = new MMR(sampler.samples, metric)
         for (lambda <- lambdas)
         {
             val dirName = "%s/%1.2f".format(mmrVisDir, lambda)
@@ -135,13 +144,12 @@ object MMRTest
             if (!dir.exists)
                 dir.mkdir
 
-            maximizer.lambda = lambda
-            val rankedSamples = maximizer.getRankedSamples(numSamplesToOutput)
+            val rankedSamples = mmr.getRankedSamples(numSamplesToOutput, lambda)
             savePatterns(rankedSamples, dirName, pattern)
         }
     }
 
-    def savePatterns(rankedPatterns:Seq[MMRSamplingMaximizer.SampleRecord[Color]], dir:String, pattern:PatternItem)
+    def savePatterns(rankedPatterns:IndexedSeq[ScoredValue[IndexedSeq[Color]]], dir:String, pattern:PatternItem)
     {
         val filename = PatternIO.ensureAndGetFileName(pattern, dir, ".txt")
         val out = new FileWriter(filename)

@@ -152,9 +152,7 @@ object Color
     {
         case class Key(c1:Double, c2:Double, c3:Double, srcSpace:ColorSpace, dstSpace:ColorSpace)
         private def createKey(c:Color, dstSpace:ColorSpace) = Key(c(0), c(1), c(2), c.colorSpace, dstSpace)
-        private val cache = new Cache[Key, Color](100)   // Default size is 20; can be increased
-
-        def setCapacity(capacity:Int) { cache.capacity = capacity }
+        private val cache = new Cache[Key, Color](100)
 
         // Returns the color in the destination space, or NULL if no such cache entry exists
         def get(color:Color, dstSpace:ColorSpace) : Color =
@@ -173,8 +171,6 @@ object Color
             val key = createKey(srcColor, dstColor.colorSpace)
             cache.put(key, dstColor.copy)
         }
-
-        def report() { cache.report() }
     }
 
     // For the time being, this is just Delta E.

@@ -27,6 +27,6 @@ object ColorSpaceConversionCacheTest
         // Convert them to LAB (this should create 4 mappings, evict 4, and have 2 misses)
         for (c <- colors2) c.convertTo(LABColorSpace)
 
-        Color.ColorSpaceConversionCache.report()
+        //Color.ColorSpaceConversionCache.report()
     }
 }
