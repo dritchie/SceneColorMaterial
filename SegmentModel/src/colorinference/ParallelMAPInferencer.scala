@@ -12,10 +12,14 @@ import cc.factorie._
 import collection.mutable.ArrayBuffer
 import actors.Futures._
 
-class ParallelMAPInferencer[V<:Variable, S<:(VariableStructure with Copyable[S])](private val baseSamplerGenerator:() => MemorizingSampler[V], private val numChains:Int)
+class ParallelMAPInferencer[V<:Variable, S<:(VariableStructure with Copyable[S])](private val baseSamplerGenerator:() => MemorizingSampler[V],
+                                                                                  private var numChains:Int = 0)
 {
     type SampleRecord = ScoredValue[IndexedSeq[V#Value]]
     val samples = new ArrayBuffer[SampleRecord]
+
+    if (numChains == 0)
+        numChains = Runtime.getRuntime.availableProcessors
 
     def maximize(varying:S, iterations:Int = 50, initialTemperature: Double = 1.0, finalTemperature: Double = 0.01, rounds:Int = 5)
     {
@@ -38,12 +42,5 @@ class ParallelMAPInferencer[V<:Variable, S<:(VariableStructure with Copyable[S])
 
         // Aggregate their samples
         for (sampler <- samplers) samples ++= sampler.samples
-
-//        val sampler = baseSamplerGenerator()
-//        val maximizer = new SamplingMaximizer(sampler)
-//        val varyingCopy = varying.copy
-//        val varsToSample = varyingCopy.variablesAs[V]
-//        maximizer.maximize(Array(varsToSample), iterations, initialTemperature, finalTemperature, rounds)
-//        samples ++= sampler.samples
     }
 }

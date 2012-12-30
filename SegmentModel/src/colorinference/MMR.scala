@@ -10,7 +10,7 @@ package colorinference
 
 import collection.mutable
 import collection.mutable.ArrayBuffer
-
+import actors.Futures._
 
 class MMR[ValType](private var samples:Seq[ScoredValue[ValType]], private val simMetric:(ValType,ValType) => Double)
 {
@@ -35,12 +35,32 @@ class MMR[ValType](private var samples:Seq[ScoredValue[ValType]], private val si
     private def computeSimilarityNormalization()
     {
         println("[MMR] Normalizing similarities...")
-        for (i <- 0 until samples.length-1; j <- i+1 until samples.length)
+
+        // Parallelize this as much as possible, but max out at number of available processors
+        val numThreads = Runtime.getRuntime.availableProcessors
+        val numComputations = (samples.length * (samples.length-1)) / 2
+        val numCompsPerThread = numComputations / numThreads
+
+        val mins = Array.fill(numThreads)(Double.PositiveInfinity)
+        val maxs = Array.fill(numThreads)(Double.NegativeInfinity)
+        val futures = for (t <- 0 until numThreads) yield future
         {
-            val sim = simMetric(samples(i).values, samples(j).values)
-            minsim = math.min(minsim, sim)
-            maxsim = math.max(maxsim, sim)
+            var c = 0
+            for (i <- 0 until samples.length-1; j <- i+1 until samples.length)
+            {
+                if (c >= t*numCompsPerThread && c < (t+1)*numCompsPerThread)
+                {
+                    val sim = simMetric(samples(i).values, samples(j).values)
+                    mins(t) = math.min(mins(t), sim)
+                    maxs(t) = math.max(maxs(t), sim)
+                }
+                c += 1
+            }
         }
+        futures.foreach(_())
+
+        minsim = mins.min
+        maxsim = maxs.max
     }
 
     def getRankedSamples(numToRetrieve:Int, lambda:Double) : IndexedSeq[SampleRecord] =
