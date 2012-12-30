@@ -17,12 +17,18 @@ object MMRTest
     val randVisDir = "../PatternColorizer/out/vis_rand"
     val mmrVisDir = "../PatternColorizer/out/vis_mmr"
     val lambdas = Array(0.25, 0.5, 0.75)
-    val numSamplesToOutput = 40
+    val numSamplesToOutput = 20
+
+    // Maximization parameters
     val numParallelChains = 5
     val iterations = 2000
     val initTemp = 1.0
     val finalTemp = 0.01
     val rounds = 40
+
+    // Parallel tempering parameters
+    val chainTemps = Array(1.0, 0.5, 0.2, 0.05, 0.01)
+    val itersBetweenSwaps = 50
 
     def main(args:Array[String])
     {
@@ -119,22 +125,19 @@ object MMRTest
     def outputOptimizedPatterns(mesh:SegmentMesh, pattern:PatternItem, model:ColorInferenceModel)
     {
         println("Generating MMR-optimized patterns...")
-//        val sampler = new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable]
-//        val maximizer = new SamplingMaximizer(sampler)
         val samplerGenerator = () => new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable]
-        val maximizer = new ParallelMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, numParallelChains)
+        //val maximizer = new ParallelMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, numParallelChains)
+        val maximizer = new ParallelTemperingMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, chainTemps)
         model.conditionOn(mesh)
-        maximizer.maximize(mesh, iterations, initTemp, finalTemp, rounds)
-        //maximizer.maximize(Array(mesh.variablesAs[ContinuousColorVariable]), iterations, initTemp, finalTemp, rounds)
+        //maximizer.maximize(mesh, iterations, initTemp, finalTemp, rounds)
+        maximizer.maximize(mesh, iterations, itersBetweenSwaps)
 
         // Convert sampled values to LAB first, since our similarity metric operates in LAB space
         maximizer.samples.foreach(_.values.foreach(_.convertTo(LABColorSpace)))
-        //sampler.samples.foreach(_.values.foreach(_.convertTo(LABColorSpace)))
 
         // Spit out a bunch of different versions for different lambdas
         val metric = genMMRSimilarityMetric(mesh.variablesAs[ContinuousColorVariable])
         val mmr = new MMR(maximizer.samples, metric)
-        //val mmr = new MMR(sampler.samples, metric)
         for (lambda <- lambdas)
         {
             val dirName = "%s/%1.2f".format(mmrVisDir, lambda)
