@@ -31,7 +31,8 @@ class Cache[K,V](val capacity:Int = -1)
         val result = cache.get(k)
         if (result == null)
             None
-        Some(result)
+        else
+            Some(result)
     }
 
     def put(k:K, v:V)

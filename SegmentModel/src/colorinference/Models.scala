@@ -244,7 +244,7 @@ object UnarySegmentTemplate
     type ColorPropertyExtractor = Color => Tensor1
     case class Datum(seg:Segment, hist:VectorHistogram)
     type DatumVariable = RefVariable[Datum]
-    protected type Data = HashMap[Segment, DatumVariable]
+    protected type Data = HashMap[Int, DatumVariable]
 }
 
 trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar, UnarySegmentTemplate.DatumVariable]
@@ -265,7 +265,7 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
       for (mesh<-meshes; seg <- mesh.segments)
       {
         val f = Segment.getUnaryRegressionFeatures(seg)._1
-        data(seg) = new DatumVariable(Datum(seg, regressor.predictHistogram(f)))
+        data.put(seg.index, new DatumVariable(Datum(seg, regressor.predictHistogram(f))))
       }
     }
 
@@ -276,14 +276,14 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
         for (seg <- mesh.segments)
         {
             val f = Segment.getUnaryRegressionFeatures(seg)._1
-            data(seg) = new DatumVariable(Datum(seg, regressor.predictHistogram(f)))
+            data.put(seg.index, new DatumVariable(Datum(seg, regressor.predictHistogram(f))))
         }
     }
 
     def summary:Summary =
     {
       val s = new Summary
-      val items = data.keys.map(s => new SummaryItem("unarysegment", propName, Array("s"+s.index), data(s).value.hist))
+      val items = data.keys.map(si => new SummaryItem("unarysegment", propName, Array("s"+si), data(si).value.hist))
       s.histograms = items.toArray[SummaryItem]
 
       s.coefficients = Array(new CoefficientsItem("unarysegment", propName, regressor.getCentroids, regressor.getFeatureNames, regressor.getCoefficients))
@@ -313,7 +313,7 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
         // Pass the DataVariable associated with the segment into the factor as well, so that
         //  it's available when it comes time to compute scores
         for (seg <- v1.group.members)
-            yield Factor(v1, data(seg))
+            yield Factor(v1, data(seg.index))
     }
 
     // This will never be called, since the DataVariable never changes
@@ -363,7 +363,7 @@ object BinarySegmentTemplate
     type ColorPropertyExtractor = (Color, Color) => Tensor1
     case class Datum(seg1:Segment, seg2:Segment, hist:VectorHistogram)
     type DatumVariable = RefVariable[Datum]
-    protected type Data = HashMap[(Segment,Segment), DatumVariable]
+    protected type Data = HashMap[(Int,Int), DatumVariable]
 }
 
 trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorVar, ColorVar, BinarySegmentTemplate.DatumVariable]
@@ -381,29 +381,29 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
     def conditionOnAll(meshes:Seq[SegmentMesh])
     {
       data.clear()
-      for (mesh<-meshes; seg1 <- mesh.segments; adj <- seg1.adjacencies if seg1.index < adj.neighbor.index)
+      for (mesh<-meshes; seg1 <- mesh.segments; adj <- seg1.adjacencies.values if seg1.index < adj.neighbor.index)
       {
         val seg2 = adj.neighbor
         val f = Segment.getBinaryRegressionFeatures(seg1, adj)._1
-        data((seg1, seg2)) = new DatumVariable(Datum(seg1, seg2, regressor.predictHistogram(f)))
+        data.put((seg1.index, seg2.index), new DatumVariable(Datum(seg1, seg2, regressor.predictHistogram(f))))
       }
     }
 
     def conditionOn(mesh:SegmentMesh)
     {
         data.clear()
-        for (seg1 <- mesh.segments; adj <- seg1.adjacencies if seg1.index < adj.neighbor.index)
+        for (seg1 <- mesh.segments; adj <- seg1.adjacencies.values if seg1.index < adj.neighbor.index)
         {
             val seg2 = adj.neighbor
             val f = Segment.getBinaryRegressionFeatures(seg1, adj)._1
-            data((seg1, seg2)) = new DatumVariable(Datum(seg1, seg2, regressor.predictHistogram(f)))
+            data.put((seg1.index, seg2.index), new DatumVariable(Datum(seg1, seg2, regressor.predictHistogram(f))))
         }
     }
 
   def summary:Summary =
   {
     val s = new Summary
-    val items = data.keys.map(s => new SummaryItem("binarysegment", propName, Array("s"+s._1.index, "s"+s._2.index), data(s).value.hist))
+    val items = data.keys.map(k => new SummaryItem("binarysegment", propName, Array("s"+k._1, "s"+k._2), data(k).value.hist))
     s.histograms = items.toArray[SummaryItem]
 
     s.coefficients = Array(new CoefficientsItem("binarysegment", propName, regressor.getCentroids, regressor.getFeatureNames, regressor.getCoefficients))
@@ -432,7 +432,7 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
         //the adjacency strengths of everything, including redundant edges like seg2->seg1)
         // since the adjacency strength is still not necessarily symmetric, due to the
         //pixelized nature of the region, add the adjacency strengths of seg2->seg1 and seg1->seg2
-        val sizew = (datum.seg1.adjacencies.find(a=>a.neighbor==datum.seg2).get.strength)+(datum.seg2.adjacencies.find(a=>a.neighbor==datum.seg1).get.strength)
+        val sizew = (datum.seg1.adjacencies(datum.seg2).strength)+(datum.seg2.adjacencies(datum.seg1).strength)
 
         density *= sizew
         Tensor1(density)
@@ -441,15 +441,15 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
     def unroll1(v1:ColorVar) =
     {
         // Find all neighbors of v1, yield a factor for each segment pair
-        for (seg1 <- v1.group.members; seg2 <- seg1.adjacencies.map(_.neighbor) if seg1.index < seg2.index)
-            yield Factor(v1, seg2.group.color.asInstanceOf[ColorVar], data((seg1,seg2)))
+        for (seg1 <- v1.group.members; seg2 <- seg1.adjacencies.keys if seg1.index < seg2.index)
+            yield Factor(v1, seg2.group.color.asInstanceOf[ColorVar], data((seg1.index,seg2.index)))
     }
 
     def unroll2(v2:ColorVar) =
     {
         // Symmetric w.r.t to unroll1
-        for (seg2 <- v2.group.members; seg1 <- seg2.adjacencies.map(_.neighbor) if seg1.index < seg2.index)
-            yield Factor(seg1.group.color.asInstanceOf[ColorVar], v2, data((seg1,seg2)))
+        for (seg2 <- v2.group.members; seg1 <- seg2.adjacencies.keys if seg1.index < seg2.index)
+            yield Factor(seg1.group.color.asInstanceOf[ColorVar], v2, data((seg1.index,seg2.index)))
     }
 
     // This will never be called, since the DataVariable never changes
@@ -498,7 +498,7 @@ object ColorGroupTemplate
     type ColorPropertyExtractor = Color => Tensor1
     case class Datum(group:SegmentGroup, hist:VectorHistogram)
     type DatumVariable = RefVariable[Datum]
-    protected type Data = HashMap[SegmentGroup, DatumVariable]
+    protected type Data = HashMap[Int, DatumVariable]
 }
 
 trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar, ColorGroupTemplate.DatumVariable]
@@ -519,7 +519,7 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
       for (mesh<-meshes; group <- mesh.groups)
       {
         val f = SegmentGroup.getRegressionFeatures(group)._1
-        data(group) = new DatumVariable(Datum(group, regressor.predictHistogram(f)))
+        data.put(group.index, new DatumVariable(Datum(group, regressor.predictHistogram(f))))
       }
     }
 
@@ -530,14 +530,14 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
         for (group <- mesh.groups)
         {
             val f = SegmentGroup.getRegressionFeatures(group)._1
-            data(group) = new DatumVariable(Datum(group, regressor.predictHistogram(f)))
+            data.put(group.index, new DatumVariable(Datum(group, regressor.predictHistogram(f))))
         }
     }
 
     def summary:Summary =
     {
       val s = new Summary
-      val items = data.keys.map(g => new SummaryItem("unarygroup", propName, Array("g"+g.index), data(g).value.hist))
+      val items = data.keys.map(gi => new SummaryItem("unarygroup", propName, Array("g"+gi), data(gi).value.hist))
       s.histograms = items.toArray[SummaryItem]
 
       s.coefficients = Array(new CoefficientsItem("unarygroup", propName, regressor.getCentroids, regressor.getFeatureNames, regressor.getCoefficients))
@@ -561,7 +561,7 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
 
     def unroll1(v1:ColorVar) =
     {
-        Factor(v1, data(v1.group))
+        Factor(v1, data(v1.group.index))
     }
 
     // This will never be called, since the DataVariable never changes
@@ -701,8 +701,11 @@ object ColorCompatibilityFamily
 
     def ensureMatlabConnection()
     {
-        if (matlabProxy == null)
-            setupMatlabConnection()
+        this.synchronized
+        {
+            if (matlabProxy == null)
+                setupMatlabConnection()
+        }
     }
 
     private def setupMatlabConnection()

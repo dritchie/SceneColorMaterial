@@ -10,17 +10,17 @@ package colorinference
 
 import cc.factorie._
 
-trait ColorVariable extends Variable
+trait Copyable[T]
+{
+    def copy:T
+}
+
+trait ColorVariable extends Variable with Copyable[ColorVariable]
 {
     def group:SegmentGroup
     def observedColor:Color
     def setColor(color:Color)
     def getColor:Color
-}
-
-trait CopyableVariable extends Variable
-{
-    def copy:Variable
 }
 
 trait ColorVariableGenerator
@@ -34,7 +34,7 @@ trait ColorVariableGenerator
  */
 
 class DiscreteColorVariable(val group:SegmentGroup, val observedColor:Color = null) extends CategoricalVariable[Color]
-    with ColorVariable with LabeledVar with CopyableVariable
+    with ColorVariable with LabeledVar
 {
     def domain = DiscreteColorVariable.domain
     def setColor(color:Color)
@@ -68,7 +68,7 @@ object DiscreteColorVariable extends ColorVariableGenerator
  */
 
 class ContinuousColorVariable(val group:SegmentGroup, val observedColor:Color = null) extends MutableTensorVar[Color]
-    with ColorVariable with CopyableVariable
+    with ColorVariable
 {
     // Initialize value to random
     set(Color.RGBColor(math.random, math.random, math.random))(null)

@@ -122,7 +122,7 @@ class ColorNamingModel(c3JsonFile:String)
         val c = color.copyIfNeededTo(LABColorSpace)
         val inst = new Instance(1.0, Array(c(0), c(1), c(2), -1))
         inst.setDataset(kdtree.getInstances)
-        val nn = kdtree.nearestNeighbour(inst)
+        val nn = kdtree.synchronized(kdtree.nearestNeighbour(inst))
         nn.classValue.toInt
     }
 

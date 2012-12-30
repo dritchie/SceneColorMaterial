@@ -12,30 +12,37 @@ import cc.factorie._
 import collection.mutable.ArrayBuffer
 import actors.Futures._
 
-class ParallelMAPInferencer[V<:CopyableVariable](private val baseSamplerGenerator:() => MemorizingSampler[V], private val numChains:Int)
+class ParallelMAPInferencer[V<:Variable, S<:(VariableStructure with Copyable[S])](private val baseSamplerGenerator:() => MemorizingSampler[V], private val numChains:Int)
 {
     type SampleRecord = ScoredValue[IndexedSeq[V#Value]]
     val samples = new ArrayBuffer[SampleRecord]
 
-    def maximize(varying:IndexedSeq[V], iterations:Int = 50, initialTemperature: Double = 1.0, finalTemperature: Double = 0.01, rounds:Int = 5)
+    def maximize(varying:S, iterations:Int = 50, initialTemperature: Double = 1.0, finalTemperature: Double = 0.01, rounds:Int = 5)
     {
         samples.clear()
 
-        // Allocate samplers
-        val samplers = for (i <- 0 until numChains) yield baseSamplerGenerator()
+//        // Allocate samplers
+//        val samplers = for (i <- 0 until numChains) yield baseSamplerGenerator()
+//
+//        // Set up the asynchronous computations
+//        val futures = for (i <- 0 until numChains) yield future
+//        {
+//            val maximizer = new SamplingMaximizer(samplers(i))
+//            val varsToSample = varying.map(_.copy.asInstanceOf[V])
+//            maximizer.maximize(Array(varsToSample), iterations, initialTemperature, finalTemperature, rounds)
+//        }
+//
+//        // Run them all to completion
+//        futures.foreach(_())
+//
+//        // Aggregate their samples
+//        for (sampler <- samplers) samples ++= sampler.samples
 
-        // Set up the asynchronous computations
-        val futures = for (i <- 0 until numChains) yield future
-        {
-            val maximizer = new SamplingMaximizer(samplers(i))
-            val varsToSample = varying.map(_.copy.asInstanceOf[V])
-            maximizer.maximize(Array(varsToSample), iterations, initialTemperature, finalTemperature, rounds)
-        }
-
-        // Run them all to completion
-        futures.foreach(_())
-
-        // Aggregate their samples
-        for (sampler <- samplers) samples ++= sampler.samples
+        val sampler = baseSamplerGenerator()
+        val maximizer = new SamplingMaximizer(sampler)
+        val varyingCopy = varying.copy
+        val varsToSample = varyingCopy.variablesAs[V]
+        maximizer.maximize(Array(varsToSample), iterations, initialTemperature, finalTemperature, rounds)
+        samples ++= sampler.samples
     }
 }

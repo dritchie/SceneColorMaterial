@@ -18,7 +18,7 @@ object MMRTest
     val mmrVisDir = "../PatternColorizer/out/vis_mmr"
     val lambdas = Array(0.25, 0.5, 0.75)
     val numSamplesToOutput = 40
-    val numParallelChains = 5
+    val numParallelChains = 1
     val iterations = 2000
     val initTemp = 1.0
     val finalTemp = 0.01
@@ -36,7 +36,7 @@ object MMRTest
 
         val testingArtist = "sugar!"
         val trainingArtist = "davidgav"
-        val patterns = PatternIO.getPatterns(inputDir).filter(p=>(p.directory == testingArtist || p.directory == trainingArtist)).toArray// || p.directory=="cameo")).toArray
+        val patterns = PatternIO.getPatterns(inputDir).filter(p=>(p.directory == testingArtist || p.directory == trainingArtist)).toArray
 
         if (patterns.length == 0)
             println("No files found in the input directory!")
@@ -61,7 +61,7 @@ object MMRTest
             //cdK = 100
 
             enforceMinimumWeight = true
-            minWeight = 1.0
+            minWeight = 0.0
         }
 
         val meshes = for (p <- patterns) yield new SegmentMesh(params.colorVarParams.variableGenerator, p.fullpath)
@@ -119,19 +119,22 @@ object MMRTest
     def outputOptimizedPatterns(mesh:SegmentMesh, pattern:PatternItem, model:ColorInferenceModel)
     {
         println("Generating MMR-optimized patterns...")
-        //val sampler = new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable]
-        //val maximizer = new SamplingMaximizer(sampler)
+//        val sampler = new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable]
+//        val maximizer = new SamplingMaximizer(sampler)
         val samplerGenerator = () => new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable]
-        val maximizer = new ParallelMAPInferencer(samplerGenerator, numParallelChains)
+        val maximizer = new ParallelMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, numParallelChains)
         model.conditionOn(mesh)
-        maximizer.maximize(mesh.variablesAs[ContinuousColorVariable], iterations, initTemp, finalTemp, rounds)
+        maximizer.maximize(mesh, iterations, initTemp, finalTemp, rounds)
+        //maximizer.maximize(Array(mesh.variablesAs[ContinuousColorVariable]), iterations, initTemp, finalTemp, rounds)
 
         // Convert sampled values to LAB first, since our similarity metric operates in LAB space
         maximizer.samples.foreach(_.values.foreach(_.convertTo(LABColorSpace)))
+        //sampler.samples.foreach(_.values.foreach(_.convertTo(LABColorSpace)))
 
         // Spit out a bunch of different versions for different lambdas
         val metric = genMMRSimilarityMetric(mesh.variablesAs[ContinuousColorVariable])
         val mmr = new MMR(maximizer.samples, metric)
+        //val mmr = new MMR(sampler.samples, metric)
         for (lambda <- lambdas)
         {
             val dirName = "%s/%1.2f".format(mmrVisDir, lambda)
