@@ -20,7 +20,7 @@ import collection.mutable
 
 class SegmentAdjacency(val neighbor:Segment, val strength:Double, val originEnclosure:Double, val neighborEnclosure:Double)
 
-class Segment(val index:Int, var owner:SegmentMesh) extends Copyable[Segment]
+class Segment(val index:Int, var owner:SegmentMesh)
 {
     val features = new mutable.HashMap[String, Tensor1]
     val adjacencies = new mutable.HashMap[Segment, SegmentAdjacency]
@@ -35,17 +35,6 @@ class Segment(val index:Int, var owner:SegmentMesh) extends Copyable[Segment]
     {
         size = features("RelativeSize")(0)
         isNoise = features("Label")(2) == 1
-    }
-
-    def copy: Segment =
-    {
-        val newseg = new Segment(this.index, this.owner)
-        newseg.features ++= this.features
-        newseg.adjacencies ++= this.adjacencies
-        newseg.group = this.group
-        newseg.isNoise = this.isNoise
-        newseg.size = this.size
-        newseg
     }
 }
 object Segment
@@ -97,7 +86,7 @@ object Segment
     }
 }
 
-class SegmentGroup(val index:Int, var owner:SegmentMesh) extends Copyable[SegmentGroup]
+class SegmentGroup(val index:Int, var owner:SegmentMesh)
 {
     var color:ColorVariable = null
     val features = new mutable.HashMap[String, Tensor1]
@@ -111,18 +100,6 @@ class SegmentGroup(val index:Int, var owner:SegmentMesh) extends Copyable[Segmen
     def extractQuickAccessFeatures()
     {
         size = features("RelativeSize")(0)
-    }
-
-    // This also copies the color variable
-    def copy : SegmentGroup =
-    {
-        val newgroup = new SegmentGroup(this.index, this.owner)
-        newgroup.color = this.color.copy
-        newgroup.features ++= this.features
-        newgroup.members ++= this.members
-        newgroup.adjacencies ++= this.adjacencies
-        newgroup.size = this.size
-        newgroup
     }
 }
 object SegmentGroup
@@ -163,62 +140,10 @@ class SegmentMesh(private val gen:ColorVariableGenerator) extends VariableStruct
 
     def copy: SegmentMesh =
     {
-        val newmesh = new SegmentMesh(this.gen)
-        newmesh.name = this.name
-
-        // Maintain maps from old segments to new segments and old groups to new groups
-        val segmap = new mutable.HashMap[Segment, Segment]
-        val groupmap = new mutable.HashMap[SegmentGroup, SegmentGroup]
-
-        // Make new segments (reset owner)
-        for (seg <- this.segments)
-        {
-            val newseg = seg.copy
-            newseg.owner = newmesh
-            segmap.put(seg, newseg)
-            newmesh.segments += newseg
-        }
-
-        // Update segment adjacencies
-        for (seg <- newmesh.segments)
-        {
-            val newadjacencies = new mutable.HashMap[Segment, SegmentAdjacency]
-            for (s <- seg.adjacencies.keys)
-            {
-                val a = seg.adjacencies(s)
-                val news = segmap(s)
-                newadjacencies.put(news, new SegmentAdjacency(news, a.strength, a.originEnclosure, a.neighborEnclosure))
-            }
-            seg.adjacencies.clear()
-            seg.adjacencies ++= newadjacencies
-        }
-
-        // Make new groups (reset owner, keep 'members' updated)
-        for (group <- this.groups)
-        {
-            val newgroup = group.copy
-            newgroup.owner = newmesh
-            newgroup.members.clear()
-            newgroup.members ++= group.members.map(s => segmap(s))
-            groupmap.put(group, newgroup)
-            newmesh.groups += newgroup
-        }
-
-        // Update group adjencies
-        for (group <- newmesh.groups)
-        {
-            val newadjacencies = group.adjacencies.map(g => groupmap(g))
-            group.adjacencies.clear()
-            group.adjacencies ++= newadjacencies
-        }
-
-        // Update segment group pointers
-        for (seg <- newmesh.segments)
-        {
-            seg.group = groupmap(seg.group)
-        }
-
-        //newmesh.load(this.name)
+        // Seriously, it's easiest just to reload the damn file.
+        val newmesh = new SegmentMesh(this.gen, this.name)
+        // TODO: If we make any changes to the mesh after loading it (e.g. marking some variables
+        // TODO: as observed, those will need to be manually propagated here.
         newmesh
     }
 
