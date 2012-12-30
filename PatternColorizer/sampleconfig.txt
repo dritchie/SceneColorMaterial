@@ -1,6 +1,6 @@
 #Sample config. Change to localconfig.txt to use
 #palettefile - the palette file produced when extracting palettes or from Colourlovers
-palettefile > C:/Users/sharon/Documents/ColorTransfer/Colourlovers/patterns.csv
+palettefile > C:/Users/sharon/Documents/ColorTransfer/Colourlovers/templates.csv
 
 #where you want to save images
 outdir > C:/Users/sharon/Documents/ColorTransfer/SceneColorMaterial/PatternColorizer/out

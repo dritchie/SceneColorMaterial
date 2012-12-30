@@ -33,8 +33,10 @@ namespace PatternColorizer
         String json;
         String weightsDir;
         bool outputDebugImages = false; //outputting quantization results and connected components
+        bool renderFinal = true; //render the final images using Colourlovers site
 
         Dictionary<String, PaletteData> palettes;
+        Dictionary<String, String> patternToTemplate;
 
         public MainWindow()
         {
@@ -69,7 +71,9 @@ namespace PatternColorizer
             }
 
             //read the palettes
+            patternToTemplate = new Dictionary<String, String>();
             palettes = LoadFilePalettes(palettefile);
+
         }
 
 
@@ -107,7 +111,7 @@ namespace PatternColorizer
                         throw new IOException("More than one palette per key");
                 }
             }
-            else //pattern template file format
+            else //pattern template file format, populate the pattern id to template id field
             {
                 for (int i = 0; i < lines.Count(); i++)
                 {
@@ -133,6 +137,11 @@ namespace PatternColorizer
                         plist.Add(key, data);
                     else if (plist.ContainsKey(key))
                         throw new IOException("More than one palette per key");
+
+                    String templateId = fields[4];
+                    if (!patternToTemplate.ContainsKey(data.id.ToString()))
+                        patternToTemplate.Add(data.id.ToString(), templateId);
+
 
                 }
             }
@@ -263,11 +272,11 @@ namespace PatternColorizer
                     groupid++;
                 }
 
-                Bitmap orig = template.DebugQuantization(); 
+                Bitmap orig = (renderFinal)? image : template.DebugQuantization(); 
                 PatternIO.SavePattern(orig, p, suboutdir, "_original");
                 orig.Dispose();
 
-                Bitmap result = template.SolidColor(data, slotToColor);
+                Bitmap result = (renderFinal)? GetFinalRendering(Util.ConvertFileName(basename, "",""), data): template.SolidColor(data, slotToColor);
                 PatternIO.SavePattern(result, p, suboutdir, "_recolored");
                 result.Dispose();
                 
@@ -305,17 +314,29 @@ namespace PatternColorizer
                 ColorTemplate template = new ColorTemplate(image, palette);
 
 
-
                 int[] slotToColor = new int[template.NumSlots()];
                 for (int i = 0; i < slotToColor.Count(); i++)
                     slotToColor[i] = i;
+
+                Dictionary<int, int> groupToSlot = new Dictionary<int, int>();
+                PaletteData data = new PaletteData();
+
+                int ngroups = 0;
+                for (int i = 0; i < slotToColor.Count(); i++)
+                {
+                    slotToColor[i] = i;
+                    data.colors.Add(new Color());
+                    data.lab.Add(new CIELAB());
+
+                    if (template.PixelsInSlot(i) > 0)
+                        groupToSlot.Add(ngroups++, i);
+                }
 
                 Bitmap vis = null;
                 Graphics g = null;
 
                 String[] lines = File.ReadAllLines(specs);
 
-                PaletteData data = new PaletteData();
                     
                 //read the score and if it's the original or not
                 double score = 0;
@@ -329,6 +350,7 @@ namespace PatternColorizer
                 int iheight = 100;
                 int padding = 15;
                 Font font = new Font("Arial", 8);
+                int colorIdx = 0;
 
                 foreach (String line in lines)
                 {
@@ -349,7 +371,7 @@ namespace PatternColorizer
 
                         if (data.colors.Count() > 0)
                         {
-                            Bitmap result = template.SolidColor(data, slotToColor);
+                            Bitmap result = (renderFinal)? GetFinalRendering(Util.ConvertFileName(basename, "",""), data): template.SolidColor(data, slotToColor);
                             g.DrawImage(result, x, y, iwidth-padding, iheight-padding);
 
                             String label = String.Format("{0:0.00}", score);
@@ -363,8 +385,9 @@ namespace PatternColorizer
 
                             result.Dispose();
 
-                            data.colors.Clear();
-                            data.lab.Clear();
+                            colorIdx = 0;
+                            //data.colors.Clear();
+                            //data.lab.Clear();
 
                             nresult++;
                         }
@@ -376,8 +399,9 @@ namespace PatternColorizer
                         //rgb floats
                         int[] fields = line.Split(new string[] { " " }, StringSplitOptions.RemoveEmptyEntries).Select<String, int>(s => ((int)(Math.Round(double.Parse(s) * 255)))).ToArray<int>();
                         Color color = Color.FromArgb(fields[0], fields[1], fields[2]);
-                        data.colors.Add(color);
-                        data.lab.Add(Util.RGBtoLAB(color));
+                        data.colors[groupToSlot[colorIdx]] = color;
+                        data.lab[groupToSlot[colorIdx]] = Util.RGBtoLAB(color);
+                        colorIdx++;
                     }
                 }
 
@@ -387,7 +411,7 @@ namespace PatternColorizer
                     x = (nresult % ncol) * iwidth;
                     y = (nresult / ncol) * iheight;
 
-                    Bitmap result = template.SolidColor(data, slotToColor);
+                    Bitmap result = (renderFinal)? GetFinalRendering(Util.ConvertFileName(basename, "",""), data): template.SolidColor(data, slotToColor);
                     g.DrawImage(result, x, y, iwidth - padding, iheight - padding);
                     Color color = Color.Black;
 
@@ -402,8 +426,9 @@ namespace PatternColorizer
 
                     result.Dispose();
 
-                    data.colors.Clear();
-                    data.lab.Clear();
+                    //data.colors.Clear();
+                    //data.lab.Clear();
+                    colorIdx = 0;
 
                     nresult++;
                 }
@@ -415,6 +440,133 @@ namespace PatternColorizer
 
             }
         }
+
+
+        //render an image of the original pattern, plus columns of patterns generated by different models (trained on diff styles)
+        private void VisAllStyles()
+        {
+            Directory.CreateDirectory(outdir + "\\stylecolor\\");
+
+            Directory.CreateDirectory(outdir + "\\styles\\");
+
+            //read in the patterns and save out their layers
+            List<PatternItem> patterns = PatternIO.GetPatterns(Path.Combine(imagedir,"../styles"));
+
+            foreach (PatternItem p in patterns)
+            {
+                String basename = p.Name;
+
+                //Read the style description if available
+                String specs = Path.Combine(outdir, "styles", p.Directory, Util.ConvertFileName(basename, "", ".txt"));
+                if (!File.Exists(specs))
+                    continue;
+
+                Bitmap image = new Bitmap(p.FullPath);
+
+                if (!palettes.ContainsKey(basename))
+                    continue;
+
+                PaletteData palette = palettes[basename];
+
+                ColorTemplate template = new ColorTemplate(image, palette);
+
+                int[] slotToColor = new int[template.NumSlots()];
+                for (int i = 0; i < slotToColor.Count(); i++)
+                    slotToColor[i] = i;
+
+                List<List<String>> lines = File.ReadAllLines(specs).Select(line => line.Split(',').ToList<String>()).ToList<List<String>>();
+                Dictionary<String, int> styleToRowIdx = new Dictionary<String, int>();
+                String origStyle = "";
+
+                foreach (List<String> line in lines)
+                {
+                    origStyle = line[0];
+                    if (!styleToRowIdx.ContainsKey(line[1]))
+                        styleToRowIdx.Add(line[1], 1);
+                }
+
+
+                //read the score and if it's the original or not
+                double score = 0;
+                int iwidth = 100;
+                int iheight = 100;
+                int padding = 15;
+                int width = (styleToRowIdx.Keys.Count() + 1) * iwidth;
+                int height = (lines.Count() / styleToRowIdx.Keys.Count() + 1) * iheight; 
+
+                Font font = new Font("Arial", 10);
+                
+                Bitmap vis = new Bitmap(width, height);
+                Graphics g = Graphics.FromImage(vis);
+
+                //write out the headings, highlight the original style heading
+                var headers = styleToRowIdx.Keys.ToList<String>();
+                int ncol = headers.Count()+1;
+
+                g.DrawString("original", font, new SolidBrush(Color.Black), 0, 0);
+                for (int i=0; i<headers.Count(); i++)
+                {
+                    if (headers[i] == origStyle)
+                        g.DrawString(headers[i], font, new SolidBrush(Color.Blue), (i+1)*iwidth, 0);
+                    else
+                        g.DrawString(headers[i], font, new SolidBrush(Color.Black), (i+1)*iwidth, 0);
+                }
+
+                //draw the original
+                g.DrawImage(template.DebugQuantization(), 0, iwidth, iwidth-padding, iheight-padding);
+
+                PaletteData data = new PaletteData();
+                Dictionary<int, int> groupToSlot = new Dictionary<int, int>();
+                int ngroups = 0;
+                for (int i = 0; i < slotToColor.Count(); i++)
+                {
+                    slotToColor[i] = i;
+                    data.colors.Add(new Color());
+                    data.lab.Add(new CIELAB());
+
+                    if (template.PixelsInSlot(i) > 0)
+                        groupToSlot.Add(ngroups++, i);
+                }
+              
+
+                foreach (List<String> line in lines)
+                {
+                    //draw the colorized thumbnail in the right location
+                    String style = line[1];
+
+                    String[] colors = line[2].Split('^');
+
+                    int colorIdx = 0;
+                    foreach (String color in colors)
+                    {
+                        //rgb floats
+                        int[] fields = color.Split(new string[] { " " }, StringSplitOptions.RemoveEmptyEntries).Select<String, int>(s => ((int)(Math.Round(double.Parse(s) * 255)))).ToArray<int>();
+                        Color c = Color.FromArgb(fields[0], fields[1], fields[2]);
+                        data.colors[groupToSlot[colorIdx]] = c;
+                        data.lab[groupToSlot[colorIdx]] = Util.RGBtoLAB(c);
+                        colorIdx++;
+                    }
+
+                    int x = (headers.IndexOf(style)+1)*iwidth;
+                    int y = styleToRowIdx[style]*iheight;
+                    styleToRowIdx[style]++;
+
+                    Bitmap result = (renderFinal)?GetFinalRendering(Util.ConvertFileName(basename, "",""), data):template.SolidColor(data, slotToColor);
+                    g.DrawImage(result, x, y, iwidth-padding, iheight-padding);
+                    result.Dispose();
+
+                }
+                    
+
+                PatternIO.SavePattern(vis, p, Path.Combine(outdir, "stylecolor"));
+                vis.Dispose();
+
+            }
+        }
+
+
+
+
 
         private void RenderPreviews()
         {
@@ -448,7 +600,7 @@ namespace PatternColorizer
                 List<Segment> segs = mesh.getSegments();
                 List<SegmentGroup> groups = mesh.getGroups();
 
-                Bitmap original = template.DebugQuantization();
+                Bitmap original = (renderFinal)? image : template.DebugQuantization();
 
                 Bitmap previewBase = new Bitmap(original.Width*2+hpadding, original.Height);
                 //draw the original image on the right
@@ -535,6 +687,25 @@ namespace PatternColorizer
         private void RenderPreview_Click(object sender, RoutedEventArgs e)
         {
             RenderPreviews();
+        }
+
+        private void VisStyles_Click(object sender, RoutedEventArgs e)
+        {
+            VisAllStyles();
+        }
+
+        private Bitmap GetFinalRendering(String patternId, PaletteData palette)
+        {
+            String url = "http://www.colourlovers.com/patternPreview/";//41/CCCCCC/999999/666666/333333/000000.png
+            String[] colorHexes = new String[] { "CCCCCC", "999999", "666666", "333333", "000000" };
+            for (int i = 0; i < palette.colors.Count(); i++)
+            {
+                int slotIdx = i;
+                String hex = ColorTranslator.ToHtml(palette.colors[i]).Replace("#","");
+                colorHexes[slotIdx] = hex;
+            }
+            String finalUrl = url + patternToTemplate[patternId] + "/" + String.Join("/", colorHexes) + ".png";
+            return Util.BitmapFromWeb(finalUrl);
         }
 
     }

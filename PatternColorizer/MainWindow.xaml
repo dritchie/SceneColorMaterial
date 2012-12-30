@@ -6,6 +6,7 @@
         <Button Content="OutputPatterns" Height="43" HorizontalAlignment="Left" Name="RenderLayers" VerticalAlignment="Top" Width="100" Click="OutputPatterns_Click" />
         <Button Content="RecolorPatterns" Height="43" HorizontalAlignment="Left" Margin="0,66,0,0" Name="RecolorPatterns" VerticalAlignment="Top" Width="100" Click="RecolorPatterns_Click" />
         <Button Content="VisPermutations" Height="43" HorizontalAlignment="Left" Margin="0,130,0,0" Name="VisPermutations" VerticalAlignment="Top" Width="100" Click="VisPermutations_Click" />
+        <Button Content="VisStyles" Height="43" HorizontalAlignment="Left" Margin="0,190,0,0" Name="VisStyles" VerticalAlignment="Top" Width="100" Click="VisStyles_Click" />
         <Button Content="RenderTableau" Height="43" HorizontalAlignment="Left" Margin="120,0,0,0" Name="RenderTableau" VerticalAlignment="Top" Width="100" Click="RenderPreview_Click" />
     </Grid>
 </Window>
