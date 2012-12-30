@@ -120,7 +120,7 @@ object StyleTestMain {
         {
           val item = styleToModel(s2)
           //mesh.randomizeVariableAssignments
-          mesh.setVariableValuesToObserved
+          //mesh.setVariableValuesToObserved
           item.model.conditionOn(mesh)
 
           params.colorVarParams.initDomain(mesh)

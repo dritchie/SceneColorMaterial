@@ -513,7 +513,9 @@ namespace PatternColorizer
                 }
 
                 //draw the original
-                g.DrawImage(template.DebugQuantization(), 0, iwidth, iwidth-padding, iheight-padding);
+                Bitmap original = (renderFinal)? image: template.DebugQuantization();
+                g.DrawImage(original, 0, iwidth, iwidth-padding, iheight-padding);
+                original.Dispose();
 
                 PaletteData data = new PaletteData();
                 Dictionary<int, int> groupToSlot = new Dictionary<int, int>();
