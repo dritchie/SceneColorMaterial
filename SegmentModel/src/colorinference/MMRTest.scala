@@ -18,7 +18,7 @@ object MMRTest
     val mmrVisDir = "../PatternColorizer/out/vis_mmr"
     val lambdas = Array(0.25, 0.5, 0.75)
     val numSamplesToOutput = 40
-    val numParallelChains = 1
+    val numParallelChains = 5
     val iterations = 2000
     val initTemp = 1.0
     val finalTemp = 0.01

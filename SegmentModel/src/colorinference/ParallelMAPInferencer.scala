@@ -21,28 +21,29 @@ class ParallelMAPInferencer[V<:Variable, S<:(VariableStructure with Copyable[S])
     {
         samples.clear()
 
-//        // Allocate samplers
-//        val samplers = for (i <- 0 until numChains) yield baseSamplerGenerator()
-//
-//        // Set up the asynchronous computations
-//        val futures = for (i <- 0 until numChains) yield future
-//        {
-//            val maximizer = new SamplingMaximizer(samplers(i))
-//            val varsToSample = varying.map(_.copy.asInstanceOf[V])
-//            maximizer.maximize(Array(varsToSample), iterations, initialTemperature, finalTemperature, rounds)
-//        }
-//
-//        // Run them all to completion
-//        futures.foreach(_())
-//
-//        // Aggregate their samples
-//        for (sampler <- samplers) samples ++= sampler.samples
+        // Allocate samplers
+        val samplers = for (i <- 0 until numChains) yield baseSamplerGenerator()
 
-        val sampler = baseSamplerGenerator()
-        val maximizer = new SamplingMaximizer(sampler)
-        val varyingCopy = varying.copy
-        val varsToSample = varyingCopy.variablesAs[V]
-        maximizer.maximize(Array(varsToSample), iterations, initialTemperature, finalTemperature, rounds)
-        samples ++= sampler.samples
+        // Set up the asynchronous computations
+        val futures = for (i <- 0 until numChains) yield future
+        {
+            val maximizer = new SamplingMaximizer(samplers(i))
+            val varyingCopy = varying.copy
+            val varsToSample = varyingCopy.variablesAs[V]
+            maximizer.maximize(Array(varsToSample), iterations, initialTemperature, finalTemperature, rounds)
+        }
+
+        // Run them all to completion
+        futures.foreach(_())
+
+        // Aggregate their samples
+        for (sampler <- samplers) samples ++= sampler.samples
+
+//        val sampler = baseSamplerGenerator()
+//        val maximizer = new SamplingMaximizer(sampler)
+//        val varyingCopy = varying.copy
+//        val varsToSample = varyingCopy.variablesAs[V]
+//        maximizer.maximize(Array(varsToSample), iterations, initialTemperature, finalTemperature, rounds)
+//        samples ++= sampler.samples
     }
 }

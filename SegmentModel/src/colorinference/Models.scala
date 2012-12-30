@@ -72,9 +72,9 @@ object ColorInferenceModel
             }
             else regressor.train(examples, q)
 
-            // Report the average log likelihood of the training set
-            val ll = regressor.avgLogLikelihood(examples)
-            println("Average log-likelihood of training data: " + ll)
+//            // Report the average log likelihood of the training set
+//            val ll = regressor.avgLogLikelihood(examples)
+//            println("Average log-likelihood of training data: " + ll)
         }
 
         def saveRegressorIfPossible(dir:String)
