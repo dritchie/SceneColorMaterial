@@ -65,6 +65,13 @@ abstract class ModelTrainingParams
     // Which variable type are we using?
     type VariableType <: ColorVariable
     def colorVarParams:ColorVariableParams[VariableType]
+
+    var includeColorChoiceTerms = false
+    object ColorChoiceType extends Enumeration
+    {
+      type CholorChoiceType = Value
+      val LABGlobal, LABConditional, NamesConditional = Value
+    }
 }
 
 /* Different variable types require different model building/training operations */
