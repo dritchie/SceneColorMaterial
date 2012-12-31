@@ -24,6 +24,7 @@ class ParallelTemperingMAPInferencer[V<:Variable, S<:(VariableStructure with Cop
 {
     type SampleRecord = ScoredValue[IndexedSeq[V#Value]]
     val samples = new ArrayBuffer[SampleRecord]
+    var mixingScores = new ArrayBuffer[MixingRecord]
 
     def maximize(varying:S, iterations:Int, iterationsBetweenSwaps:Int)
     {
@@ -42,7 +43,14 @@ class ParallelTemperingMAPInferencer[V<:Variable, S<:(VariableStructure with Cop
 
         // Aggregate samples
         for (c <- chains) samples ++= c.sampler.samples
+
+        //print out the convergence history
+        mixingScores = coordinator.mixingRecords
+
+        //for (i<-mixingScores.indices) println("Iteration %d, mixing score %f, mean samples score %f".format(i, mixingScores(i).mixingScore, mixingScores(i).meanF))
     }
+
+    case class MixingRecord(val mixingScore:Double, val meanF:Double)
 
     // Messages
     case object RoundComplete
@@ -56,6 +64,21 @@ class ParallelTemperingMAPInferencer[V<:Variable, S<:(VariableStructure with Cop
         var coordinator:ChainCoordinator = null     // This must be set before running this actor!
         val sampler = baseSamplerGenerator()
         sampler.temperature = temp
+        var f:Double = -1
+        var W:Double = Double.PositiveInfinity
+
+        private def computeStats(n:Int)
+        {
+          //if the chain is mixed, then each sample is an unbiased estimator for Z
+           val samples = sampler.lastSamples(n)
+           assert(samples.length == n && n>1, "SamplingChain: There are not enough samples in memory! Or itersBetweenSwaps <= 1")
+           val scores = samples.map(s => (s.score))
+
+           f = scores.sum/n
+
+           W = scores.map(s => Math.pow(s-f, 2)).sum/(n-1)
+        }
+
 
         def act()
         {
@@ -64,6 +87,12 @@ class ParallelTemperingMAPInferencer[V<:Variable, S<:(VariableStructure with Cop
             for (i <- 0 until numRounds)
             {
                 sampler.process(varsOfInterest, itersBetweenSwaps)
+
+                //TODO: I'm also not sure if this is technically correct here, because from p.523 of PGM book, it seems
+                //like there should be a burn-in time and then only samples after that time should be considered
+                //if the chain restarts anew (without some acceptance prob), then does the time before count as burn-in time?
+                computeStats(itersBetweenSwaps)
+
                 coordinator ! RoundComplete
                 var waiting = true
                 while (waiting) receive
@@ -83,10 +112,38 @@ class ParallelTemperingMAPInferencer[V<:Variable, S<:(VariableStructure with Cop
             var temp = chain.sampler.temperature
             var roundsDone = 0
             var isFinished = false
+            var f = -1.0
+            var W = Double.PositiveInfinity
         }
         private val chainStates = new mutable.HashMap[SamplingChain, ChainState]
         chainStates ++= (for (chain <- chains) yield (chain, new ChainState(chain)))
         var currRound = 0
+        var meanF = -1.0
+        var mixingScore = Double.PositiveInfinity
+        var mixingRecords = new ArrayBuffer[MixingRecord]
+
+        //PGM p. 523, the R score
+        private def computeStats()
+        {
+          //compute the mean Z
+          meanF = chainStates.values.map(_.f).sum/chains.length
+
+          //compute the variance between the Zs across chains and within chains
+          val M = chains(0).itersBetweenSwaps.toDouble //assume these are all the same
+          var W = chainStates.values.map(_.W).sum/chains.length
+          val BoverM = chainStates.values.map(s => Math.pow(s.f-meanF,2)).sum/(chains.length-1)
+          val V = (M-1)/M * W + BoverM
+
+          //guard against 0 W, this is very very unlikely
+          if (W == 0.0) W = 0.00001
+
+          mixingScore = Math.sqrt(V/W)
+
+          //record the history, so we can analyze it later
+          mixingRecords += new MixingRecord(mixingScore, meanF)
+
+        }
+
 
         def act()
         {
@@ -96,15 +153,20 @@ class ParallelTemperingMAPInferencer[V<:Variable, S<:(VariableStructure with Cop
                 {
                     case RoundComplete =>
                     {
-                        val chain = sender.asInstanceOf[SamplingChain]
+                        val chain:SamplingChain = sender.asInstanceOf[SamplingChain]
                         val state = chainStates(chain)
                         state.roundsDone += 1
+                        state.f = chain.f
+                        state.W = chain.W
 
                         // Once all chains have finished this round, we can decide what to do
                         val minRoundDone = chainStates.values.map(_.roundsDone).min
                         if (minRoundDone > currRound)
                         {
                             currRound += 1
+
+                            //compute convergence stats
+                            computeStats()
 
                             // Pick two chains at random to swap temperatures
                             // (and update the coordinator's internal state)

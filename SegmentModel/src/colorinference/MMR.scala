@@ -32,6 +32,12 @@ class MMR[ValType](private var samples:Seq[ScoredValue[ValType]], private val si
         samples = samples.sortWith(_.normalizedScore > _.normalizedScore)
     }
 
+    def getScoreRange:(Double,Double) =
+    {
+      val scores = samples.map(_.score)
+      (scores.min, scores.max)
+    }
+
     private def computeSimilarityNormalization()
     {
         println("[MMR] Normalizing similarities...")
