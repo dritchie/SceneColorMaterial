@@ -64,8 +64,8 @@ object Segment
     def getBinaryRegressionFeatures(seg1:Segment, adj:SegmentAdjacency) : (Tensor1, Array[String]) =
     {
 //        getBinaryRegressionFeatures_Differences(seg1, adj)
-//        getBinaryRegressionFeatures_Concatentation(seg1, adj)
-        getBinaryRegressionFeatures_Interleaved(seg1, adj)
+        getBinaryRegressionFeatures_Concatentation(seg1, adj)
+//        getBinaryRegressionFeatures_Interleaved(seg1, adj)
     }
 
     def getBinaryRegressionFeatures_Differences(seg1:Segment, adj:SegmentAdjacency) : (Tensor1, Array[String]) =
