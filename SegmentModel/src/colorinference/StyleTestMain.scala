@@ -5,7 +5,6 @@ import collection.mutable.ArrayBuffer
 import scala.Array
 import java.io.{File, FileWriter}
 import cc.factorie.{SamplingMaximizer, HashMapAssignment}
-import colorinference.ColorPalette
 
 /**
  * Created with IntelliJ IDEA.

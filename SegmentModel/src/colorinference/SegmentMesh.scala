@@ -64,7 +64,8 @@ object Segment
     def getBinaryRegressionFeatures(seg1:Segment, adj:SegmentAdjacency) : (Tensor1, Array[String]) =
     {
 //        getBinaryRegressionFeatures_Differences(seg1, adj)
-        getBinaryRegressionFeatures_Concatentation(seg1, adj)
+        getBinaryRegressionFeatures_NormConcatenation(seg1, adj)
+//        getBinaryRegressionFeatures_SizeConcatenation(seg1, adj)
 //        getBinaryRegressionFeatures_Interleaved(seg1, adj)
     }
 
@@ -88,7 +89,7 @@ object Segment
         (bf, bfnames)
     }
 
-    def getBinaryRegressionFeatures_Concatentation(seg1:Segment, adj:SegmentAdjacency) : (Tensor1, Array[String]) =
+    def getBinaryRegressionFeatures_NormConcatenation(seg1:Segment, adj:SegmentAdjacency) : (Tensor1, Array[String]) =
     {
         val seg2 = adj.neighbor
 
@@ -104,8 +105,29 @@ object Segment
         val fnames2 = Array.concat(f2._2, Array("enclosure"))
 
         // Sort by distance from the origin in feature space
-        //TODO: maybe we want to sort by something more meaningful, like relative size?
         if (fvec1.twoNormSquared < fvec2.twoNormSquared)
+            (MathUtils.concatVectors(Array(fvec1, fvec2)),Array.concat(fnames1, fnames2))
+        else
+            (MathUtils.concatVectors(Array(fvec2, fvec1)), Array.concat(fnames2, fnames1))
+    }
+
+    def getBinaryRegressionFeatures_SizeConcatenation(seg1:Segment, adj:SegmentAdjacency) : (Tensor1, Array[String]) =
+    {
+        val seg2 = adj.neighbor
+
+        val f1 = getUnaryRegressionFeatures(seg1)
+        val f2 = getUnaryRegressionFeatures(seg2)
+
+        //add the enclosure strength as a feature
+        val fvec1 = MathUtils.concatVectors(f1._1, Tensor1(adj.originEnclosure))
+        val fvec2 = MathUtils.concatVectors(f2._1, Tensor1(adj.neighborEnclosure))
+
+        //modify the feature names
+        val fnames1 = Array.concat(f1._2 , Array("enclosure"))
+        val fnames2 = Array.concat(f2._2, Array("enclosure"))
+
+        // Sort by segment size
+        if (seg1.size < seg2.size)
             (MathUtils.concatVectors(Array(fvec1, fvec2)),Array.concat(fnames1, fnames2))
         else
             (MathUtils.concatVectors(Array(fvec2, fvec1)), Array.concat(fnames2, fnames1))

@@ -149,7 +149,7 @@ object ModelTraining
 
     /* Quantizers */
     val uniformQuant10 = new UniformVectorQuantizer(Array(10))
-    val adaptiveQuant10 = new KMeansVectorQuantizer(10)
+    val adaptiveQuant5 = new KMeansVectorQuantizer(5)
     val adaptiveQuant40 = new KMeansVectorQuantizer(40)
 
     def apply(trainingMeshes:IndexedSeq[SegmentMesh], params:ModelTrainingParams) : ColorInferenceModel =
@@ -182,9 +182,9 @@ class ModelTraining(val params:ModelTrainingParams)
     val unarySegProps = new ArrayBuffer[UnarySegmentProperty]()
     if (params.includeUnaryTerms)
     {
-      unarySegProps += UnarySegmentProperty("Lightness", ModelTraining.lightness, ModelTraining.adaptiveQuant10)
-      unarySegProps += UnarySegmentProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.adaptiveQuant10)
-      unarySegProps += UnarySegmentProperty("Name Saliency", ModelTraining.nameSaliency, ModelTraining.adaptiveQuant10)
+      unarySegProps += UnarySegmentProperty("Lightness", ModelTraining.lightness, ModelTraining.adaptiveQuant5)
+      unarySegProps += UnarySegmentProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.adaptiveQuant5)
+      unarySegProps += UnarySegmentProperty("Name Saliency", ModelTraining.nameSaliency, ModelTraining.adaptiveQuant5)
     }
 
     /* Binary segment properties */
@@ -192,20 +192,20 @@ class ModelTraining(val params:ModelTrainingParams)
     val binarySegProps = new ArrayBuffer[BinarySegmentProperty]()
     if (params.includeBinaryTerms)
     {
-      binarySegProps += BinarySegmentProperty("Perceptual Difference", ModelTraining.perceptualDifference, ModelTraining.adaptiveQuant10)
-      binarySegProps += BinarySegmentProperty("Chroma Difference", ModelTraining.chromaDifference, ModelTraining.adaptiveQuant10)
-      binarySegProps += BinarySegmentProperty("Relative Colorfulness", ModelTraining.relativeColorfulness, ModelTraining.adaptiveQuant10)
-      binarySegProps += BinarySegmentProperty("Relative Lightness", ModelTraining.relativeLightness, ModelTraining.adaptiveQuant10)
-      binarySegProps += BinarySegmentProperty("Name Similarity", ModelTraining.nameSimilarity, ModelTraining.adaptiveQuant10)
+      binarySegProps += BinarySegmentProperty("Perceptual Difference", ModelTraining.perceptualDifference, ModelTraining.adaptiveQuant5)
+      binarySegProps += BinarySegmentProperty("Chroma Difference", ModelTraining.chromaDifference, ModelTraining.adaptiveQuant5)
+      binarySegProps += BinarySegmentProperty("Relative Colorfulness", ModelTraining.relativeColorfulness, ModelTraining.adaptiveQuant5)
+      binarySegProps += BinarySegmentProperty("Relative Lightness", ModelTraining.relativeLightness, ModelTraining.adaptiveQuant5)
+      binarySegProps += BinarySegmentProperty("Name Similarity", ModelTraining.nameSimilarity, ModelTraining.adaptiveQuant5)
     }
 
     /* Color group properties */
     val groupProps = new ArrayBuffer[ColorGroupProperty]()
     if (params.includeGroupTerms)
     {
-      groupProps += ColorGroupProperty("Lightness", ModelTraining.lightness, ModelTraining.adaptiveQuant10)
-      groupProps += ColorGroupProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.adaptiveQuant10)
-      groupProps += ColorGroupProperty("Name Saliency", ModelTraining.nameSaliency, ModelTraining.adaptiveQuant10)
+      groupProps += ColorGroupProperty("Lightness", ModelTraining.lightness, ModelTraining.adaptiveQuant5)
+      groupProps += ColorGroupProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.adaptiveQuant5)
+      groupProps += ColorGroupProperty("Name Saliency", ModelTraining.nameSaliency, ModelTraining.adaptiveQuant5)
     }
     if (params.includeColorChoiceTerms)
     {
