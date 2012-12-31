@@ -72,9 +72,17 @@ object ColorInferenceModel
             }
             else regressor.train(examples, q)
 
-//            // Report the average log likelihood of the training set
-//            val ll = regressor.avgLogLikelihood(examples)
-//            println("Average log-likelihood of training data: " + ll)
+            // Report the average log likelihood of the training set
+            val ll = regressor.avgLogLikelihood(examples)
+            println("Average log-likelihood of training data: " + ll)
+
+            // Report classification accuracy of the training set
+            val acc = regressor.asInstanceOf[WekaMultiClassHistogramRegressor].classificationAccuracy(examples)
+            println("Classification accuracy: %g".format(acc))
+
+            // Report classification error on the training set
+            val err = regressor.asInstanceOf[WekaMultiClassHistogramRegressor].avgClassificationError(examples)
+            println("Average classification error: %g".format(err))
         }
 
         def saveRegressorIfPossible(dir:String)

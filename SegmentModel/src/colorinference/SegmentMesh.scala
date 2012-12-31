@@ -63,6 +63,33 @@ object Segment
 
     def getBinaryRegressionFeatures(seg1:Segment, adj:SegmentAdjacency) : (Tensor1, Array[String]) =
     {
+//        getBinaryRegressionFeatures_Differences(seg1, adj)
+//        getBinaryRegressionFeatures_Concatentation(seg1, adj)
+        getBinaryRegressionFeatures_Interleaved(seg1, adj)
+    }
+
+    def getBinaryRegressionFeatures_Differences(seg1:Segment, adj:SegmentAdjacency) : (Tensor1, Array[String]) =
+    {
+        val seg2 = adj.neighbor
+
+        val f1 = getUnaryRegressionFeatures(seg1)
+        val f2 = getUnaryRegressionFeatures(seg2)
+
+        // The binary feature vector is the absolute difference between these
+        // two vectors, plus (min, max) enclosure features
+        val len = f1._1.length
+        val bf = new DenseTensor1(len+2)
+        for (i <- 0 until len) bf.update(i, math.abs(f1._1(i) - f2._1(i)))
+        val minenc = math.min(adj.originEnclosure, adj.neighborEnclosure)
+        val maxenc = math.max(adj.originEnclosure, adj.neighborEnclosure)
+        bf.update(len, minenc)
+        bf.update(len, maxenc)
+        val bfnames = Array.concat(f1._2, Array("minEnclosure", "maxEnclosure"))
+        (bf, bfnames)
+    }
+
+    def getBinaryRegressionFeatures_Concatentation(seg1:Segment, adj:SegmentAdjacency) : (Tensor1, Array[String]) =
+    {
         val seg2 = adj.neighbor
 
         val f1 = getUnaryRegressionFeatures(seg1)
@@ -82,7 +109,38 @@ object Segment
             (MathUtils.concatVectors(Array(fvec1, fvec2)),Array.concat(fnames1, fnames2))
         else
             (MathUtils.concatVectors(Array(fvec2, fvec1)), Array.concat(fnames2, fnames1))
+    }
 
+    def getBinaryRegressionFeatures_Interleaved(seg1:Segment, adj:SegmentAdjacency) : (Tensor1, Array[String]) =
+    {
+        val seg2 = adj.neighbor
+
+        val f1 = getUnaryRegressionFeatures(seg1)
+        val f2 = getUnaryRegressionFeatures(seg2)
+
+        //add the enclosure strength as a feature
+        val fvec1 = MathUtils.concatVectors(f1._1, Tensor1(adj.originEnclosure))
+        val fvec2 = MathUtils.concatVectors(f2._1, Tensor1(adj.neighborEnclosure))
+
+        //modify the feature names
+        val fnames1 = Array.concat(f1._2 , Array("enclosure"))
+        val fnames2 = Array.concat(f2._2, Array("enclosure"))
+
+        // Interleave each pair of features in (min, max) order
+        val features = new DenseTensor1(fvec1.length + fvec2.length)
+        val featureNames = new Array[String](fnames1.length + fnames2.length)
+        val n = fvec1.length
+        for (i <- 0 until n)
+        {
+            val minval = math.min(fvec1(i), fvec2(i))
+            val maxval = math.max(fvec1(i), fvec2(i))
+            features.update(2*i, minval)
+            features.update(2*i+1, maxval)
+            featureNames.update(2*i, fnames1(i))
+            featureNames.update(2*i+1, fnames2(i))
+        }
+
+        (features, featureNames)
     }
 }
 

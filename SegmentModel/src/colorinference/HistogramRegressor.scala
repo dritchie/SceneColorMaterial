@@ -272,6 +272,40 @@ class WekaMultiClassHistogramRegressor(private var classifier:Classifier, metric
         }
     }
 
+    def classificationAccuracy(examples:Seq[HistogramRegressor.RegressionExample]) : Double =
+    {
+        val assignments = new Array[Int](examples.length)
+        for (i <- 0 until examples.length)
+            assignments(i) = MathUtils.closestVectorBruteForce(examples(i).target, centroids, metric)
+
+        var numCorrectlyPredicted = 0
+        for (i <- 0 until examples.length)
+        {
+            val instance = convertToWekaInstance(examples(i).features)
+            instance.setDataset(dummyDataset)
+            val predictedBin = classifier.classifyInstance(instance).toInt
+            if (predictedBin == assignments(i)) numCorrectlyPredicted += 1
+        }
+        val accuracy = numCorrectlyPredicted.toDouble / examples.length
+        accuracy
+    }
+
+    // Not all misclassifications are equally bad. This measure takes this into account
+    // Here, we look at the metric distance between the predicted bin centroid and the target value
+    def avgClassificationError(examples:Seq[HistogramRegressor.RegressionExample]) : Double =
+    {
+        var error = 0.0
+        for (i <- 0 until examples.length)
+        {
+            val instance = convertToWekaInstance(examples(i).features)
+            instance.setDataset(dummyDataset)
+            val predictedBin = classifier.classifyInstance(instance).toInt
+            val predictedCentroid = centroids(predictedBin)
+            error += metric(predictedCentroid, examples(i).target)
+        }
+        error / examples.length
+    }
+
     protected def fillBins(featureVec:Tensor1, bins:Array[Double])
     {
         // Convert feature vector to Weka format

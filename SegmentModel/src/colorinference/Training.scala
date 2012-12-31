@@ -306,15 +306,15 @@ class ModelTraining(val params:ModelTrainingParams)
                     TuneWeightsContrastiveDivergence(model, trainingMeshes, params.numWeightTuningIterations, params.cdK)
                 case _ => throw new Error("No valid trainer type!")
             }
-
-            // print the weights
-            println("Weights:")
-            for (t <- model.trainables)
-            {
-                println(t.name + " : " + t.getWeight)
-            }
-            println()
         }
+
+        // print the weights
+        println("Weights:")
+        for (t <- model.trainables)
+        {
+            println(t.name + " : " + t.getWeight)
+        }
+        println()
 
         if (params.saveWeightsIfPossible)
         {
