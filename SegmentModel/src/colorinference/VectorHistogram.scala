@@ -80,6 +80,11 @@ class VectorHistogram(private val metric:MathUtils.DistanceMetric)
       bins
     }
 
+    def getBin(value:Tensor1):Int =
+    {
+      MathUtils.closestVectorBruteForce(value, centroids, metric)
+    }
+
     def evaluateAt(point:Tensor1) : Double =
     {
         var sum = 0.0

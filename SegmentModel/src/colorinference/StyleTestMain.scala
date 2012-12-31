@@ -96,6 +96,17 @@ object StyleTestMain {
 
     }
 
+    //output histograms
+
+    for (s <- styleToModel.keys)
+    {
+      val testPatterns = styleToModel(s).testPatterns.map(_.fullpath)
+      var testMeshes = styleToModel(s).meshes.filter(m => testPatterns.contains(m.name))
+
+      //output histograms for test meshes
+      OutputAllHistograms(testMeshes, styleToModel(s).model, s)
+    }
+
     //for each test pattern, generate the top N colorings from each of the style models
     //visualization columns will look like:
     //original pattern + style name, style A, style B, style C
@@ -106,9 +117,6 @@ object StyleTestMain {
     {
       val testPatterns = styleToModel(s).testPatterns.map(_.fullpath)
       var testMeshes = styleToModel(s).meshes.filter(m => testPatterns.contains(m.name))
-
-      //output histograms for test meshes
-      OutputAllHistograms(testMeshes, styleToModel(s).model, s)
 
       for (mesh<-testMeshes)
       {
@@ -264,42 +272,13 @@ object StyleTestMain {
 
       val patternId = info.name.replace(".png","").toInt
 
-      OutputHistograms(model, hallfilename, patternId, true, count==0)
+      VisualizationIO.OutputHistograms(model, hallfilename, patternId, true, count==0)
       count+=1
 
     }
   }
 
-  def OutputHistograms(model:ColorInferenceModel, filename:String, patternId:Int, append:Boolean, headers:Boolean)
-  {
-    //output the histograms in a csv format
-    val out = new FileWriter(filename, append)
-    if (headers)
-      out.write("\"pattern\",\"factortype\",\"property\",\"ids\",\"bin\",\"value\",\"smoothed\"\n")
 
-    val summary = model.summary
-
-    for (s <- summary.histograms)
-    {
-      val name = s.ttype
-      val prop = s.propname
-      val ids = s.ids
-      val hist = s.hist
-
-      val centroids = hist.getCentroids
-      val bins = hist.getBins
-      var idx = 0
-      for (c <- centroids)
-      {
-        out.write("\""+patternId+"\",\""+name +"\",\""+prop+"\",\""+ ids.mkString("-")+"\","+c.mkString("-")+","+hist.evaluateAt(c)+",\"true\"\n")
-
-        out.write("\""+patternId+"\",\""+name +"\",\""+prop+"\",\""+ ids.mkString("-")+"\","+c.mkString("-")+","+bins(idx)++",\"false\"\n")
-        idx += 1
-      }
-    }
-    out.close()
-
-  }
 
 
 

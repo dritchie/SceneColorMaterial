@@ -86,7 +86,7 @@ object ColorInferenceModel
     }
 
     // Implement this trait so that we can spit out & analyze model contents
-    class SummaryItem(val ttype:String, val propname:String, val ids:Array[String], val hist:VectorHistogram)
+    class SummaryItem(val ttype:String, val propname:String, val ids:Array[String], val hist:VectorHistogram, val origValue:Tensor1)
     class CoefficientsItem(val ttype:String, val propname:String, val classes:Seq[Tensor1], val featureNames:Seq[String], val coefficients:Array[Array[Double]])
     class Summary
     {
@@ -283,7 +283,7 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
     def summary:Summary =
     {
       val s = new Summary
-      val items = data.keys.map(si => new SummaryItem("unarysegment", propName, Array("s"+si), data(si).value.hist))
+      val items = data.keys.map(si => new SummaryItem("unarysegment", propName, Array("s"+si), data(si).value.hist, colorPropExtractor(data(si).value.seg.group.color.observedColor)) )
       s.histograms = items.toArray[SummaryItem]
 
       s.coefficients = Array(new CoefficientsItem("unarysegment", propName, regressor.getCentroids, regressor.getFeatureNames, regressor.getCoefficients))
@@ -403,7 +403,7 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
   def summary:Summary =
   {
     val s = new Summary
-    val items = data.keys.map(k => new SummaryItem("binarysegment", propName, Array("s"+k._1, "s"+k._2), data(k).value.hist))
+    val items = data.keys.map(k => new SummaryItem("binarysegment", propName, Array("s"+k._1, "s"+k._2), data(k).value.hist, colorPropExtractor(data(k).value.seg1.group.color.observedColor,data(k).value.seg2.group.color.observedColor)))
     s.histograms = items.toArray[SummaryItem]
 
     s.coefficients = Array(new CoefficientsItem("binarysegment", propName, regressor.getCentroids, regressor.getFeatureNames, regressor.getCoefficients))
@@ -537,7 +537,7 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
     def summary:Summary =
     {
       val s = new Summary
-      val items = data.keys.map(gi => new SummaryItem("unarygroup", propName, Array("g"+gi), data(gi).value.hist))
+      val items = data.keys.map(gi => new SummaryItem("unarygroup", propName, Array("g"+gi), data(gi).value.hist, colorPropExtractor(data(gi).value.group.color.observedColor)))
       s.histograms = items.toArray[SummaryItem]
 
       s.coefficients = Array(new CoefficientsItem("unarygroup", propName, regressor.getCentroids, regressor.getFeatureNames, regressor.getCoefficients))

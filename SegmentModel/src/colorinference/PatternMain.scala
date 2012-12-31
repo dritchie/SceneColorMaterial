@@ -165,12 +165,6 @@ object PatternMain {
   /** Visualization output methods **/
   def OutputVisualizations(pids:Array[Int], model:ColorInferenceModel, label:String)
   {
-      // TODO: This isn't possible anymore, given the new treatment of ModelTrainingParams.
-      // TODO: Actually, I don't think this *ever* had any effect. The histogram regressors have already
-      // TODO:   been trained, so changing the regression type doesn't do anything, right?
-//    //change the regression type
-//    ModelParams.regression = regression
-
     val hallfilename = histDir + "/allhist"+ label+".txt"
     val cfilename = histDir + "/coeff"+label+".txt"
     val file = new File(hallfilename)
@@ -191,148 +185,17 @@ object PatternMain {
 
       val patternId = patterns(idx).name.replace(".txt","").toInt
 
-      OutputHistograms(model, hallfilename, patternId, true, count==0)
-      OutputAllPermutations(meshes(idx), model, palette, vfilename)
+      VisualizationIO.OutputHistograms(model, hallfilename, patternId, true, count==0)
+      VisualizationIO.OutputAllPermutations(meshes(idx), model, palette, vfilename)
       count+=1
 
     }
 
     //coefficients are shared across all test patterns
-    OutputCoefficients(model, cfilename)
-  }
-  def OutputCoefficients(model:ColorInferenceModel, filename:String)
-  {
-     //output the coefficients of the regression if applicable
-    val out = new FileWriter(filename)
-    val summary = model.summary
-    out.write("\"factortype\",\"property\",\"bin\",\"feature\",\"coefficient\"\n")
-    for (s<- summary.coefficients)
-    {
-      //output the factortype, property name, bin, feature, and coefficient
-      val coeff = s.coefficients
-      val numFeatures = coeff.length
-
-      if (coeff.length>0)
-      {
-        val numBins = coeff(0).length
-
-        for (b <- 0 until numBins; f <- 0 until numFeatures)
-        {
-            val fn = {if (s.featureNames != null && f<s.featureNames.length) s.featureNames(f) else "noname"}
-            val bn = s.classes(b)
-
-            out.write(s.ttype+","+s.propname+","+bn.mkString("-")+","+fn+","+coeff(f)(b)+"\n")
-        }
-      }
-    }
-
-    out.close()
+    VisualizationIO.OutputCoefficients(model, cfilename)
   }
 
 
-  def OutputHistograms(model:ColorInferenceModel, filename:String, patternId:Int, append:Boolean, headers:Boolean)
-  {
-    //output the histograms in a csv format
-    //TODO: output group marginals
-    //TODO: current format may not work for histograms greater than 1D
-    //TODO: add more summary items?
-    val out = new FileWriter(filename, append)
-    if (headers)
-      out.write("\"pattern\",\"factortype\",\"property\",\"ids\",\"bin\",\"value\",\"smoothed\"\n")
-
-    val summary = model.summary
-
-    for (s <- summary.histograms)
-    {
-      val name = s.ttype
-      val prop = s.propname
-      val ids = s.ids
-      val hist = s.hist
-
-      val centroids = hist.getCentroids
-      val bins = hist.getBins
-      var idx = 0
-      for (c <- centroids)
-      {
-        out.write("\""+patternId+"\",\""+name +"\",\""+prop+"\",\""+ ids.mkString("-")+"\","+c.mkString("-")+","+hist.evaluateAt(c)+",\"true\"\n")
-
-        out.write("\""+patternId+"\",\""+name +"\",\""+prop+"\",\""+ ids.mkString("-")+"\","+c.mkString("-")+","+bins(idx)++",\"false\"\n")
-        idx += 1
-      }
-    }
-    out.close()
-
-  }
-
-
-  def OutputAllPermutations(mesh:SegmentMesh, model:ColorInferenceModel, palette:ColorPalette, filename:String)
-  {
-    //output all the permutations in order of score, indicate which one is the original
-    val numVals = DiscreteColorVariable.domain.size
-    val vars = mesh.groups.map(g => g.color)
-    val allPerms = (0 until numVals).toList.permutations.toList
-
-    //store the permutation index and the score in a list
-    var results = ArrayBuffer[(Int, Double)]()
-    val itemizedModel = model.itemizedModel(vars)
-
-    //add the results
-    var idx = 0
-    for (p <- allPerms)
-    {
-      val assignment = new HashMapAssignment(vars)
-      for (i <- mesh.groups.indices)
-      {
-        assignment.update(mesh.groups(i).color.asInstanceOf[DiscreteColorVariable], DiscreteColorVariable.domain(p(i)))
-      }
-      for (f <- itemizedModel.factors)
-      {
-        f.variables.foreach{ e => e match {
-          case(v:UnarySegmentTemplate.DatumVariable) => assignment.update(v, v.value)
-          case(b:BinarySegmentTemplate.DatumVariable) => assignment.update(b, b.value)
-          case _ => null
-        }}
-      }
-
-      val currScore = model.assignmentScore(vars, assignment)
-
-      //store the permutation index and the score into the results list
-      results += ((idx, currScore))
-
-      idx += 1
-    }
-
-    results = results.sortBy(t => -1*t._2)
-
-
-
-    //write the file
-    //Start with Score number isOrig
-    //then color assignments
-    val out = new FileWriter(filename)
-      out.write("Count " + allPerms.length +"\n")
-      for (r <- results)
-      {
-          val p = allPerms(r._1)
-          val score = r._2
-
-          //check if it is the original
-          var orig = true
-          for (i <- mesh.groups.indices)
-          {
-              if (palette(p(i)).distance(mesh.groups(i).color.observedColor) > 0)
-                  orig = false
-          }
-
-          out.write("Score " + score + " " + orig+"\n")
-          for (i <- mesh.groups.indices)
-          {
-              out.write(palette(p(i)).copyIfNeededTo(RGBColorSpace).componentString + "\n")
-          }
-      }
-      out.close()
-
-  }
 
   /** Testing the model **/
   def TestModel(segmesh:SegmentMesh, model:ColorInferenceModel):(Double,Double) =
