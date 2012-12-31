@@ -277,6 +277,9 @@ namespace PatternColorizer
                 orig.Dispose();
 
                 Bitmap result = (renderFinal)? GetFinalRendering(Util.ConvertFileName(basename, "",""), data): template.SolidColor(data, slotToColor);
+                //sometimes we can't get the nice image, so render the quantized image in this case. TODO: or maybe skip rendering this visualization at all
+                if (result == null)
+                    result = template.SolidColor(data, slotToColor);
                 PatternIO.SavePattern(result, p, suboutdir, "_recolored");
                 result.Dispose();
                 
@@ -369,9 +372,12 @@ namespace PatternColorizer
                         x = (nresult % ncol)*iwidth;
                         y = (nresult / ncol)*iheight;
 
-                        if (data.colors.Count() > 0)
+                        if (colorIdx > 0)
                         {
                             Bitmap result = (renderFinal)? GetFinalRendering(Util.ConvertFileName(basename, "",""), data): template.SolidColor(data, slotToColor);
+                            //sometimes we can't get the nice image, so render the quantized image in this case
+                            if (result == null)
+                                result = template.SolidColor(data, slotToColor);
                             g.DrawImage(result, x, y, iwidth-padding, iheight-padding);
 
                             String label = String.Format("{0:0.00}", score);
@@ -412,6 +418,9 @@ namespace PatternColorizer
                     y = (nresult / ncol) * iheight;
 
                     Bitmap result = (renderFinal)? GetFinalRendering(Util.ConvertFileName(basename, "",""), data): template.SolidColor(data, slotToColor);
+                    //sometimes we can't get the nice image, so render the quantized image in this case
+                    if (result == null)
+                        result = template.SolidColor(data, slotToColor);
                     g.DrawImage(result, x, y, iwidth - padding, iheight - padding);
                     Color color = Color.Black;
 
@@ -513,7 +522,7 @@ namespace PatternColorizer
                 }
 
                 //draw the original
-                Bitmap original = (renderFinal)? image: template.DebugQuantization();
+                Bitmap original = (renderFinal)? image: template.DebugQuantization();              
                 g.DrawImage(original, 0, iwidth, iwidth-padding, iheight-padding);
                 original.Dispose();
 
@@ -554,6 +563,9 @@ namespace PatternColorizer
                     styleToRowIdx[style]++;
 
                     Bitmap result = (renderFinal)?GetFinalRendering(Util.ConvertFileName(basename, "",""), data):template.SolidColor(data, slotToColor);
+                    //sometimes we can't get the nice image, so render the quantized image in this case
+                    if (result == null)
+                        result = template.SolidColor(data, slotToColor);
                     g.DrawImage(result, x, y, iwidth-padding, iheight-padding);
                     result.Dispose();
 
