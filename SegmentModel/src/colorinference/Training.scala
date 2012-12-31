@@ -24,6 +24,8 @@ abstract class ModelTrainingParams
 
     //include the segment factors?
     var includeUnaryTerms = true
+    var includeBinaryTerms = true
+    var includeGroupTerms = true
 
     // This is only possible if we're doing continuous variables, though
     var includeColorCompatibilityTerm = false
@@ -67,6 +69,13 @@ abstract class ModelTrainingParams
     // Which variable type are we using?
     type VariableType <: ColorVariable
     def colorVarParams:ColorVariableParams[VariableType]
+
+    var includeColorChoiceTerms = false
+    object ColorChoiceType extends Enumeration  //Not operational yet
+    {
+      type CholorChoiceType = Value
+      val LABMarginal, LABConditional, NamesConditional = Value
+    }
 }
 
 /* Different variable types require different model building/training operations */
@@ -128,6 +137,8 @@ object ModelTraining
     def lightness(c:Color) = Tensor1(c.copyIfNeededTo(LABColorSpace)(0))
     def nameSaliency(c:Color) = Tensor1(namingModel.saliency(c))
 
+    def labColor(c:Color) = {c.copyIfNeededTo(LABColorSpace); Tensor1(c(0), c(1), c(2))}
+
     // Binary
     def perceptualDifference(c1:Color, c2:Color) = Tensor1(Color.perceptualDifference(c1, c2))
     def chromaDifference(c1:Color, c2:Color) = Tensor1(Color.chromaDifference(c1, c2))
@@ -139,6 +150,7 @@ object ModelTraining
     /* Quantizers */
     val uniformQuant10 = new UniformVectorQuantizer(Array(10))
     val adaptiveQuant10 = new KMeansVectorQuantizer(10)
+    val adaptiveQuant40 = new KMeansVectorQuantizer(40)
 
     def apply(trainingMeshes:IndexedSeq[SegmentMesh], params:ModelTrainingParams) : ColorInferenceModel =
     {
@@ -178,17 +190,27 @@ class ModelTraining(val params:ModelTrainingParams)
     /* Binary segment properties */
     // The assumption for the binary properties thus far is that they're symmetric (no directionality between the variables), which is probably ok
     val binarySegProps = new ArrayBuffer[BinarySegmentProperty]()
-    binarySegProps += BinarySegmentProperty("Perceptual Difference", ModelTraining.perceptualDifference, ModelTraining.adaptiveQuant10)
-    binarySegProps += BinarySegmentProperty("Chroma Difference", ModelTraining.chromaDifference, ModelTraining.adaptiveQuant10)
-    binarySegProps += BinarySegmentProperty("Relative Colorfulness", ModelTraining.relativeColorfulness, ModelTraining.adaptiveQuant10)
-    binarySegProps += BinarySegmentProperty("Relative Lightness", ModelTraining.relativeLightness, ModelTraining.adaptiveQuant10)
-    binarySegProps += BinarySegmentProperty("Name Similarity", ModelTraining.nameSimilarity, ModelTraining.adaptiveQuant10)
+    if (params.includeBinaryTerms)
+    {
+      binarySegProps += BinarySegmentProperty("Perceptual Difference", ModelTraining.perceptualDifference, ModelTraining.adaptiveQuant10)
+      binarySegProps += BinarySegmentProperty("Chroma Difference", ModelTraining.chromaDifference, ModelTraining.adaptiveQuant10)
+      binarySegProps += BinarySegmentProperty("Relative Colorfulness", ModelTraining.relativeColorfulness, ModelTraining.adaptiveQuant10)
+      binarySegProps += BinarySegmentProperty("Relative Lightness", ModelTraining.relativeLightness, ModelTraining.adaptiveQuant10)
+      binarySegProps += BinarySegmentProperty("Name Similarity", ModelTraining.nameSimilarity, ModelTraining.adaptiveQuant10)
+    }
 
     /* Color group properties */
     val groupProps = new ArrayBuffer[ColorGroupProperty]()
-    groupProps += ColorGroupProperty("Lightness", ModelTraining.lightness, ModelTraining.adaptiveQuant10)
-    groupProps += ColorGroupProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.adaptiveQuant10)
-    groupProps += ColorGroupProperty("Name Saliency", ModelTraining.nameSaliency, ModelTraining.adaptiveQuant10)
+    if (params.includeGroupTerms)
+    {
+      groupProps += ColorGroupProperty("Lightness", ModelTraining.lightness, ModelTraining.adaptiveQuant10)
+      groupProps += ColorGroupProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.adaptiveQuant10)
+      groupProps += ColorGroupProperty("Name Saliency", ModelTraining.nameSaliency, ModelTraining.adaptiveQuant10)
+    }
+    if (params.includeColorChoiceTerms)
+    {
+      groupProps += ColorGroupProperty("LABColor", ModelTraining.labColor, ModelTraining.adaptiveQuant40)
+    }
 
     def train(trainingMeshes:IndexedSeq[SegmentMesh]) : ColorInferenceModel =
     {
