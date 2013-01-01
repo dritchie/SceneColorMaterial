@@ -4,8 +4,7 @@ import collection.immutable.HashMap
 import collection.mutable.ArrayBuffer
 import scala.Array
 import java.io.{File, FileWriter}
-import cc.factorie.{SamplingMaximizer, HashMapAssignment}
-import colorinference.ColorPalette
+import cc.factorie.{Family, SamplingMaximizer, HashMapAssignment}
 
 /**
  * Created with IntelliJ IDEA.
@@ -217,10 +216,34 @@ object StyleTestMain {
             sampler.samples.foreach(_.values.foreach(_.convertTo(LABColorSpace))) */
 
             val model = item.model
-            val samplerGenerator = () => new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable]
-            val maximizer = new ParallelTemperingMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, chainTemps)
             model.conditionOn(mesh)
+
+            //val samplerGenerator = () => new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable]
+            //val maximizer = new ParallelTemperingMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, chainTemps)
+
+            // TODO: This is a horrible, god-awful hack. I need to make the color compatibility factor
+            // TODO: into a proper template for it to work with parallel inference correctly.
+            val samplerGenerator = (m:SegmentMesh) =>
+            {
+              val modelCopy = new CombinedColorInferenceModel
+              modelCopy += model.asInstanceOf[CombinedColorInferenceModel].subModels(0)
+              if (params.includeColorCompatibilityTerm)
+              {
+                val itemModel = model.asInstanceOf[CombinedColorInferenceModel].subModels(1).asInstanceOf[ItemizedColorInferenceModel]
+                val weight = itemModel.conditionalFactors.head.asInstanceOf[Family#Factor].family.asInstanceOf[ColorInferenceModel.Trainable].getWeight
+                val itemCopy = new ItemizedColorInferenceModel
+                val fam = new ColorCompatibilityFamily
+                fam.setWeight(weight)
+                val fac = new fam.Factor
+                itemCopy.addConditionalFactor(fac.asInstanceOf[itemCopy.ConditionalFactor])
+                itemCopy.conditionOn(m)
+                modelCopy += itemCopy
+              }
+              new ContinuousColorSampler(modelCopy) with MemorizingSampler[ContinuousColorVariable]
+            }
+            val maximizer = new ParallelTemperingMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, chainTemps)
             maximizer.maximize(mesh, iterations, itersBetweenSwaps)
+
 
             // Convert sampled values to LAB first, since our similarity metric operates in LAB space
             maximizer.samples.foreach(_.values.foreach(_.convertTo(LABColorSpace)))

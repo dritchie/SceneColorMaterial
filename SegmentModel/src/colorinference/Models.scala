@@ -16,7 +16,7 @@ import collection.mutable.{ArrayBuffer, HashMap}
 import scala.Array
 import matlabcontrol._
 import collection.mutable
-import java.io.{FileNotFoundException, FileWriter}
+import java.io.{File, FileNotFoundException, FileWriter}
 import io.Source
 
 object ColorInferenceModel
@@ -62,34 +62,83 @@ object ColorInferenceModel
     {
         protected def regressor:HistogramRegressor
 
-        protected def trainRegressor(examples:Seq[HistogramRegressor.RegressionExample], q:VectorQuantizer,
-                                     loadFrom:String = "")
+        protected def trainRegressor(examples:Seq[HistogramRegressor.RegressionExample], crossValidate:Boolean,
+                                     saveValidationLog:Boolean, cvRanges:HistogramRegressor.CrossValidationRanges,
+                                     numBins:Int, bandScale:Double, loadFrom:String = "")
         {
-            if (!loadFrom.isEmpty)
+            if (loadFrom.isEmpty || !regressor.load(examples, "%s/%s".format(loadFrom, name)))
             {
-                val basename = "%s/%s".format(loadFrom, name)
-                regressor.train(examples, q, basename)
+                var bins = numBins
+                if (crossValidate)
+                {
+                    println("Cross-validating...")
+
+                    var log:FileWriter = null
+                    if (saveValidationLog)
+                    {
+                        val dir = new File("crossValidationLog")
+                        if (!dir.exists)
+                            dir.mkdir
+
+                        log = new FileWriter("%s/%s.crossValidation.csv".format(dir, name))
+                        // Write headers
+                        log.write("numBins,bandScale,likelihood,classificationAccuracy,predictionError\n")
+                    }
+
+                    // Split examples into training and test
+                    // We assume that any randomization of examples has already been done.
+                    val splitPoint = (0.75*examples.length).toInt
+                    val trainData = examples.slice(0, splitPoint)
+                    val testData = examples.slice(splitPoint+1, examples.length)
+
+                    // Find the number of bins that gives the best likelihood after averaging
+                    // over 'all possible' (read: many) bandwidth scales
+                    var bestLL = Double.NegativeInfinity
+                    var bestNumBins = -1
+                    for (bins <- cvRanges.numBins)
+                    {
+                        println("Trying numBins = %d".format(bins))
+                        regressor.train(trainData, new KMeansVectorQuantizer(bins))
+                        var avgLL = 0.0
+                        for (scale <- cvRanges.bandScale)
+                        {
+                            regressor.bandwithScale = scale
+                            val ll = regressor.avgLogLikelihood(testData)
+                            avgLL += ll
+                            if (saveValidationLog)
+                            {
+                                val acc = regressor.asInstanceOf[WekaMultiClassHistogramRegressor].classificationAccuracy(testData)
+                                val err = regressor.asInstanceOf[WekaMultiClassHistogramRegressor].avgPredictionError(testData)
+                                log.write("%d,%g,%g,%g,%g\n".format(bins, scale, ll, acc, err))
+                                log.flush()
+                            }
+                        }
+                        avgLL /= cvRanges.bandScale.length
+                        if (avgLL > bestLL)
+                        {
+                            bestLL = avgLL
+                            bestNumBins = bins
+                        }
+                    }
+
+                    println("Best numBins = %d".format(bestNumBins))
+                    bins = bestNumBins
+                    // Reset bandwidth scale to original value
+                    regressor.bandwithScale = bandScale
+
+                    if (saveValidationLog)
+                        log.close()
+                }
+                // Final training
+                println("Training...")
+                regressor.train(examples, new KMeansVectorQuantizer(bins))
             }
-            else regressor.train(examples, q)
-
-            // Report the average log likelihood of the training set
-            val ll = regressor.avgLogLikelihood(examples)
-            println("Average log-likelihood of training data: " + ll)
-
-            // Report classification accuracy of the training set
-            val acc = regressor.asInstanceOf[WekaMultiClassHistogramRegressor].classificationAccuracy(examples)
-            println("Classification accuracy: %g".format(acc))
-
-            // Report classification error on the training set
-            val err = regressor.asInstanceOf[WekaMultiClassHistogramRegressor].avgClassificationError(examples)
-            println("Average classification error: %g".format(err))
         }
 
         def saveRegressorIfPossible(dir:String)
         {
             val basename = "%s/%s".format(dir, name)
-            regressor.saveCentroids(basename)
-            regressor.saveRegressor(basename)
+            regressor.save(basename)
         }
     }
 
@@ -191,7 +240,7 @@ class ItemizedColorInferenceModel extends ItemizedModel with ColorInferenceModel
 
     type ConditionalFactor = Factor with Conditional
 
-    private val conditionalFactors = new mutable.HashSet[ConditionalFactor]
+    val conditionalFactors = new mutable.HashSet[ConditionalFactor]
 
     // Some of this model's factors might come from families, so we must provide
     // a way to retrieve all of those families (particularly important for training)
@@ -301,7 +350,7 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
     protected def createRegressor(property:ModelTraining#UnarySegmentProperty) : HistogramRegressor =
     {
         println("Training " + name + "...")
-        property.regression(property.metric, WekaMultiClassHistogramRegressor)
+        property.regression(MathUtils.euclideanDistance, property.bandScale, WekaMultiClassHistogramRegressor)
     }
 
     protected def computeStatistics(color:Color, datum:Datum) : Tensor1  =
@@ -340,7 +389,7 @@ class DiscreteUnarySegmentTemplate(property:ModelTraining#UnarySegmentProperty, 
     val propName = property.name
     protected val colorPropExtractor = property.extractor
     protected val regressor = createRegressor(property)
-    trainRegressor(property.examples, property.quant, loadFrom)
+    trainRegressor(property.examples, property.crossValidate, property.saveValidationLog, property.ranges, property.quantLevel, property.bandScale, loadFrom)
 
     override def statistics(v1:DiscreteColorVariable#Value, v2:DatumVariable#Value) : Tensor =
     {
@@ -356,7 +405,7 @@ class ContinuousUnarySegmentTemplate(property:ModelTraining#UnarySegmentProperty
     val propName = property.name
     protected val colorPropExtractor = property.extractor
     protected val regressor = createRegressor(property)
-    trainRegressor(property.examples, property.quant, loadFrom)
+    trainRegressor(property.examples, property.crossValidate, property.saveValidationLog, property.ranges, property.quantLevel, property.bandScale, loadFrom)
 
     override def statistics(v1:ContinuousColorVariable#Value, v2:DatumVariable#Value) : Tensor =
     {
@@ -423,7 +472,7 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
   protected def createRegressor(property:ModelTraining#BinarySegmentProperty) : HistogramRegressor =
     {
         println("Training " + name + "...")
-        property.regression(property.metric, WekaMultiClassHistogramRegressor)
+        property.regression(MathUtils.euclideanDistance, property.bandScale, WekaMultiClassHistogramRegressor)
     }
 
     protected def computeStatistics(color1:Color, color2:Color, datum:Datum) : Tensor1  =
@@ -475,7 +524,7 @@ class DiscreteBinarySegmentTemplate(property:ModelTraining#BinarySegmentProperty
     val propName = property.name
     protected val colorPropExtractor = property.extractor
     protected val regressor = createRegressor(property)
-    trainRegressor(property.examples, property.quant, loadFrom)
+    trainRegressor(property.examples, property.crossValidate, property.saveValidationLog, property.ranges, property.quantLevel, property.bandScale, loadFrom)
 
     override def statistics(v1:DiscreteColorVariable#Value, v2:DiscreteColorVariable#Value, v3:DatumVariable#Value) : Tensor =
     {
@@ -491,7 +540,7 @@ class ContinuousBinarySegmentTemplate(property:ModelTraining#BinarySegmentProper
     val propName = property.name
     protected val colorPropExtractor = property.extractor
     protected val regressor = createRegressor(property)
-    trainRegressor(property.examples, property.quant, loadFrom)
+    trainRegressor(property.examples, property.crossValidate, property.saveValidationLog, property.ranges, property.quantLevel, property.bandScale, loadFrom)
 
     override def statistics(v1:ContinuousColorVariable#Value, v2:ContinuousColorVariable#Value, v3:DatumVariable#Value) : Tensor =
     {
@@ -556,7 +605,7 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
     protected def createRegressor(property:ModelTraining#ColorGroupProperty) : HistogramRegressor =
     {
         println("Training " + name + "...")
-        property.regression(property.metric, WekaMultiClassHistogramRegressor)
+        property.regression(MathUtils.euclideanDistance, property.bandScale, WekaMultiClassHistogramRegressor)
     }
 
     protected def computeStatistics(color:Color, datum:Datum) : Tensor1  =
@@ -589,7 +638,7 @@ class DiscreteColorGroupTemplate(property:ModelTraining#ColorGroupProperty, load
     val isMarginal = property.isMarginal
     protected val colorPropExtractor = property.extractor
     protected val regressor = createRegressor(property)
-    trainRegressor(property.examples, property.quant, loadFrom)
+    trainRegressor(property.examples, property.crossValidate, property.saveValidationLog, property.ranges, property.quantLevel, property.bandScale, loadFrom)
 
     override def statistics(v1:DiscreteColorVariable#Value, v2:DatumVariable#Value) : Tensor =
     {
@@ -606,7 +655,7 @@ class ContinuousColorGroupTemplate(property:ModelTraining#ColorGroupProperty, lo
     val isMarginal = property.isMarginal
     protected val colorPropExtractor = property.extractor
     protected val regressor = createRegressor(property)
-    trainRegressor(property.examples, property.quant, loadFrom)
+    trainRegressor(property.examples, property.crossValidate, property.saveValidationLog, property.ranges, property.quantLevel, property.bandScale, loadFrom)
 
     override def statistics(v1:ContinuousColorVariable#Value, v2:DatumVariable#Value) : Tensor =
     {

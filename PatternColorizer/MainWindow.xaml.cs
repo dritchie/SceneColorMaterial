@@ -497,7 +497,7 @@ namespace PatternColorizer
                 {
                     origStyle = line[0];
                     if (!styleToRowIdx.ContainsKey(line[1]))
-                        styleToRowIdx.Add(line[1], 1);
+                        styleToRowIdx.Add(line[1], 0);
                 }
 
 
@@ -506,8 +506,9 @@ namespace PatternColorizer
                 int iwidth = 100;
                 int iheight = 100;
                 int padding = 15;
+                int headerSpace = 30;
                 int width = (styleToRowIdx.Keys.Count() + 1) * iwidth;
-                int height = (lines.Count() / styleToRowIdx.Keys.Count() + 1) * iheight; 
+                int height = (lines.Count() / styleToRowIdx.Keys.Count()) * iheight + headerSpace; 
 
                 Font font = new Font("Arial", 10);
                 
@@ -517,19 +518,19 @@ namespace PatternColorizer
                 //write out the headings, highlight the original style heading
                 var headers = styleToRowIdx.Keys.ToList<String>();
                 int ncol = headers.Count()+1;
-
-                g.DrawString("original", font, new SolidBrush(Color.Black), 0, 0);
+                Color headerColor = Color.Black;
+                g.DrawString("original", font, new SolidBrush(headerColor), 0, 0);
                 for (int i=0; i<headers.Count(); i++)
                 {
                     if (headers[i] == origStyle)
-                        g.DrawString(headers[i], font, new SolidBrush(Color.Blue), (i+1)*iwidth, 0);
+                        g.DrawString(headers[i], font, new SolidBrush(headerColor), (i+1)*iwidth, 0);
                     else
-                        g.DrawString(headers[i], font, new SolidBrush(Color.Black), (i+1)*iwidth, 0);
+                        g.DrawString(headers[i], font, new SolidBrush(headerColor), (i+1)*iwidth, 0);
                 }
 
                 //draw the original
                 Bitmap original = (renderFinal)? image: template.DebugQuantization();              
-                g.DrawImage(original, 0, iwidth, iwidth-padding, iheight-padding);
+                g.DrawImage(original, 0, headerSpace, iwidth-padding, iheight-padding);
                 original.Dispose();
 
                 PaletteData data = new PaletteData();
@@ -565,7 +566,7 @@ namespace PatternColorizer
                     }
 
                     int x = (headers.IndexOf(style)+1)*iwidth;
-                    int y = styleToRowIdx[style]*iheight;
+                    int y = styleToRowIdx[style]*iheight+headerSpace;
                     styleToRowIdx[style]++;
 
                     Bitmap result = (renderFinal)?GetFinalRendering(Util.ConvertFileName(basename, "",""), data):template.SolidColor(data, slotToColor);

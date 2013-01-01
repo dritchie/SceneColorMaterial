@@ -13,29 +13,7 @@ import collection.mutable.ArrayBuffer
 import util.Random
 
 
-class ColorHistogram(val colorspace:ColorSpace) extends VectorHistogram(colorspace.distance)
-{
-}
-
-object ColorHistogram
-{
-    def apply(data:IndexedSeq[Color], numBins:Int)
-    {
-        assert(data.length > 0, {println("ColorHistogram: cannot construct from 0 data points")})
-
-        val colorspace = data(0).colorSpace
-
-        // Ensure that all colors are in the same color space
-        assert(data.foldLeft(true)((sofar, curr) => { sofar && curr.isIn(colorspace) }),
-        {println("ColorHistogram: input colors not all in same color space")})
-
-        val hist = new ColorHistogram(colorspace)
-        hist.train(data, new KMeansVectorQuantizer(numBins))
-        hist
-    }
-}
-
-class VectorHistogram(private val metric:MathUtils.DistanceMetric)
+class VectorHistogram(private val metric:MathUtils.DistanceMetric, private val bandwidthScale:Double)
 {
     private var centroids:IndexedSeq[Tensor1] = new Array[Tensor1](0)
     private var bins:IndexedSeq[Double] = new Array[Double](0)
@@ -98,7 +76,8 @@ class VectorHistogram(private val metric:MathUtils.DistanceMetric)
             val totalterm = freq * gauss
             sum += totalterm
         }
-        sum / bins.length
+        //sum / bins.length     // This is a linear superposition of PDFs, so it is already a normalized PDF
+        sum
     }
 
     def evaluateBinAt(bin:Int, point:Tensor1) : Double =
@@ -113,7 +92,7 @@ class VectorHistogram(private val metric:MathUtils.DistanceMetric)
     private def estimateBandwidths()
     {
         val n = VectorHistogram.numBandwidthEstimationNeighbors
-        val invN = 1.0/n
+        val scale = bandwidthScale*(1.0/n)
         bandwidths = for (i <- 0 until bins.length) yield
         {
             val otherIndices = (0 until bins.length).filter((index) => index != i)
@@ -121,20 +100,20 @@ class VectorHistogram(private val metric:MathUtils.DistanceMetric)
             dists = dists.sorted
             var sum = 0.0
             for (j <- 0 until n) sum += dists(j)
-            invN*sum
+            scale*sum
         }
     }
 }
 
 object VectorHistogram
 {
-    private val numBandwidthEstimationNeighbors = 3
+    val numBandwidthEstimationNeighbors = 3
 
-    def apply(data:Seq[Tensor1], metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer) : VectorHistogram =
+    def apply(data:Seq[Tensor1], metric:MathUtils.DistanceMetric, bandwidthScale:Double, quantizer:VectorQuantizer) : VectorHistogram =
     {
         assert(data.length > 0, {println("VectorHistogram: cannot construct from 0 data points")})
 
-        val hist = new VectorHistogram(metric)
+        val hist = new VectorHistogram(metric, bandwidthScale)
         hist.train(data, quantizer)
         hist
     }
@@ -231,7 +210,7 @@ class KMeansVectorQuantizer(private val numClusters:Int) extends VectorQuantizer
           }
         })
 
-        val actualClusters = Math.min(numClusters, uniqSamples.length)
+        val actualClusters = math.min(numClusters, uniqSamples.length)
 
         // Choose the initial quantization vectors randomly from the input samples
         val pool = new ArrayBuffer[Int]()
@@ -245,7 +224,9 @@ class KMeansVectorQuantizer(private val numClusters:Int) extends VectorQuantizer
             uniqSamples(todrop).copy
         }
 
-        val assignments = Array.fill[Int](samples.length)(-1)
+        val parSamples = samples.par
+
+        val assignments = Array.fill[Int](parSamples.length)(-1)
         val counts = new Array[Double](quantVecs.length)
         var converged = false
         while (!converged)
@@ -254,10 +235,14 @@ class KMeansVectorQuantizer(private val numClusters:Int) extends VectorQuantizer
             for (i <- 0 until counts.length) counts(i) = 0
 
             // Assign points to closest quantization vector
-            var changed = false
-            for (i <- 0 until samples.length)
+            val newAssignments = parSamples.map(samp =>
             {
-                val closestIndex = MathUtils.closestVectorBruteForce(samples(i), quantVecs, metric)
+                MathUtils.closestVectorBruteForce(samp, quantVecs, metric)
+            })
+            var changed = false
+            for (i <- 0 until parSamples.length)
+            {
+                val closestIndex = newAssignments(i)
                 changed |= (closestIndex != assignments(i))
                 assignments(i) = closestIndex
                 counts(closestIndex) += {if (weights==null) 1.0 else weights(i)}
@@ -268,7 +253,7 @@ class KMeansVectorQuantizer(private val numClusters:Int) extends VectorQuantizer
             if (changed)
             {
                 for (i <- 0 until quantVecs.length) quantVecs(i) := 0.0
-                for (i <- 0 until samples.length) quantVecs(assignments(i)) += (samples(i) * {if (weights==null) 1.0 else weights(i)} )
+                for (i <- 0 until parSamples.length) quantVecs(assignments(i)) += (samples(i) * {if (weights==null) 1.0 else weights(i)} )
                 for (i <- 0 until quantVecs.length) if (counts(i) > 0) quantVecs(i) /= counts(i)
             }
         }
