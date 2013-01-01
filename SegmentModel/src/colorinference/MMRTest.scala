@@ -40,9 +40,8 @@ object MMRTest
         if (!visDirTestFile.exists)
             visDirTestFile.mkdir
 
-        val testingArtist = "sugar!"
-        val trainingArtist = "davidgav"
-        val patterns = PatternIO.getPatterns(inputDir).filter(p=>(p.directory == testingArtist || p.directory == trainingArtist)).toArray
+        val trainingArtists = Set("sugar!", "davidgav")
+        val patterns = PatternIO.getPatterns(inputDir).filter(p=>(trainingArtists.contains(p.directory))).toArray
 
         if (patterns.length == 0)
             println("No files found in the input directory!")
@@ -61,6 +60,9 @@ object MMRTest
             loadWeightsIfPossible = true
 
             includeColorCompatibilityTerm = true
+
+            crossValidateHistogramParams = true
+            saveCrossValidationLog = true
 
             initialLearningRate = 0.2
             numWeightTuningIterations = 20
@@ -91,7 +93,8 @@ object MMRTest
 
 
         val testingMeshes = {for (idx<-meshes.indices if (pids.contains(patterns(idx).name.replace(".txt","").toInt))) yield meshes(idx)}
-        val trainingMeshes = for (idx <- meshes.indices if (patterns(idx).directory == trainingArtist)) yield meshes(idx)
+        val trainingMeshes = for (mesh <- meshes if !testingMeshes.contains(mesh)) yield mesh
+        //val trainingMeshes = for (idx <- meshes.indices if (patterns(idx).directory == trainingArtist)) yield meshes(idx)
         //val trainingMeshes = testingMeshes
 
         println("Training on " + trainingMeshes.length + " meshes")

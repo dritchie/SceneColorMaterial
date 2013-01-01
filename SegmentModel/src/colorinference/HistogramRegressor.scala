@@ -20,9 +20,11 @@ import io.Source
 
 object HistogramRegressor
 {
+    type RegressionFunction = (MathUtils.DistanceMetric, Double, WekaHistogramRegressor) => HistogramRegressor
     case class RegressionExample(target:Tensor1, features:Tensor1, featureNames:Array[String]=null, weight:Double=1) {}
+    case class CrossValidationRanges(numBins:Seq[Int], bandScale:Seq[Double])
 
-    def KNN(metric:MathUtils.DistanceMetric, generator:WekaHistogramRegressor) =
+    def KNN(metric:MathUtils.DistanceMetric, bandwidthScale:Double, generator:WekaHistogramRegressor) =
     {
         val classifier = new IBk()
         classifier.setDistanceWeighting(new SelectedTag(IBk.WEIGHT_INVERSE, IBk.TAGS_WEIGHTING))
@@ -30,17 +32,17 @@ object HistogramRegressor
         classifier.setMeanSquared(true)
         classifier.setNearestNeighbourSearchAlgorithm(new KDTree())
 
-        generator(classifier, metric)
+        generator(classifier, metric, bandwidthScale)
     }
 
-    def LogisticRegression(metric:MathUtils.DistanceMetric, generator:WekaHistogramRegressor) =
+    def LogisticRegression(metric:MathUtils.DistanceMetric, bandwidthScale:Double, generator:WekaHistogramRegressor) =
     {
         val classifier = new Logistic()
 
-        generator(classifier, metric)
+        generator(classifier, metric, bandwidthScale)
     }
 
-    def LWLR(metric:MathUtils.DistanceMetric, generator:WekaHistogramRegressor) =
+    def LWLR(metric:MathUtils.DistanceMetric, bandwidthScale:Double, generator:WekaHistogramRegressor) =
     {
         val classifier = new Logistic()
         val enhancer = new LWL()
@@ -48,10 +50,10 @@ object HistogramRegressor
         enhancer.setNearestNeighbourSearchAlgorithm(new KDTree())
         enhancer.setKNN(100)
 
-        generator(enhancer, metric)
+        generator(enhancer, metric, bandwidthScale)
     }
 
-    def SVM(metric:MathUtils.DistanceMetric, generator:WekaHistogramRegressor) =
+    def SVM(metric:MathUtils.DistanceMetric, bandwidthScale:Double, generator:WekaHistogramRegressor) =
     {
         val classifier = new SMO()
         classifier.setNumFolds(10)
@@ -59,11 +61,11 @@ object HistogramRegressor
         val kernel = new RBFKernel()
         classifier.setKernel(kernel)
 
-        generator(classifier, metric)
+        generator(classifier, metric, bandwidthScale)
     }
 }
 
-abstract class HistogramRegressor(private val metric:MathUtils.DistanceMetric)
+abstract class HistogramRegressor(private val metric:MathUtils.DistanceMetric, var bandwithScale:Double)
 {
     protected var centroids:IndexedSeq[Tensor1] = null
     protected var featureNames:Seq[String] = null
@@ -77,14 +79,21 @@ abstract class HistogramRegressor(private val metric:MathUtils.DistanceMetric)
 
     protected def fillBins(featureVec:Tensor1, bins:Array[Double])
 
+    def load(examples:Seq[HistogramRegressor.RegressionExample], loadFrom:String) : Boolean =
+    {
+        featureNames = examples(0).featureNames
+        loadBandwidthScale(loadFrom) &&
+        loadCentroids(loadFrom) &&
+        loadRegressor(examples, loadFrom)
+    }
+
     def train(examples:Seq[HistogramRegressor.RegressionExample], quantizer:VectorQuantizer, loadFrom:String = "")
     {
         featureNames = examples(0).featureNames
-        if (loadFrom.isEmpty || !loadCentroids(loadFrom))
-            centroids = computeCentroids(examples, quantizer)
-        trainRegressor(examples, loadFrom)
+        centroids = computeCentroids(examples, quantizer)
+        trainRegressor(examples)
     }
-    def trainRegressor(examples:Seq[HistogramRegressor.RegressionExample], loadFrom:String = "")
+    def trainRegressor(examples:Seq[HistogramRegressor.RegressionExample])
 
     // For testing
     def avgLogLikelihood(examples:Seq[HistogramRegressor.RegressionExample]) : Double =
@@ -99,7 +108,31 @@ abstract class HistogramRegressor(private val metric:MathUtils.DistanceMetric)
         ll / examples.length
     }
 
-    def saveCentroids(fileBaseName:String)
+    def save(fileBaseName:String)
+    {
+        saveBandwithScale(fileBaseName)
+        saveCentroids(fileBaseName)
+        saveRegressor(fileBaseName)
+    }
+
+    protected def saveBandwithScale(fileBaseName:String)
+    {
+        val fw = new FileWriter(fileBaseName + ".bandscale")
+        fw.write("%f\n".format(bandwithScale))
+        fw.close()
+    }
+    protected def loadBandwidthScale(fileBaseName:String) : Boolean =
+    {
+        print("Attemping to load bandwidth scale...")
+        try
+        {
+            bandwithScale = Source.fromFile(fileBaseName + ".bandscale").getLines().next().toDouble
+        } catch { case e:FileNotFoundException => println("FAILED"); return false }
+        println("SUCCESS")
+        true
+    }
+
+    protected def saveCentroids(fileBaseName:String)
     {
         val fw = new FileWriter(fileBaseName + ".centroids")
         for (c <- centroids)
@@ -110,7 +143,7 @@ abstract class HistogramRegressor(private val metric:MathUtils.DistanceMetric)
         }
         fw.close()
     }
-    def loadCentroids(fileBaseName:String) : Boolean =
+    protected def loadCentroids(fileBaseName:String) : Boolean =
     {
         print("Attemping to load centroids...")
         try
@@ -120,8 +153,8 @@ abstract class HistogramRegressor(private val metric:MathUtils.DistanceMetric)
         println("SUCCESS")
         true
     }
-    def saveRegressor(fileBaseName:String) {}
-    def loadRegressor(fileBaseName:String) : Boolean =  { false }
+    protected def saveRegressor(fileBaseName:String) {}
+    protected def loadRegressor(examples:Seq[HistogramRegressor.RegressionExample], fileBaseName:String) : Boolean =  { false }
 
     def predictHistogram(featureVec:Tensor1) : VectorHistogram =
     {
@@ -139,7 +172,7 @@ abstract class HistogramRegressor(private val metric:MathUtils.DistanceMetric)
             for (i <- 0 until bins.length) bins(i) /= totalmass
 
         // Construct histogram
-        val hist = new VectorHistogram(metric)
+        val hist = new VectorHistogram(metric, bandwithScale)
         hist.setData(centroids, bins)
         hist
     }
@@ -162,37 +195,20 @@ I don't know which one will work better, so it's probably best to try both and s
 
 trait WekaHistogramRegressor
 {
-    def apply(classifier:Classifier, metric:MathUtils.DistanceMetric) : HistogramRegressor
+    def apply(classifier:Classifier, metric:MathUtils.DistanceMetric, bandwidthScale:Double) : HistogramRegressor
 }
 
 object WekaMultiClassHistogramRegressor extends WekaHistogramRegressor
 {
-    def apply(classifier:Classifier, metric:MathUtils.DistanceMetric) = new WekaMultiClassHistogramRegressor(classifier, metric)
+    def apply(classifier:Classifier, metric:MathUtils.DistanceMetric, bandwidthScale:Double) =
+        new WekaMultiClassHistogramRegressor(classifier, metric, bandwidthScale)
 }
 
-class WekaMultiClassHistogramRegressor(private var classifier:Classifier, metric:MathUtils.DistanceMetric)
-    extends HistogramRegressor(metric)
+class WekaMultiClassHistogramRegressor(private var classifier:Classifier, metric:MathUtils.DistanceMetric, bandwidthScale:Double)
+    extends HistogramRegressor(metric, bandwidthScale)
 {
     private var attributePrototype:FastVector = null
     private var dummyDataset:Instances = null
-
-    override def saveRegressor(fileBaseName:String)
-    {
-        // Save the classifier
-        weka.core.SerializationHelper.write(fileBaseName+".regressor", classifier)
-    }
-
-    override def loadRegressor(fileBaseName:String) : Boolean =
-    {
-        print("Attempting to load regressor...")
-        try
-        {
-            // Load classifier
-            classifier = weka.core.SerializationHelper.read(fileBaseName+".regressor").asInstanceOf[Classifier]
-        } catch { case e:Exception => println("FAILED"); return false }
-        println("SUCCESS")
-        true
-    }
 
     def getCoefficients:Array[Array[Double]] =
     {
@@ -239,7 +255,29 @@ class WekaMultiClassHistogramRegressor(private var classifier:Classifier, metric
         instance
     }
 
-    def trainRegressor(examples:Seq[HistogramRegressor.RegressionExample], loadFrom:String = "")
+    override def saveRegressor(fileBaseName:String)
+    {
+        // Save the classifier
+        weka.core.SerializationHelper.write(fileBaseName+".regressor", classifier)
+    }
+
+    override def loadRegressor(examples:Seq[HistogramRegressor.RegressionExample], fileBaseName:String) : Boolean =
+    {
+        attributePrototype = buildAttributePrototype(examples)
+        dummyDataset = new Instances("dummySet", attributePrototype, 0)
+        dummyDataset.setClassIndex(attributePrototype.size - 1)
+
+        print("Attempting to load regressor...")
+        try
+        {
+            // Load classifier
+            classifier = weka.core.SerializationHelper.read(fileBaseName+".regressor").asInstanceOf[Classifier]
+        } catch { case e:Exception => println("FAILED"); return false }
+        println("SUCCESS")
+        true
+    }
+
+    def trainRegressor(examples:Seq[HistogramRegressor.RegressionExample])
     {
         //println("Training multi-class histogram regressor...")
 
@@ -247,29 +285,24 @@ class WekaMultiClassHistogramRegressor(private var classifier:Classifier, metric
         dummyDataset = new Instances("dummySet", attributePrototype, 0)
         dummyDataset.setClassIndex(attributePrototype.size - 1)
 
-        // We only need to go further if we're not loading or if
-        // we can't load the classifier
-        if (loadFrom.isEmpty || !loadRegressor(loadFrom))
+        // Associate training examples with their closest bin
+        val assignments = new Array[Int](examples.length)
+        for (i <- 0 until examples.length)
+            assignments(i) = MathUtils.closestVectorBruteForce(examples(i).target, centroids, metric)
+
+        // Init Weka training set
+        val trainingSet = new Instances("trainingSet", attributePrototype, examples.length)
+        // Don't forget to tell it where in the attribute vector the class is!
+        trainingSet.setClassIndex(attributePrototype.size - 1)
+
+        // Populate training set
+        for (i <- 0 until examples.length)
         {
-            // Associate training examples with their closest bin
-            val assignments = new Array[Int](examples.length)
-            for (i <- 0 until examples.length)
-                assignments(i) = MathUtils.closestVectorBruteForce(examples(i).target, centroids, metric)
-
-            // Init Weka training set
-            val trainingSet = new Instances("trainingSet", attributePrototype, examples.length)
-            // Don't forget to tell it where in the attribute vector the class is!
-            trainingSet.setClassIndex(attributePrototype.size - 1)
-
-            // Populate training set
-            for (i <- 0 until examples.length)
-            {
-                val instance = convertToWekaInstance(examples(i).features, examples(i).weight, assignments(i))
-                trainingSet.add(instance)
-            }
-
-            classifier.buildClassifier(trainingSet)
+            val instance = convertToWekaInstance(examples(i).features, examples(i).weight, assignments(i))
+            trainingSet.add(instance)
         }
+
+        classifier.buildClassifier(trainingSet)
     }
 
     def classificationAccuracy(examples:Seq[HistogramRegressor.RegressionExample]) : Double =
@@ -292,7 +325,7 @@ class WekaMultiClassHistogramRegressor(private var classifier:Classifier, metric
 
     // Not all misclassifications are equally bad. This measure takes this into account
     // Here, we look at the metric distance between the predicted bin centroid and the target value
-    def avgClassificationError(examples:Seq[HistogramRegressor.RegressionExample]) : Double =
+    def avgPredictionError(examples:Seq[HistogramRegressor.RegressionExample]) : Double =
     {
         var error = 0.0
         for (i <- 0 until examples.length)
@@ -326,11 +359,12 @@ class WekaMultiClassHistogramRegressor(private var classifier:Classifier, metric
 
 object WekaBinByBinHistogramRegressor extends WekaHistogramRegressor
 {
-    def apply(classifier:Classifier, metric:MathUtils.DistanceMetric) = new WekaBinByBinHistogramRegressor(classifier, metric)
+    def apply(classifier:Classifier, metric:MathUtils.DistanceMetric, bandwidthScale:Double) =
+        new WekaBinByBinHistogramRegressor(classifier, metric, bandwidthScale)
 }
 
-class WekaBinByBinHistogramRegressor(classifier:Classifier, metric:MathUtils.DistanceMetric)
-    extends HistogramRegressor(metric)
+class WekaBinByBinHistogramRegressor(classifier:Classifier, metric:MathUtils.DistanceMetric, bandwidthScale:Double)
+    extends HistogramRegressor(metric, bandwidthScale)
 {
     private val regressors = Classifier.makeCopies(classifier, centroids.length)
     private var attributePrototype:FastVector = null
@@ -369,7 +403,7 @@ class WekaBinByBinHistogramRegressor(classifier:Classifier, metric:MathUtils.Dis
         instance
     }
 
-    def trainRegressor(examples:Seq[HistogramRegressor.RegressionExample], loadFrom:String = "")
+    def trainRegressor(examples:Seq[HistogramRegressor.RegressionExample])
     {
         //println("Training bin-by-bin histogram regressor...")
 
@@ -378,7 +412,7 @@ class WekaBinByBinHistogramRegressor(classifier:Classifier, metric:MathUtils.Dis
         dummyDataset.setClassIndex(attributePrototype.size - 1)
 
         // Build a 'training histogram' so we can evaluate bin probabilities
-        val trainingHist = new VectorHistogram(metric)
+        val trainingHist = new VectorHistogram(metric, bandwidthScale)
         trainingHist.setData(centroids, for (i <- 0 until centroids.length) yield 0.0)
 
         // Train each regressor

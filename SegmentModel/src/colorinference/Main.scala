@@ -199,7 +199,7 @@ object Main
 
         // Train a HistogramRegressor
         println("Training HistogramRegressor...")
-        val hr = HistogramRegressor.LogisticRegression(MathUtils.euclideanDistance, WekaMultiClassHistogramRegressor)
+        val hr = HistogramRegressor.LogisticRegression(MathUtils.euclideanDistance, 1.0, WekaMultiClassHistogramRegressor)
         hr.train(samples, new KMeansVectorQuantizer(20))
 
         // Predict histograms for the means of each feature class, convert to densitymaps and save images
@@ -236,7 +236,7 @@ object Main
         val numsamples = 50000
         val samples = sampleFromGMM(weights, means, stddevs, numsamples)
         println("Training vector histogram from samples...")
-        val hist = VectorHistogram(samples, MathUtils.euclideanDistance, new KMeansVectorQuantizer(20))
+        val hist = VectorHistogram(samples, MathUtils.euclideanDistance, 1.0, new KMeansVectorQuantizer(20))
         //val hist = VectorHistogram(samples, MathUtils.euclideanDistance, new UniformVectorQuantizer(Array(10, 10)))
 
         // Convert to density map

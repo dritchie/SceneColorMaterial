@@ -13,29 +13,7 @@ import collection.mutable.ArrayBuffer
 import util.Random
 
 
-class ColorHistogram(val colorspace:ColorSpace) extends VectorHistogram(colorspace.distance)
-{
-}
-
-object ColorHistogram
-{
-    def apply(data:IndexedSeq[Color], numBins:Int)
-    {
-        assert(data.length > 0, {println("ColorHistogram: cannot construct from 0 data points")})
-
-        val colorspace = data(0).colorSpace
-
-        // Ensure that all colors are in the same color space
-        assert(data.foldLeft(true)((sofar, curr) => { sofar && curr.isIn(colorspace) }),
-        {println("ColorHistogram: input colors not all in same color space")})
-
-        val hist = new ColorHistogram(colorspace)
-        hist.train(data, new KMeansVectorQuantizer(numBins))
-        hist
-    }
-}
-
-class VectorHistogram(private val metric:MathUtils.DistanceMetric)
+class VectorHistogram(private val metric:MathUtils.DistanceMetric, private val bandwidthScale:Double)
 {
     private var centroids:IndexedSeq[Tensor1] = new Array[Tensor1](0)
     private var bins:IndexedSeq[Double] = new Array[Double](0)
@@ -98,7 +76,8 @@ class VectorHistogram(private val metric:MathUtils.DistanceMetric)
             val totalterm = freq * gauss
             sum += totalterm
         }
-        sum / bins.length
+        //sum / bins.length     // This is a linear superposition of PDFs, so it is already a normalized PDF
+        sum
     }
 
     def evaluateBinAt(bin:Int, point:Tensor1) : Double =
@@ -113,7 +92,7 @@ class VectorHistogram(private val metric:MathUtils.DistanceMetric)
     private def estimateBandwidths()
     {
         val n = VectorHistogram.numBandwidthEstimationNeighbors
-        val invN = 1.0/n
+        val scale = bandwidthScale*(1.0/n)
         bandwidths = for (i <- 0 until bins.length) yield
         {
             val otherIndices = (0 until bins.length).filter((index) => index != i)
@@ -121,20 +100,20 @@ class VectorHistogram(private val metric:MathUtils.DistanceMetric)
             dists = dists.sorted
             var sum = 0.0
             for (j <- 0 until n) sum += dists(j)
-            invN*sum
+            scale*sum
         }
     }
 }
 
 object VectorHistogram
 {
-    private val numBandwidthEstimationNeighbors = 3
+    val numBandwidthEstimationNeighbors = 3
 
-    def apply(data:Seq[Tensor1], metric:MathUtils.DistanceMetric, quantizer:VectorQuantizer) : VectorHistogram =
+    def apply(data:Seq[Tensor1], metric:MathUtils.DistanceMetric, bandwidthScale:Double, quantizer:VectorQuantizer) : VectorHistogram =
     {
         assert(data.length > 0, {println("VectorHistogram: cannot construct from 0 data points")})
 
-        val hist = new VectorHistogram(metric)
+        val hist = new VectorHistogram(metric, bandwidthScale)
         hist.train(data, quantizer)
         hist
     }

@@ -19,8 +19,7 @@ import java.io.File
 /* Various parameters for defining/learning the model */
 abstract class ModelTrainingParams
 {
-    type RegressionFunction = (MathUtils.DistanceMetric, WekaHistogramRegressor) => HistogramRegressor
-    var regression:RegressionFunction = HistogramRegressor.LogisticRegression
+    var regression:HistogramRegressor.RegressionFunction = HistogramRegressor.LogisticRegression
 
     //include the segment factors?
     var includeUnaryTerms = true
@@ -29,6 +28,17 @@ abstract class ModelTrainingParams
 
     // This is only possible if we're doing continuous variables, though
     var includeColorCompatibilityTerm = false
+
+    // Training histogram regressors
+    var crossValidateHistogramParams = false
+    var saveCrossValidationLog = false
+    import HistogramRegressor.CrossValidationRanges
+    var scalarRanges = CrossValidationRanges(VectorHistogram.numBandwidthEstimationNeighbors+1 until 15,
+                                             Array(1.0, 0.75, 0.5, 0.25))
+//    var scalarRanges = CrossValidationRanges(VectorHistogram.numBandwidthEstimationNeighbors+1 until 15,
+//                                             Array(4.0, 2.0, 1.0, 1/2.0, 1/4.0, 1/8.0, 1/16.0, 1/32.0, 1/64.0, 1/128.0, 1/256.0))
+    var colorRanges = CrossValidationRanges((1 until 10).map(_ * 5),
+                                            Array(1.0, 0.75, 0.5, 0.25))
 
     //ignore the noise segments?
     //var filterNoise = false
@@ -136,8 +146,7 @@ object ModelTraining
     def colorfulness(c:Color) = Tensor1(c.colorfulness)
     def lightness(c:Color) = Tensor1(c.copyIfNeededTo(LABColorSpace)(0))
     def nameSaliency(c:Color) = Tensor1(namingModel.saliency(c))
-
-    def labColor(c:Color) = {c.copyIfNeededTo(LABColorSpace); Tensor1(c(0), c(1), c(2))}
+    def labColor(c:Color) = {c.copyIfNeededTo(LABColorSpace)}
 
     // Binary
     def perceptualDifference(c1:Color, c2:Color) = Tensor1(Color.perceptualDifference(c1, c2))
@@ -145,12 +154,6 @@ object ModelTraining
     def relativeColorfulness(c1:Color, c2:Color) = Tensor1(Color.relativeColorfulness(c1, c2))
     def relativeLightness(c1:Color, c2:Color) = Tensor1(Color.relativeLightness(c1, c2))
     def nameSimilarity(c1:Color, c2:Color) = Tensor1(namingModel.cosineSimilarity(c1, c2))
-
-
-    /* Quantizers */
-    val uniformQuant10 = new UniformVectorQuantizer(Array(10))
-    val adaptiveQuant5 = new KMeansVectorQuantizer(5)
-    val adaptiveQuant40 = new KMeansVectorQuantizer(40)
 
     def apply(trainingMeshes:IndexedSeq[SegmentMesh], params:ModelTrainingParams) : ColorInferenceModel =
     {
@@ -162,29 +165,38 @@ object ModelTraining
 class ModelTraining(val params:ModelTrainingParams)
 {
     type Examples = ArrayBuffer[HistogramRegressor.RegressionExample]
-    case class UnarySegmentProperty(name:String, extractor:UnarySegmentTemplate.ColorPropertyExtractor, quant:VectorQuantizer)
+    case class UnarySegmentProperty(name:String, extractor:UnarySegmentTemplate.ColorPropertyExtractor,
+                                    ranges:HistogramRegressor.CrossValidationRanges, quantLevel:Int, bandScale:Double)
     {
         val regression = params.regression
         val examples = new Examples
+        val crossValidate = params.crossValidateHistogramParams
+        val saveValidationLog = params.saveCrossValidationLog
     }
-    case class BinarySegmentProperty(name:String, extractor:BinarySegmentTemplate.ColorPropertyExtractor, quant:VectorQuantizer)
+    case class BinarySegmentProperty(name:String, extractor:BinarySegmentTemplate.ColorPropertyExtractor,
+                                     ranges:HistogramRegressor.CrossValidationRanges, quantLevel:Int, bandScale:Double)
     {
         val regression = params.regression
         val examples = new Examples
+        val crossValidate = params.crossValidateHistogramParams
+        val saveValidationLog = params.saveCrossValidationLog
     }
-    case class ColorGroupProperty(name:String, extractor:ColorGroupTemplate.ColorPropertyExtractor, quant:VectorQuantizer)
+    case class ColorGroupProperty(name:String, extractor:ColorGroupTemplate.ColorPropertyExtractor,
+                                  ranges:HistogramRegressor.CrossValidationRanges, quantLevel:Int, bandScale:Double)
     {
         val regression = params.regression
         val examples = new Examples
+        val crossValidate = params.crossValidateHistogramParams
+        val saveValidationLog = params.saveCrossValidationLog
     }
 
     /* Unary segment properties */
     val unarySegProps = new ArrayBuffer[UnarySegmentProperty]()
     if (params.includeUnaryTerms)
     {
-      unarySegProps += UnarySegmentProperty("Lightness", ModelTraining.lightness, ModelTraining.adaptiveQuant5)
-      unarySegProps += UnarySegmentProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.adaptiveQuant5)
-      unarySegProps += UnarySegmentProperty("Name Saliency", ModelTraining.nameSaliency, ModelTraining.adaptiveQuant5)
+      unarySegProps += UnarySegmentProperty("Lightness", ModelTraining.lightness, params.scalarRanges, 5, 1.0)
+      unarySegProps += UnarySegmentProperty("Colorfulness", ModelTraining.colorfulness, params.scalarRanges, 5, 1.0)
+      unarySegProps += UnarySegmentProperty("Name Saliency", ModelTraining.nameSaliency, params.scalarRanges, 5, 1.0)
     }
 
     /* Binary segment properties */
@@ -192,39 +204,42 @@ class ModelTraining(val params:ModelTrainingParams)
     val binarySegProps = new ArrayBuffer[BinarySegmentProperty]()
     if (params.includeBinaryTerms)
     {
-      binarySegProps += BinarySegmentProperty("Perceptual Difference", ModelTraining.perceptualDifference, ModelTraining.adaptiveQuant5)
-      binarySegProps += BinarySegmentProperty("Chroma Difference", ModelTraining.chromaDifference, ModelTraining.adaptiveQuant5)
-      binarySegProps += BinarySegmentProperty("Relative Colorfulness", ModelTraining.relativeColorfulness, ModelTraining.adaptiveQuant5)
-      binarySegProps += BinarySegmentProperty("Relative Lightness", ModelTraining.relativeLightness, ModelTraining.adaptiveQuant5)
-      binarySegProps += BinarySegmentProperty("Name Similarity", ModelTraining.nameSimilarity, ModelTraining.adaptiveQuant5)
+      binarySegProps += BinarySegmentProperty("Perceptual Difference", ModelTraining.perceptualDifference, params.scalarRanges, 5, 1.0)
+      binarySegProps += BinarySegmentProperty("Chroma Difference", ModelTraining.chromaDifference, params.scalarRanges, 5, 1.0)
+      binarySegProps += BinarySegmentProperty("Relative Colorfulness", ModelTraining.relativeColorfulness, params.scalarRanges, 5, 1.0)
+      binarySegProps += BinarySegmentProperty("Relative Lightness", ModelTraining.relativeLightness, params.scalarRanges, 5, 1.0)
+      binarySegProps += BinarySegmentProperty("Name Similarity", ModelTraining.nameSimilarity, params.scalarRanges, 5, 1.0)
     }
 
     /* Color group properties */
     val groupProps = new ArrayBuffer[ColorGroupProperty]()
     if (params.includeGroupTerms)
     {
-      groupProps += ColorGroupProperty("Lightness", ModelTraining.lightness, ModelTraining.adaptiveQuant5)
-      groupProps += ColorGroupProperty("Colorfulness", ModelTraining.colorfulness, ModelTraining.adaptiveQuant5)
-      groupProps += ColorGroupProperty("Name Saliency", ModelTraining.nameSaliency, ModelTraining.adaptiveQuant5)
+      groupProps += ColorGroupProperty("Lightness", ModelTraining.lightness, params.scalarRanges, 5, 1.0)
+      groupProps += ColorGroupProperty("Colorfulness", ModelTraining.colorfulness, params.scalarRanges, 5, 1.0)
+      groupProps += ColorGroupProperty("Name Saliency", ModelTraining.nameSaliency, params.scalarRanges, 5, 1.0)
     }
     if (params.includeColorChoiceTerms)
     {
-      groupProps += ColorGroupProperty("LABColor", ModelTraining.labColor, ModelTraining.adaptiveQuant40)
+      groupProps += ColorGroupProperty("LABColor", ModelTraining.labColor, params.colorRanges, 40, 1.0)
     }
 
     def train(trainingMeshes:IndexedSeq[SegmentMesh]) : ColorInferenceModel =
     {
+        // Shuffle meshes to eliminate potential bias
+        val shuffledTrainingMeshes = trainingMeshes.shuffle.toIndexedSeq
+
         /** Extract training data points from meshes **/
 
         // Training meshes with more segments generate more samples. Here we eliminate that bias
         // repeating the examples according to the lcm doesn't work...as the lcm turns out to be big, and we run out of heap space
         // so we'll weight each example according to 1/numSegments or 1/numAdjacencies. Scale by 2, so we don't run into rounding errors (when Weka checks that weights add up to >=1)
-        for (mesh <- trainingMeshes)
+        for (mesh <- shuffledTrainingMeshes)
         {
             val unaryWeight = 2.0/mesh.segments.length
 
             // Unary segment properties
-            for (seg <- mesh.segments)
+            for (seg <- mesh.segments.shuffle)
             {
                 val fvec = Segment.getUnaryRegressionFeatures(seg)
                 for (prop <- unarySegProps) { prop.examples += HistogramRegressor.RegressionExample(prop.extractor(seg.group.color.observedColor), fvec._1, fvec._2, unaryWeight) }
@@ -237,7 +252,7 @@ class ModelTraining(val params:ModelTrainingParams)
             val binaryWeight =  2.0/checkAdj
 
             // Binary segment properties
-            for (seg1 <- mesh.segments; adj <- seg1.adjacencies.values if seg1.index < adj.neighbor.index)
+            for (seg1 <- mesh.segments.shuffle; adj <- seg1.adjacencies.values.shuffle if seg1.index < adj.neighbor.index)
             {
                 val seg2 = adj.neighbor
                 val fvec = Segment.getBinaryRegressionFeatures(seg1, adj)
@@ -246,7 +261,7 @@ class ModelTraining(val params:ModelTrainingParams)
 
             // Group properties
             // TODO: Should these training examples be weighted like the ones above? I think it's probably unnecessary.
-            for (group <- mesh.groups)
+            for (group <- mesh.groups.shuffle)
             {
                 val fvec = SegmentGroup.getRegressionFeatures(group)
                 for (prop <- groupProps) { prop.examples += HistogramRegressor.RegressionExample(prop.extractor(group.color.observedColor), fvec._1, fvec._2)}
@@ -321,11 +336,11 @@ class ModelTraining(val params:ModelTrainingParams)
             params.trainerType match
             {
                 case params.TrainerType.SampleRank =>
-                    TuneWeightsSampleRank(model, trainingMeshes, params.numWeightTuningIterations)
+                    TuneWeightsSampleRank(model, shuffledTrainingMeshes, params.numWeightTuningIterations)
                 case params.TrainerType.MaximumLikelihood if params.colorVarParams.supportsMaxLikelihood =>
-                    TuneWeightsMaxLikelihood(model, trainingMeshes, params.numWeightTuningIterations)
+                    TuneWeightsMaxLikelihood(model, shuffledTrainingMeshes, params.numWeightTuningIterations)
                 case params.TrainerType.ContrastiveDivergence =>
-                    TuneWeightsContrastiveDivergence(model, trainingMeshes, params.numWeightTuningIterations, params.cdK)
+                    TuneWeightsContrastiveDivergence(model, shuffledTrainingMeshes, params.numWeightTuningIterations, params.cdK)
                 case _ => throw new Error("No valid trainer type!")
             }
         }
