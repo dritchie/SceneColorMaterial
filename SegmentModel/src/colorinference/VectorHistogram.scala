@@ -224,7 +224,9 @@ class KMeansVectorQuantizer(private val numClusters:Int) extends VectorQuantizer
             uniqSamples(todrop).copy
         }
 
-        val assignments = Array.fill[Int](samples.length)(-1)
+        val parSamples = samples.par
+
+        val assignments = Array.fill[Int](parSamples.length)(-1)
         val counts = new Array[Double](quantVecs.length)
         var converged = false
         while (!converged)
@@ -233,10 +235,14 @@ class KMeansVectorQuantizer(private val numClusters:Int) extends VectorQuantizer
             for (i <- 0 until counts.length) counts(i) = 0
 
             // Assign points to closest quantization vector
-            var changed = false
-            for (i <- 0 until samples.length)
+            val newAssignments = parSamples.map(samp =>
             {
-                val closestIndex = MathUtils.closestVectorBruteForce(samples(i), quantVecs, metric)
+                MathUtils.closestVectorBruteForce(samp, quantVecs, metric)
+            })
+            var changed = false
+            for (i <- 0 until parSamples.length)
+            {
+                val closestIndex = newAssignments(i)
                 changed |= (closestIndex != assignments(i))
                 assignments(i) = closestIndex
                 counts(closestIndex) += {if (weights==null) 1.0 else weights(i)}
@@ -247,7 +253,7 @@ class KMeansVectorQuantizer(private val numClusters:Int) extends VectorQuantizer
             if (changed)
             {
                 for (i <- 0 until quantVecs.length) quantVecs(i) := 0.0
-                for (i <- 0 until samples.length) quantVecs(assignments(i)) += (samples(i) * {if (weights==null) 1.0 else weights(i)} )
+                for (i <- 0 until parSamples.length) quantVecs(assignments(i)) += (samples(i) * {if (weights==null) 1.0 else weights(i)} )
                 for (i <- 0 until quantVecs.length) if (counts(i) > 0) quantVecs(i) /= counts(i)
             }
         }

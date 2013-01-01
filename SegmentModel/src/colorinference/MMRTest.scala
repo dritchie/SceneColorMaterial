@@ -40,7 +40,8 @@ object MMRTest
         if (!visDirTestFile.exists)
             visDirTestFile.mkdir
 
-        val trainingArtists = Set("sugar!", "davidgav")
+        //val trainingArtists = Set("sugar!", "davidgav")
+        val trainingArtists = Set("sugar!")
         val patterns = PatternIO.getPatterns(inputDir).filter(p=>(trainingArtists.contains(p.directory))).toArray
 
         if (patterns.length == 0)

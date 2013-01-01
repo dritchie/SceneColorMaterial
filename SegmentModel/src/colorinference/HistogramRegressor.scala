@@ -97,15 +97,14 @@ abstract class HistogramRegressor(private val metric:MathUtils.DistanceMetric, v
 
     def avgLogLikelihood(examples:Seq[HistogramRegressor.RegressionExample]) : Double =
     {
-        val parExamples = examples.par
-        val ll = parExamples.map(ex =>
+        val ll = examples.map(ex =>
         {
             val hist = predictHistogram(ex.features)
             val p = hist.evaluateAt(ex.target)
             MathUtils.safeLog(p)
         }).reduce(_ + _)
 
-        ll / parExamples.length
+        ll / examples.length
     }
 
     def save(fileBaseName:String)
@@ -349,8 +348,7 @@ class WekaMultiClassHistogramRegressor(private var classifier:Classifier, metric
         instance.setDataset(dummyDataset)
 
         // Ask classifier for distribution over classes
-        val classifierCopy = Classifier.makeCopy(classifier)   // So that this can be called in parallel
-        val distrib = classifierCopy.distributionForInstance(instance)
+        val distrib = classifier.distributionForInstance(instance)
         Array.copy(distrib, 0, bins, 0, bins.length)
     }
 
@@ -449,8 +447,7 @@ class WekaBinByBinHistogramRegressor(classifier:Classifier, metric:MathUtils.Dis
         // Evaluate each regressor at this instance
         for (b <- 0 until centroids.length)
         {
-            val regressorCopy = regressors(b)   // So that this can be called in parallel
-            bins(b) = regressorCopy.classifyInstance(instance)
+            bins(b) = regressors(b).classifyInstance(instance)
         }
     }
 

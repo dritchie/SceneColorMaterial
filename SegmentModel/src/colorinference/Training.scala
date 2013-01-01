@@ -33,12 +33,10 @@ abstract class ModelTrainingParams
     var crossValidateHistogramParams = false
     var saveCrossValidationLog = false
     import HistogramRegressor.CrossValidationRanges
-//    var scalarRanges = CrossValidationRanges(VectorHistogram.numBandwidthEstimationNeighbors+1 until 15,
-//                                             Array(1.0, 0.75, 0.5, 0.25))
     var scalarRanges = CrossValidationRanges(VectorHistogram.numBandwidthEstimationNeighbors+1 until 15,
                                              Array(4.0, 2.0, 1.0, 1/2.0, 1/4.0, 1/8.0, 1/16.0, 1/32.0, 1/64.0, 1/128.0, 1/256.0))
     var colorRanges = CrossValidationRanges((1 until 10).map(_ * 5),
-                                            Array(1.0, 0.75, 0.5, 0.25))
+                                            Array(4.0, 2.0, 1.0, 1/2.0, 1/4.0, 1/8.0, 1/16.0, 1/32.0, 1/64.0, 1/128.0, 1/256.0))
 
     //ignore the noise segments?
     //var filterNoise = false
