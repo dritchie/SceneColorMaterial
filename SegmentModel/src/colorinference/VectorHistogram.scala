@@ -210,7 +210,7 @@ class KMeansVectorQuantizer(private val numClusters:Int) extends VectorQuantizer
           }
         })
 
-        val actualClusters = Math.min(numClusters, uniqSamples.length)
+        val actualClusters = math.min(numClusters, uniqSamples.length)
 
         // Choose the initial quantization vectors randomly from the input samples
         val pool = new ArrayBuffer[Int]()

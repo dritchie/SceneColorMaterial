@@ -95,17 +95,17 @@ abstract class HistogramRegressor(private val metric:MathUtils.DistanceMetric, v
     }
     def trainRegressor(examples:Seq[HistogramRegressor.RegressionExample])
 
-    // For testing
     def avgLogLikelihood(examples:Seq[HistogramRegressor.RegressionExample]) : Double =
     {
-        var ll = 0.0
-        for (ex <- examples)
+        val parExamples = examples.par
+        val ll = parExamples.map(ex =>
         {
             val hist = predictHistogram(ex.features)
             val p = hist.evaluateAt(ex.target)
-            ll += MathUtils.safeLog(p)
-        }
-        ll / examples.length
+            MathUtils.safeLog(p)
+        }).reduce(_ + _)
+
+        ll / parExamples.length
     }
 
     def save(fileBaseName:String)
@@ -349,7 +349,8 @@ class WekaMultiClassHistogramRegressor(private var classifier:Classifier, metric
         instance.setDataset(dummyDataset)
 
         // Ask classifier for distribution over classes
-        val distrib = classifier.distributionForInstance(instance)
+        val classifierCopy = Classifier.makeCopy(classifier)   // So that this can be called in parallel
+        val distrib = classifierCopy.distributionForInstance(instance)
         Array.copy(distrib, 0, bins, 0, bins.length)
     }
 
@@ -447,7 +448,10 @@ class WekaBinByBinHistogramRegressor(classifier:Classifier, metric:MathUtils.Dis
 
         // Evaluate each regressor at this instance
         for (b <- 0 until centroids.length)
-            bins(b) = regressors(b).classifyInstance(instance)
+        {
+            val regressorCopy = regressors(b)   // So that this can be called in parallel
+            bins(b) = regressorCopy.classifyInstance(instance)
+        }
     }
 
     def getCoefficients:Array[Array[Double]] =

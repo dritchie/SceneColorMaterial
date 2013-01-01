@@ -91,24 +91,20 @@ object ColorInferenceModel
                     val trainData = examples.slice(0, splitPoint)
                     val testData = examples.slice(splitPoint+1, examples.length)
 
-                    // Do cross-validation
+                    // Find the number of bins that gives the best likelihood after averaging
+                    // over 'all possible' (read: many) bandwidth scales
                     var bestLL = Double.NegativeInfinity
                     var bestNumBins = -1
-                    var bestBandScale = Double.NaN
                     for (bins <- cvRanges.numBins)
                     {
+                        println("Trying numBins = %d".format(bins))
                         regressor.train(trainData, new KMeansVectorQuantizer(bins))
+                        var avgLL = 0.0
                         for (scale <- cvRanges.bandScale)
                         {
-                            println("Trying numBins = %d and bandScale = %g...".format(bins, scale))
                             regressor.bandwithScale = scale
                             val ll = regressor.avgLogLikelihood(testData)
-                            if (ll > bestLL)
-                            {
-                                bestLL = ll
-                                bestNumBins = bins
-                                bestBandScale = scale
-                            }
+                            avgLL += ll
                             if (saveValidationLog)
                             {
                                 val acc = regressor.asInstanceOf[WekaMultiClassHistogramRegressor].classificationAccuracy(testData)
@@ -117,11 +113,16 @@ object ColorInferenceModel
                                 log.flush()
                             }
                         }
+                        avgLL /= cvRanges.bandScale.length
+                        if (avgLL > bestLL)
+                        {
+                            bestLL = avgLL
+                            bestNumBins = bins
+                        }
                     }
 
-                    println("DONE cross-validating: numBins = %d and bandScale = %g".format(bestNumBins, bestBandScale))
+                    println("Best numBins = %d".format(bestNumBins))
                     bins = bestNumBins
-                    regressor.bandwithScale = bestBandScale
 
                     if (saveValidationLog)
                         log.close()
@@ -129,6 +130,15 @@ object ColorInferenceModel
                 // Final training
                 println("Training...")
                 regressor.train(examples, new KMeansVectorQuantizer(bins))
+                // Find the best bandwidth scale for the final model
+                val bestBandScale = (for (scale <- cvRanges.bandScale) yield
+                {
+                    regressor.bandwithScale = scale
+                    val ll = regressor.avgLogLikelihood(examples)
+                    (scale, ll)
+                }).sortWith(_._2 > _._2).head._1
+                println("Best bandwidth scale is %g".format(bestBandScale))
+                regressor.bandwithScale = bestBandScale
             }
         }
 

@@ -62,7 +62,7 @@ object MMRTest
             includeColorCompatibilityTerm = true
 
             crossValidateHistogramParams = true
-            saveCrossValidationLog = true
+            saveCrossValidationLog = false
 
             initialLearningRate = 0.2
             numWeightTuningIterations = 20
