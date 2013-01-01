@@ -12,7 +12,9 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.IO;
+using System.Windows.Forms;
 using System.Drawing;
+
 using Engine;
 
 
@@ -73,6 +75,7 @@ namespace PatternColorizer
             //read the palettes
             patternToTemplate = new Dictionary<String, String>();
             palettes = LoadFilePalettes(palettefile);
+            OutDirLabel.Content = "IODir: " + outdir;
 
         }
 
@@ -484,6 +487,9 @@ namespace PatternColorizer
                     slotToColor[i] = i;
 
                 List<List<String>> lines = File.ReadAllLines(specs).Select(line => line.Split(',').ToList<String>()).ToList<List<String>>();
+                if (lines.Count() == 0)
+                    continue;
+
                 Dictionary<String, int> styleToRowIdx = new Dictionary<String, int>();
                 String origStyle = "";
 
@@ -720,6 +726,23 @@ namespace PatternColorizer
             }
             String finalUrl = url + patternToTemplate[patternId] + "/" + String.Join("/", colorHexes) + ".png";
             return Util.BitmapFromWeb(finalUrl);
+        }
+
+        private void ChangeIODir_Click(object sender, RoutedEventArgs e)
+        {
+            //change the input output directory
+            FolderBrowserDialog dialog = new FolderBrowserDialog();
+            dialog.SelectedPath = outdir;
+            dialog.ShowDialog();
+            
+            if (dialog.SelectedPath != "")
+            {
+                outdir = dialog.SelectedPath;
+            }
+
+            //update the label
+            OutDirLabel.Content = "IODir: " + outdir;
+
         }
 
     }

@@ -69,7 +69,6 @@ class ParallelTemperingMAPInferencer[V<:Variable, S<:(VariableStructure with Cop
 
         private def computeStats(n:Int)
         {
-          //if the chain is mixed, then each sample is an unbiased estimator for Z
            val samples = sampler.lastSamples(n)
            assert(samples.length == n && n>1, "SamplingChain: There are not enough samples in memory! Or itersBetweenSwaps <= 1")
            val scores = samples.map(s => (s.score))
@@ -125,10 +124,10 @@ class ParallelTemperingMAPInferencer[V<:Variable, S<:(VariableStructure with Cop
         //PGM p. 523, the R score
         private def computeStats()
         {
-          //compute the mean Z
+          //compute the mean score
           meanF = chainStates.values.map(_.f).sum/chains.length
 
-          //compute the variance between the Zs across chains and within chains
+          //compute the variance between the scores across chains and within chains
           val M = chains(0).itersBetweenSwaps.toDouble //assume these are all the same
           var W = chainStates.values.map(_.W).sum/chains.length
           val BoverM = chainStates.values.map(s => Math.pow(s.f-meanF,2)).sum/(chains.length-1)

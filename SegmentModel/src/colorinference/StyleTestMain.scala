@@ -24,7 +24,7 @@ object StyleTestMain {
   val histDir:String = "../PatternColorizer/out/hist"
   var styleToModel = new HashMap[String, StyleItem] //map from the style name to the model
   var meshToStyleInfo = new HashMap[String, PatternItem]
-
+  var styleToPatterns = new HashMap[String, ArrayBuffer[PatternItem]]
 
   //inference params
 
@@ -41,32 +41,44 @@ object StyleTestMain {
 
   val n = 3 //number of test patterns per style
 
+  val lambdas = Array(1.0, 0.5)
+
+  case class Setting(includeColorChoiceTerms:Boolean, colorChoiceType:ModelTraining.ColorChoiceType.Value, directoryLabel:String)
+  val settings = Array(
+    new Setting(false, ModelTraining.ColorChoiceType.LABMarginal, ""),
+    new Setting(true, ModelTraining.ColorChoiceType.LABMarginal, "_labMarginal"),
+    new Setting(true, ModelTraining.ColorChoiceType.LABConditional,"_labConditional"),
+    new Setting(true, ModelTraining.ColorChoiceType.NamesMarginal,"_namesMarginal"),
+    new Setting(true, ModelTraining.ColorChoiceType.NamesConditional, "_namesConditional"))
+
+
+  //default model training params
+  val params = new ModelTrainingParams
+  {
+    type VariableType = ContinuousColorVariable
+    val colorVarParams = ContinuousColorVariableParams
+    includeColorCompatibilityTerm = true
+    saveRegressorsIfPossible = true
+    saveWeightsIfPossible = true
+    loadRegressorsIfPossible = true
+    loadWeightsIfPossible = true
+    modelSaveDirectory = "" //this will be changed to whatever the style folder is named
+
+    initialLearningRate = 0.2
+    numWeightTuningIterations = 20
+    enforceMinimumWeight = true
+    minWeight = 0.0
+
+    includeColorChoiceTerms = true
+    colorChoiceType = ModelTraining.ColorChoiceType.NamesMarginal
+  }
+
   def main(args:Array[String])
   {
     // Verify that outDir exists
     val visDirTestFile = new File(outDir)
     if (!visDirTestFile.exists)
       visDirTestFile.mkdir
-
-    val params = new ModelTrainingParams
-    {
-      type VariableType = ContinuousColorVariable
-      val colorVarParams = ContinuousColorVariableParams
-      includeColorCompatibilityTerm = true
-      saveRegressorsIfPossible = true
-      saveWeightsIfPossible = true
-      loadRegressorsIfPossible = true
-      loadWeightsIfPossible = true
-      modelSaveDirectory = "" //this will be changed to whatever the style folder is named
-
-
-      initialLearningRate = 0.2
-      numWeightTuningIterations = 10
-      enforceMinimumWeight = true
-      minWeight = 0.0
-
-      includeColorChoiceTerms = true
-    }
 
      val styleinf = PatternIO.getPatterns(imageDir)
      val validPids = styleinf.map(_.name.replace(".png","").toInt).toSet
@@ -83,7 +95,7 @@ object StyleTestMain {
      )
 
     //get the unique style folders, and split the patterns into each folder
-    var styleToPatterns = new HashMap[String, ArrayBuffer[PatternItem]]
+    styleToPatterns = new HashMap[String, ArrayBuffer[PatternItem]]
     for (pattern <- patterns)
     {
       val styleinfo = meshToStyleInfo(pattern.fullpath)
@@ -91,10 +103,35 @@ object StyleTestMain {
         styleToPatterns += (styleinfo.directory) -> new ArrayBuffer[PatternItem]
       styleToPatterns(styleinfo.directory) += pattern
     }
+
+    for (setting <- settings)
+    {
+      if (setting.includeColorChoiceTerms)
+        println("Training a model using " + setting.directoryLabel)
+      else
+        println("Training a model ignoring color choice terms")
+
+      GeneratePatterns(setting)
+
+      //test 2 is to see if for each model, the model rates the test patterns in that style more highly than patterns in other styles
+      //output file
+      //print out style model, ScoreWithinStyle, ScoreStyleA, ScoreStyleB
+      CompareModelsOnObservedPatterns()
+
+    }
+
+
+
+  }
+
+  def GeneratePatterns(setting:Setting)
+  {
     for (s <- styleToPatterns.keys)
     {
       //change the save folder
-      params.modelSaveDirectory = s+"groupconditional"
+      params.modelSaveDirectory = s+setting.directoryLabel
+      params.includeColorChoiceTerms = setting.includeColorChoiceTerms
+      params.colorChoiceType = setting.colorChoiceType
 
       //train the model
       val trainPatterns = styleToPatterns(s).take(styleToPatterns(s).length-n)
@@ -112,17 +149,17 @@ object StyleTestMain {
 
     //output histograms
 
-    for (s <- styleToModel.keys)
-    {
-      val testPatterns = styleToModel(s).testPatterns.map(_.fullpath)
-      var testMeshes = styleToModel(s).meshes.filter(m => testPatterns.contains(m.name))
-      val trainPatterns= styleToModel(s).trainPatterns.map(_.fullpath)
-      val trainMeshes = for (m<-styleToModel(s).meshes if trainPatterns.contains(m.name)) yield m
+    /* for (s <- styleToModel.keys)
+   {
+     val testPatterns = styleToModel(s).testPatterns.map(_.fullpath)
+     var testMeshes = styleToModel(s).meshes.filter(m => testPatterns.contains(m.name))
+     val trainPatterns= styleToModel(s).trainPatterns.map(_.fullpath)
+     val trainMeshes = for (m<-styleToModel(s).meshes if trainPatterns.contains(m.name)) yield m
 
-      //output histograms for test meshes
-      //OutputAllHistograms(trainMeshes, styleToModel(s).model, s)
-      //OutputAllHistograms(testMeshes, styleToModel(s).model, s)
-    }
+     //output histograms for test meshes
+     //OutputAllHistograms(trainMeshes, styleToModel(s).model, s)
+     //OutputAllHistograms(testMeshes, styleToModel(s).model, s)
+   } */
 
     //for each test pattern, generate the top N colorings from each of the style models
     //visualization columns will look like:
@@ -130,78 +167,104 @@ object StyleTestMain {
     //output file will look like:
     //filename: patternid.txt
     //headers: original style name, style name, style colors
-    for (s <- styleToModel.keys)
+    for (s <- styleToModel.keys if s=="blue" || s=="pink") //restrict it for now, to get some results faster
     {
+      println("Test pattern from style " + s)
       val testPatterns = styleToModel(s).testPatterns.map(_.fullpath)
       var testMeshes = styleToModel(s).meshes.filter(m => testPatterns.contains(m.name))
 
+      val trainPatterns= styleToModel(s).trainPatterns.map(_.fullpath)
+      val trainMeshes = {for (m<-styleToModel(s).meshes if trainPatterns.contains(m.name)) yield m}.take(5)
+
       for (mesh<-testMeshes)
       {
-        val fname = PatternIO.ensureAndGetFileName(meshToStyleInfo(mesh.name), outDir, ".txt")
-        val file = new FileWriter(fname)
-
-
-        for (s2 <- styleToModel.keys)
+        var lambdaToFile = new HashMap[Double, FileWriter]()
+        var doneAlready = true
+        for (l <- lambdas)
         {
-          println("Sampling from model " + s)
+          var newOutDir = outDir+setting.directoryLabel+"_"+l
+          new File(newOutDir).mkdir()
+          newOutDir += "/styles"
+          val fname = PatternIO.ensureAndGetFileName(meshToStyleInfo(mesh.name), newOutDir, ".txt")
 
-          val item = styleToModel(s2)
-          //mesh.randomizeVariableAssignments
-          //mesh.setVariableValuesToObserved
-          item.model.conditionOn(mesh)
-
-          params.colorVarParams.initDomain(mesh)
-
-          val lambda = 1.0 //for now, just look at the most probable ones
-
-
-
-          /*val sampler = new ContinuousColorSampler(item.model) with MemorizingSampler[ContinuousColorVariable]
-          val maximizer = new SamplingMaximizer(sampler)
-          maximizer.maximize(Array(mesh.variablesAs[ContinuousColorVariable]), iterations, initTemp, finalTemp, rounds)
-          // Convert sampled values to LAB first, since our similarity metric operates in LAB space
-          sampler.samples.foreach(_.values.foreach(_.convertTo(LABColorSpace))) */
-
-          val model = item.model
-          val samplerGenerator = () => new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable]
-          val maximizer = new ParallelTemperingMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, chainTemps)
-          model.conditionOn(mesh)
-          maximizer.maximize(mesh, iterations, itersBetweenSwaps)
-
-          // Convert sampled values to LAB first, since our similarity metric operates in LAB space
-          maximizer.samples.foreach(_.values.foreach(_.convertTo(LABColorSpace)))
-
-          val metric = genMMRSimilarityMetric(mesh.variablesAs[ContinuousColorVariable])
-          val mmr = new MMR(maximizer.samples, metric)
-          //val mmr = new MMR(sampler.samples, metric)
-
-          //print out the original score
-          val originalScore = getObservedAssignmentScore(model, mesh)
-          val (minscore, maxscore) = mmr.getScoreRange
-          println("\nObserved pattern score: " + originalScore)
-          println("Min %f, Max %f".format(minscore, maxscore))
-
-
-          val rankedSamples = mmr.getRankedSamples(n, lambda)
-
-          //output the results, original style name, style name, style colors separated by ^
-          for (r<-rankedSamples)
-            file.write("%s,%s,%s,%f\n".format(s, s2, r.values.map(_.copyIfNeededTo(RGBColorSpace).componentString).mkString("^"), r.score))
-
-          file.flush()
+          //see if it exists
+          val test = new File(fname)
+          if (!test.exists())
+          {
+            doneAlready = false
+            val file = new FileWriter(fname)
+            lambdaToFile += l -> file
+          }
         }
 
-        file.close()
+        if (doneAlready)
+          println("Skipping/Done with mesh: "+ mesh.name)
+        else
+        {
+          for (s2 <- styleToModel.keys)
+          {
+            println("Sampling from model " + s2)
+
+            val item = styleToModel(s2)
+            item.model.conditionOn(mesh)
+
+            params.colorVarParams.initDomain(mesh)
+
+            /*val sampler = new ContinuousColorSampler(item.model) with MemorizingSampler[ContinuousColorVariable]
+            val maximizer = new SamplingMaximizer(sampler)
+            maximizer.maximize(Array(mesh.variablesAs[ContinuousColorVariable]), iterations, initTemp, finalTemp, rounds)
+            // Convert sampled values to LAB first, since our similarity metric operates in LAB space
+            sampler.samples.foreach(_.values.foreach(_.convertTo(LABColorSpace))) */
+
+            val model = item.model
+            val samplerGenerator = () => new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable]
+            val maximizer = new ParallelTemperingMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, chainTemps)
+            model.conditionOn(mesh)
+            maximizer.maximize(mesh, iterations, itersBetweenSwaps)
+
+            // Convert sampled values to LAB first, since our similarity metric operates in LAB space
+            maximizer.samples.foreach(_.values.foreach(_.convertTo(LABColorSpace)))
+
+            val metric = genMMRSimilarityMetric(mesh.variablesAs[ContinuousColorVariable])
+            val mmr = new MMR(maximizer.samples, metric)
+            //val mmr = new MMR(sampler.samples, metric)
+
+            //print out the original score
+            val originalScore = getObservedAssignmentScore(model, mesh)
+            val (minscore, maxscore) = mmr.getScoreRange
+            val meanscore = maximizer.mixingScores(maximizer.mixingScores.length-1).meanF
+
+            if (s == s2)
+            {
+              println("\nComparing %s On a %s pattern".format(s2, s))
+              println("nObserved pattern score: " + originalScore)
+              println("Min %f, Mean %f, Max %f".format(minscore, meanscore, maxscore))
+            }
+
+            for (l <- lambdas if lambdaToFile.contains(l))
+            {
+              val rankedSamples = mmr.getRankedSamples(n, l)
+              val file = lambdaToFile(l)
+
+              //output the results, original style name, style name, style colors separated by ^
+              for (r<-rankedSamples)
+                file.write("%s,%s,%s,%f\n".format(s, s2, r.values.map(_.copyIfNeededTo(RGBColorSpace).componentString).mkString("^"), r.score))
+              file.flush()
+            }
+          }
+
+          lambdaToFile.values.foreach(f => f.close())
+        }
       }
     }
+  }
 
 
-    //test 2 is to see if for each model, the model rates the test patterns in that style more highly than patterns in other styles
-    //output file
-    //print out style model, ScoreWithinStyle, ScoreStyleA, ScoreStyleB
+  def CompareModelsOnObservedPatterns()
+  {
     for (s <- styleToModel.keys)
     {
-      println("Inspecting style model %s".format(s))
+      println("\nInspecting style model %s".format(s))
       val item = styleToModel(s)
       val testPatterns = item.testPatterns.map(_.fullpath)
       var testMeshes = item.meshes.filter(m => testPatterns.contains(m.name))
@@ -229,8 +292,6 @@ object StyleTestMain {
       }
 
     }
-
-
   }
 
   def getObservedAssignmentScore(model:ColorInferenceModel, mesh:SegmentMesh):Double =

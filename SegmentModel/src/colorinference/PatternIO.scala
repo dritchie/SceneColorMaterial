@@ -39,6 +39,9 @@ object PatternIO {
 
   def ensureAndGetFileName(info:PatternItem, outDir:String, extension:String):String =
   {
+      val outDirFile = new File(outDir)
+      outDirFile.mkdir()
+
       val suboutDir = new File(outDir, info.directory)
       suboutDir.mkdir()
 
