@@ -9,10 +9,12 @@ package colorinference
  */
 
 import java.io.{FileWriter, File}
-import cc.factorie.SamplingMaximizer
+import cc.factorie.{Family, SamplingMaximizer}
 
 object MMRTest
 {
+    var params:ModelTrainingParams = null
+
     val inputDir = "../PatternColorizer/out/mesh"
     val randVisDir = "../PatternColorizer/out/vis_rand"
     val mmrVisDir = "../PatternColorizer/out/vis_mmr"
@@ -40,29 +42,32 @@ object MMRTest
         if (!visDirTestFile.exists)
             visDirTestFile.mkdir
 
-        //val trainingArtists = Set("sugar!", "davidgav")
-        val trainingArtists = Set("sugar!")
+        val trainingArtists = Set("sugar!", "davidgav")
+        //val trainingArtists = Set("sugar!")
         val patterns = PatternIO.getPatterns(inputDir).filter(p=>(trainingArtists.contains(p.directory))).toArray
 
         if (patterns.length == 0)
             println("No files found in the input directory!")
 
         // Setup model training parameters (we'll use Discrete color variables in this test)
-        val params = new ModelTrainingParams
+        params = new ModelTrainingParams
         {
             type VariableType = ContinuousColorVariable
             val colorVarParams = ContinuousColorVariableParams
 
             modelSaveDirectory = "savedModel"
             doWeightTuning = true
-            saveRegressorsIfPossible = true
-            saveWeightsIfPossible = true
+            saveRegressorsIfPossible = false
+            saveWeightsIfPossible = false
             loadRegressorsIfPossible = true
             loadWeightsIfPossible = true
 
             includeColorCompatibilityTerm = true
+//            includeUnaryTerms = false
+//            includeBinaryTerms = false
+//            includeGroupTerms = false
 
-            crossValidateHistogramParams = true
+            crossValidateHistogramParams = false
             saveCrossValidationLog = false
 
             initialLearningRate = 0.2
@@ -91,12 +96,11 @@ object MMRTest
             508162,
             515691,
             798455)
+//            515691)
 
 
         val testingMeshes = {for (idx<-meshes.indices if (pids.contains(patterns(idx).name.replace(".txt","").toInt))) yield meshes(idx)}
         val trainingMeshes = for (mesh <- meshes if !testingMeshes.contains(mesh)) yield mesh
-        //val trainingMeshes = for (idx <- meshes.indices if (patterns(idx).directory == trainingArtist)) yield meshes(idx)
-        //val trainingMeshes = testingMeshes
 
         println("Training on " + trainingMeshes.length + " meshes")
         val model = ModelTraining(trainingMeshes, params)
@@ -123,17 +127,40 @@ object MMRTest
             ScoredValue(variables.map(_.getColor), score)
         }).sortWith(_.score > _.score)
 
-        savePatterns(samples, randVisDir, pattern)
+        savePatterns(mesh, samples, randVisDir, pattern)
     }
 
     def outputOptimizedPatterns(mesh:SegmentMesh, pattern:PatternItem, model:ColorInferenceModel)
     {
         println("Generating MMR-optimized patterns...")
-        val samplerGenerator = () => new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable]
-        //val maximizer = new ParallelMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, numParallelChains)
-        val maximizer = new ParallelTemperingMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, chainTemps)
+
+//        // TEST: Fix one of the colors for conditional inference.
+//        mesh.groups(0).color.setColor(Color.RGBColor(0.28, 0.03, 0.23))
+//        mesh.groups(0).color.fixed = true
+
+        // TODO: This is a horrible, god-awful hack. I need to make the color compatibility factor
+        // TODO: into a proper template for it to work with parallel inference correctly.
         model.conditionOn(mesh)
-        //maximizer.maximize(mesh, iterations, initTemp, finalTemp, rounds)
+        val samplerGenerator = (m:SegmentMesh) =>
+        {
+            val modelCopy = new CombinedColorInferenceModel
+            modelCopy += model.asInstanceOf[CombinedColorInferenceModel].subModels(0)
+            if (params.includeColorCompatibilityTerm)
+            {
+                val itemModel = model.asInstanceOf[CombinedColorInferenceModel].subModels(1).asInstanceOf[ItemizedColorInferenceModel]
+                val weight = itemModel.conditionalFactors.head.asInstanceOf[Family#Factor].family.asInstanceOf[ColorInferenceModel.Trainable].getWeight
+                val itemCopy = new ItemizedColorInferenceModel
+                val fam = new ColorCompatibilityFamily
+                fam.setWeight(weight)
+                val fac = new fam.Factor
+                itemCopy.addConditionalFactor(fac.asInstanceOf[itemCopy.ConditionalFactor])
+                itemCopy.conditionOn(m)
+                modelCopy += itemCopy
+            }
+            new ContinuousColorSampler(modelCopy) with MemorizingSampler[ContinuousColorVariable]
+        }
+        val maximizer = new ParallelTemperingMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, chainTemps)
+
         maximizer.maximize(mesh, iterations, itersBetweenSwaps)
 
         // Convert sampled values to LAB first, since our similarity metric operates in LAB space
@@ -152,21 +179,30 @@ object MMRTest
                 dir.mkdir
 
             val rankedSamples = mmr.getRankedSamples(numSamplesToOutput, lambda)
-            savePatterns(rankedSamples, dirName, pattern)
+            savePatterns(mesh, rankedSamples, dirName, pattern)
         }
     }
 
-    def savePatterns(rankedPatterns:IndexedSeq[ScoredValue[IndexedSeq[Color]]], dir:String, pattern:PatternItem)
+    def savePatterns(mesh:SegmentMesh, rankedPatterns:IndexedSeq[ScoredValue[IndexedSeq[Color]]], dir:String, pattern:PatternItem)
     {
+        // Need to be able to match up values with variables
+        val vars = mesh.variablesAs[ContinuousColorVariable]
+
         val filename = PatternIO.ensureAndGetFileName(pattern, dir, ".txt")
         val out = new FileWriter(filename)
         out.write("Count " + rankedPatterns.length +"\n")
         for (rp <- rankedPatterns)
         {
             out.write("Score " + rp.score + " false" + "\n")
-            for (c <- rp.values)
+            for (g <- mesh.groups)
             {
-                out.write(c.copyIfNeededTo(RGBColorSpace).componentString + "\n")
+                val indexInValList = vars.indexOf(g.color)
+                var color:Color = null
+                if (indexInValList == -1)
+                    color = g.color.getColor
+                else
+                    color = rp.values(indexInValList)
+                out.write(color.copyIfNeededTo(RGBColorSpace).componentString + "\n")
             }
         }
         out.close()

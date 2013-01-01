@@ -64,7 +64,7 @@ object ColorInferenceModel
 
         protected def trainRegressor(examples:Seq[HistogramRegressor.RegressionExample], crossValidate:Boolean,
                                      saveValidationLog:Boolean, cvRanges:HistogramRegressor.CrossValidationRanges,
-                                     numBins:Int, loadFrom:String = "")
+                                     numBins:Int, bandScale:Double, loadFrom:String = "")
         {
             if (loadFrom.isEmpty || !regressor.load(examples, "%s/%s".format(loadFrom, name)))
             {
@@ -123,6 +123,8 @@ object ColorInferenceModel
 
                     println("Best numBins = %d".format(bestNumBins))
                     bins = bestNumBins
+                    // Reset bandwidth scale to original value
+                    regressor.bandwithScale = bandScale
 
                     if (saveValidationLog)
                         log.close()
@@ -130,15 +132,6 @@ object ColorInferenceModel
                 // Final training
                 println("Training...")
                 regressor.train(examples, new KMeansVectorQuantizer(bins))
-                // Find the best bandwidth scale for the final model
-                val bestBandScale = (for (scale <- cvRanges.bandScale) yield
-                {
-                    regressor.bandwithScale = scale
-                    val ll = regressor.avgLogLikelihood(examples)
-                    (scale, ll)
-                }).sortWith(_._2 > _._2).head._1
-                println("Best bandwidth scale is %g".format(bestBandScale))
-                regressor.bandwithScale = bestBandScale
             }
         }
 
@@ -247,7 +240,7 @@ class ItemizedColorInferenceModel extends ItemizedModel with ColorInferenceModel
 
     type ConditionalFactor = Factor with Conditional
 
-    private val conditionalFactors = new mutable.HashSet[ConditionalFactor]
+    val conditionalFactors = new mutable.HashSet[ConditionalFactor]
 
     // Some of this model's factors might come from families, so we must provide
     // a way to retrieve all of those families (particularly important for training)
@@ -396,7 +389,7 @@ class DiscreteUnarySegmentTemplate(property:ModelTraining#UnarySegmentProperty, 
     val propName = property.name
     protected val colorPropExtractor = property.extractor
     protected val regressor = createRegressor(property)
-    trainRegressor(property.examples, property.crossValidate, property.saveValidationLog, property.ranges, property.quantLevel, loadFrom)
+    trainRegressor(property.examples, property.crossValidate, property.saveValidationLog, property.ranges, property.quantLevel, property.bandScale, loadFrom)
 
     override def statistics(v1:DiscreteColorVariable#Value, v2:DatumVariable#Value) : Tensor =
     {
@@ -412,7 +405,7 @@ class ContinuousUnarySegmentTemplate(property:ModelTraining#UnarySegmentProperty
     val propName = property.name
     protected val colorPropExtractor = property.extractor
     protected val regressor = createRegressor(property)
-    trainRegressor(property.examples, property.crossValidate, property.saveValidationLog, property.ranges, property.quantLevel, loadFrom)
+    trainRegressor(property.examples, property.crossValidate, property.saveValidationLog, property.ranges, property.quantLevel, property.bandScale, loadFrom)
 
     override def statistics(v1:ContinuousColorVariable#Value, v2:DatumVariable#Value) : Tensor =
     {
@@ -531,7 +524,7 @@ class DiscreteBinarySegmentTemplate(property:ModelTraining#BinarySegmentProperty
     val propName = property.name
     protected val colorPropExtractor = property.extractor
     protected val regressor = createRegressor(property)
-    trainRegressor(property.examples, property.crossValidate, property.saveValidationLog, property.ranges, property.quantLevel, loadFrom)
+    trainRegressor(property.examples, property.crossValidate, property.saveValidationLog, property.ranges, property.quantLevel, property.bandScale, loadFrom)
 
     override def statistics(v1:DiscreteColorVariable#Value, v2:DiscreteColorVariable#Value, v3:DatumVariable#Value) : Tensor =
     {
@@ -547,7 +540,7 @@ class ContinuousBinarySegmentTemplate(property:ModelTraining#BinarySegmentProper
     val propName = property.name
     protected val colorPropExtractor = property.extractor
     protected val regressor = createRegressor(property)
-    trainRegressor(property.examples, property.crossValidate, property.saveValidationLog, property.ranges, property.quantLevel, loadFrom)
+    trainRegressor(property.examples, property.crossValidate, property.saveValidationLog, property.ranges, property.quantLevel, property.bandScale, loadFrom)
 
     override def statistics(v1:ContinuousColorVariable#Value, v2:ContinuousColorVariable#Value, v3:DatumVariable#Value) : Tensor =
     {
@@ -643,7 +636,7 @@ class DiscreteColorGroupTemplate(property:ModelTraining#ColorGroupProperty, load
     val propName = property.name
     protected val colorPropExtractor = property.extractor
     protected val regressor = createRegressor(property)
-    trainRegressor(property.examples, property.crossValidate, property.saveValidationLog, property.ranges, property.quantLevel, loadFrom)
+    trainRegressor(property.examples, property.crossValidate, property.saveValidationLog, property.ranges, property.quantLevel, property.bandScale, loadFrom)
 
     override def statistics(v1:DiscreteColorVariable#Value, v2:DatumVariable#Value) : Tensor =
     {
@@ -659,7 +652,7 @@ class ContinuousColorGroupTemplate(property:ModelTraining#ColorGroupProperty, lo
     val propName = property.name
     protected val colorPropExtractor = property.extractor
     protected val regressor = createRegressor(property)
-    trainRegressor(property.examples, property.crossValidate, property.saveValidationLog, property.ranges, property.quantLevel, loadFrom)
+    trainRegressor(property.examples, property.crossValidate, property.saveValidationLog, property.ranges, property.quantLevel, property.bandScale, loadFrom)
 
     override def statistics(v1:ContinuousColorVariable#Value, v2:DatumVariable#Value) : Tensor =
     {

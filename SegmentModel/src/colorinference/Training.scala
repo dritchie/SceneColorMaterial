@@ -30,6 +30,8 @@ abstract class ModelTrainingParams
     var includeColorCompatibilityTerm = false
 
     // Training histogram regressors
+    var fixedBandwidthScale = 1.0
+    var fixedNumBins = 7
     var crossValidateHistogramParams = false
     var saveCrossValidationLog = false
     import HistogramRegressor.CrossValidationRanges
@@ -164,26 +166,32 @@ class ModelTraining(val params:ModelTrainingParams)
 {
     type Examples = ArrayBuffer[HistogramRegressor.RegressionExample]
     case class UnarySegmentProperty(name:String, extractor:UnarySegmentTemplate.ColorPropertyExtractor,
-                                    ranges:HistogramRegressor.CrossValidationRanges, quantLevel:Int, bandScale:Double)
+                                    ranges:HistogramRegressor.CrossValidationRanges)
     {
         val regression = params.regression
         val examples = new Examples
+        var quantLevel = params.fixedNumBins
+        var bandScale = params.fixedBandwidthScale
         val crossValidate = params.crossValidateHistogramParams
         val saveValidationLog = params.saveCrossValidationLog
     }
     case class BinarySegmentProperty(name:String, extractor:BinarySegmentTemplate.ColorPropertyExtractor,
-                                     ranges:HistogramRegressor.CrossValidationRanges, quantLevel:Int, bandScale:Double)
+                                     ranges:HistogramRegressor.CrossValidationRanges)
     {
         val regression = params.regression
         val examples = new Examples
+        var quantLevel = params.fixedNumBins
+        var bandScale = params.fixedBandwidthScale
         val crossValidate = params.crossValidateHistogramParams
         val saveValidationLog = params.saveCrossValidationLog
     }
     case class ColorGroupProperty(name:String, extractor:ColorGroupTemplate.ColorPropertyExtractor,
-                                  ranges:HistogramRegressor.CrossValidationRanges, quantLevel:Int, bandScale:Double)
+                                  ranges:HistogramRegressor.CrossValidationRanges)
     {
         val regression = params.regression
         val examples = new Examples
+        var quantLevel = params.fixedNumBins
+        var bandScale = params.fixedBandwidthScale
         val crossValidate = params.crossValidateHistogramParams
         val saveValidationLog = params.saveCrossValidationLog
     }
@@ -192,9 +200,9 @@ class ModelTraining(val params:ModelTrainingParams)
     val unarySegProps = new ArrayBuffer[UnarySegmentProperty]()
     if (params.includeUnaryTerms)
     {
-      unarySegProps += UnarySegmentProperty("Lightness", ModelTraining.lightness, params.scalarRanges, 5, 1.0)
-      unarySegProps += UnarySegmentProperty("Colorfulness", ModelTraining.colorfulness, params.scalarRanges, 5, 1.0)
-      unarySegProps += UnarySegmentProperty("Name Saliency", ModelTraining.nameSaliency, params.scalarRanges, 5, 1.0)
+      unarySegProps += UnarySegmentProperty("Lightness", ModelTraining.lightness, params.scalarRanges)
+      unarySegProps += UnarySegmentProperty("Colorfulness", ModelTraining.colorfulness, params.scalarRanges)
+      unarySegProps += UnarySegmentProperty("Name Saliency", ModelTraining.nameSaliency, params.scalarRanges)
     }
 
     /* Binary segment properties */
@@ -202,24 +210,26 @@ class ModelTraining(val params:ModelTrainingParams)
     val binarySegProps = new ArrayBuffer[BinarySegmentProperty]()
     if (params.includeBinaryTerms)
     {
-      binarySegProps += BinarySegmentProperty("Perceptual Difference", ModelTraining.perceptualDifference, params.scalarRanges, 5, 1.0)
-      binarySegProps += BinarySegmentProperty("Chroma Difference", ModelTraining.chromaDifference, params.scalarRanges, 5, 1.0)
-      binarySegProps += BinarySegmentProperty("Relative Colorfulness", ModelTraining.relativeColorfulness, params.scalarRanges, 5, 1.0)
-      binarySegProps += BinarySegmentProperty("Relative Lightness", ModelTraining.relativeLightness, params.scalarRanges, 5, 1.0)
-      binarySegProps += BinarySegmentProperty("Name Similarity", ModelTraining.nameSimilarity, params.scalarRanges, 5, 1.0)
+      binarySegProps += BinarySegmentProperty("Perceptual Difference", ModelTraining.perceptualDifference, params.scalarRanges)
+      binarySegProps += BinarySegmentProperty("Chroma Difference", ModelTraining.chromaDifference, params.scalarRanges)
+      binarySegProps += BinarySegmentProperty("Relative Colorfulness", ModelTraining.relativeColorfulness, params.scalarRanges)
+      binarySegProps += BinarySegmentProperty("Relative Lightness", ModelTraining.relativeLightness, params.scalarRanges)
+      binarySegProps += BinarySegmentProperty("Name Similarity", ModelTraining.nameSimilarity, params.scalarRanges)
     }
 
     /* Color group properties */
     val groupProps = new ArrayBuffer[ColorGroupProperty]()
     if (params.includeGroupTerms)
     {
-      groupProps += ColorGroupProperty("Lightness", ModelTraining.lightness, params.scalarRanges, 5, 1.0)
-      groupProps += ColorGroupProperty("Colorfulness", ModelTraining.colorfulness, params.scalarRanges, 5, 1.0)
-      groupProps += ColorGroupProperty("Name Saliency", ModelTraining.nameSaliency, params.scalarRanges, 5, 1.0)
+      groupProps += ColorGroupProperty("Lightness", ModelTraining.lightness, params.scalarRanges)
+      groupProps += ColorGroupProperty("Colorfulness", ModelTraining.colorfulness, params.scalarRanges)
+      groupProps += ColorGroupProperty("Name Saliency", ModelTraining.nameSaliency, params.scalarRanges)
     }
     if (params.includeColorChoiceTerms)
     {
-      groupProps += ColorGroupProperty("LABColor", ModelTraining.labColor, params.colorRanges, 40, 1.0)
+        val colorChoiceProp = ColorGroupProperty("LABColor", ModelTraining.labColor, params.colorRanges)
+        colorChoiceProp.quantLevel = 40
+        groupProps += colorChoiceProp
     }
 
     def train(trainingMeshes:IndexedSeq[SegmentMesh]) : ColorInferenceModel =

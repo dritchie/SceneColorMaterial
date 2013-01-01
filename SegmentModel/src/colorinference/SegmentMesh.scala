@@ -222,8 +222,17 @@ class SegmentMesh(private val gen:ColorVariableGenerator) extends VariableStruct
     {
         // Seriously, it's easiest just to reload the damn file.
         val newmesh = new SegmentMesh(this.gen, this.name)
+
         // TODO: If we make any changes to the mesh after loading it (e.g. marking some variables
-        // TODO: as observed, those will need to be manually propagated here.
+        // TODO: as observed), those will need to be manually propagated here.
+        for (i <- 0 until this.groups.length)
+        {
+            val fixed = this.groups(i).color.fixed
+            newmesh.groups(i).color.fixed = fixed
+            if (fixed)
+                newmesh.groups(i).color.setColor(this.groups(i).color.getColor)
+        }
+
         newmesh
     }
 
@@ -366,7 +375,7 @@ class SegmentMesh(private val gen:ColorVariableGenerator) extends VariableStruct
 
     def variablesAs[V<:Variable] : IndexedSeq[V] =
     {
-        for (group <- groups) yield group.color.asInstanceOf[V]
+        for (group <- groups if !group.color.fixed) yield group.color.asInstanceOf[V]
     }
 
     def randomizeVariableAssignments()

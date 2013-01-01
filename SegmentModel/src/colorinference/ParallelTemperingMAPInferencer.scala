@@ -19,7 +19,7 @@ import java.util.concurrent.CountDownLatch
  * MH acceptance ratio. Rather, it just *always* makes a swap. There's much less inter-thread communication this way, so
  * it's a lot easier to implement.
  */
-class ParallelTemperingMAPInferencer[V<:Variable, S<:(VariableStructure with Copyable[S])](private val baseSamplerGenerator:() => MemorizingSampler[V],
+class ParallelTemperingMAPInferencer[V<:Variable, S<:(VariableStructure with Copyable[S])](private val baseSamplerGenerator:(S) => MemorizingSampler[V],
                                                                                            private val chainTemps:IndexedSeq[Double])
 {
     type SampleRecord = ScoredValue[IndexedSeq[V#Value]]
@@ -54,7 +54,7 @@ class ParallelTemperingMAPInferencer[V<:Variable, S<:(VariableStructure with Cop
     class SamplingChain(val varyingCopy:S, val iterations:Int, val itersBetweenSwaps:Int, temp:Double) extends Actor
     {
         var coordinator:ChainCoordinator = null     // This must be set before running this actor!
-        val sampler = baseSamplerGenerator()
+        val sampler = baseSamplerGenerator(varyingCopy)
         sampler.temperature = temp
 
         def act()
