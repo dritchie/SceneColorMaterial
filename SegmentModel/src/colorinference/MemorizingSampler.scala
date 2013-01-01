@@ -17,6 +17,7 @@ trait MemorizingSampler[V<:Variable] extends MHSampler[IndexedSeq[V]]
 {
     type SampleRecord = ScoredValue[IndexedSeq[V#Value]]
     val samples = new ArrayBuffer[SampleRecord]
+    private val sampleHistory = new ArrayBuffer[SampleRecord] //to keep track of sampling history, in order of when the samples were taken
     private var variablesOfInterest:IndexedSeq[V] = null
     private var currScore = Double.NaN
 
@@ -39,6 +40,12 @@ trait MemorizingSampler[V<:Variable] extends MHSampler[IndexedSeq[V]]
         samples.clear()
         variablesOfInterest = null
         currScore = Double.NaN
+        sampleHistory.clear()
+    }
+
+    def lastSamples(n:Int):Seq[SampleRecord] =
+    {
+      sampleHistory.takeRight(Math.min(n, sampleHistory.length))
     }
 
     // A 'proposalsHook' that makes sure we are keeping track of the current score
@@ -67,6 +74,7 @@ trait MemorizingSampler[V<:Variable] extends MHSampler[IndexedSeq[V]]
         {
             samples += ScoredValue(curVals, currScore)
         }
+        sampleHistory += ScoredValue(curVals, currScore)
     }
     proposalHooks += addNewSample
 }

@@ -17,6 +17,7 @@ import java.io.File
  */
 
 /* Various parameters for defining/learning the model */
+
 abstract class ModelTrainingParams
 {
     var regression:HistogramRegressor.RegressionFunction = HistogramRegressor.LogisticRegression
@@ -35,10 +36,8 @@ abstract class ModelTrainingParams
     var crossValidateHistogramParams = false
     var saveCrossValidationLog = false
     import HistogramRegressor.CrossValidationRanges
-    var scalarRanges = CrossValidationRanges(VectorHistogram.numBandwidthEstimationNeighbors+1 until 15,
+    var cvRanges = CrossValidationRanges(VectorHistogram.numBandwidthEstimationNeighbors+1 until 15,
                                              Array(4.0, 2.0, 1.0, 1/2.0, 1/4.0, 1/8.0, 1/16.0, 1/32.0, 1/64.0, 1/128.0, 1/256.0))
-    var colorRanges = CrossValidationRanges((1 until 10).map(_ * 5),
-                                            Array(4.0, 2.0, 1.0, 1/2.0, 1/4.0, 1/8.0, 1/16.0, 1/32.0, 1/64.0, 1/128.0, 1/256.0))
 
     //ignore the noise segments?
     //var filterNoise = false
@@ -81,11 +80,7 @@ abstract class ModelTrainingParams
     def colorVarParams:ColorVariableParams[VariableType]
 
     var includeColorChoiceTerms = false
-    object ColorChoiceType extends Enumeration  //Not operational yet
-    {
-      type CholorChoiceType = Value
-      val LABMarginal, LABConditional, NamesConditional = Value
-    }
+    var colorChoiceType = ModelTraining.ColorChoiceType.LABMarginal
 }
 
 /* Different variable types require different model building/training operations */
@@ -140,6 +135,13 @@ object ModelTraining
 {
     val namingModel = new ColorNamingModel("../c3_data.json")
 
+    /* enums */
+    object ColorChoiceType extends Enumeration
+    {
+      type CholorChoiceType = Value
+      val LABMarginal, NamesMarginal, LABConditional, NamesConditional = Value
+    }
+
     /* Color properties */
 
     // Unary
@@ -147,6 +149,7 @@ object ModelTraining
     def lightness(c:Color) = Tensor1(c.copyIfNeededTo(LABColorSpace)(0))
     def nameSaliency(c:Color) = Tensor1(namingModel.saliency(c))
     def labColor(c:Color) = {c.copyIfNeededTo(LABColorSpace)}
+    def colorNames(c:Color) = {namingModel.getTermCountsVector(c)}
 
     // Binary
     def perceptualDifference(c1:Color, c2:Color) = Tensor1(Color.perceptualDifference(c1, c2))
@@ -166,7 +169,8 @@ class ModelTraining(val params:ModelTrainingParams)
 {
     type Examples = ArrayBuffer[HistogramRegressor.RegressionExample]
     case class UnarySegmentProperty(name:String, extractor:UnarySegmentTemplate.ColorPropertyExtractor,
-                                    ranges:HistogramRegressor.CrossValidationRanges)
+                                    ranges:HistogramRegressor.CrossValidationRanges,
+                                    metric:MathUtils.DistanceMetric = MathUtils.euclideanDistance)
     {
         val regression = params.regression
         val examples = new Examples
@@ -176,7 +180,8 @@ class ModelTraining(val params:ModelTrainingParams)
         val saveValidationLog = params.saveCrossValidationLog
     }
     case class BinarySegmentProperty(name:String, extractor:BinarySegmentTemplate.ColorPropertyExtractor,
-                                     ranges:HistogramRegressor.CrossValidationRanges)
+                                     ranges:HistogramRegressor.CrossValidationRanges,
+                                     metric:MathUtils.DistanceMetric = MathUtils.euclideanDistance)
     {
         val regression = params.regression
         val examples = new Examples
@@ -186,7 +191,8 @@ class ModelTraining(val params:ModelTrainingParams)
         val saveValidationLog = params.saveCrossValidationLog
     }
     case class ColorGroupProperty(name:String, extractor:ColorGroupTemplate.ColorPropertyExtractor,
-                                  ranges:HistogramRegressor.CrossValidationRanges)
+                                  ranges:HistogramRegressor.CrossValidationRanges,
+                                  isMarginal:Boolean = false, metric:MathUtils.DistanceMetric = MathUtils.euclideanDistance)
     {
         val regression = params.regression
         val examples = new Examples
@@ -200,9 +206,9 @@ class ModelTraining(val params:ModelTrainingParams)
     val unarySegProps = new ArrayBuffer[UnarySegmentProperty]()
     if (params.includeUnaryTerms)
     {
-      unarySegProps += UnarySegmentProperty("Lightness", ModelTraining.lightness, params.scalarRanges)
-      unarySegProps += UnarySegmentProperty("Colorfulness", ModelTraining.colorfulness, params.scalarRanges)
-      unarySegProps += UnarySegmentProperty("Name Saliency", ModelTraining.nameSaliency, params.scalarRanges)
+      unarySegProps += UnarySegmentProperty("Lightness", ModelTraining.lightness, params.cvRanges)
+      unarySegProps += UnarySegmentProperty("Colorfulness", ModelTraining.colorfulness, params.cvRanges)
+      unarySegProps += UnarySegmentProperty("Name Saliency", ModelTraining.nameSaliency, params.cvRanges)
     }
 
     /* Binary segment properties */
@@ -210,26 +216,40 @@ class ModelTraining(val params:ModelTrainingParams)
     val binarySegProps = new ArrayBuffer[BinarySegmentProperty]()
     if (params.includeBinaryTerms)
     {
-      binarySegProps += BinarySegmentProperty("Perceptual Difference", ModelTraining.perceptualDifference, params.scalarRanges)
-      binarySegProps += BinarySegmentProperty("Chroma Difference", ModelTraining.chromaDifference, params.scalarRanges)
-      binarySegProps += BinarySegmentProperty("Relative Colorfulness", ModelTraining.relativeColorfulness, params.scalarRanges)
-      binarySegProps += BinarySegmentProperty("Relative Lightness", ModelTraining.relativeLightness, params.scalarRanges)
-      binarySegProps += BinarySegmentProperty("Name Similarity", ModelTraining.nameSimilarity, params.scalarRanges)
+      binarySegProps += BinarySegmentProperty("Perceptual Difference", ModelTraining.perceptualDifference, params.cvRanges)
+      binarySegProps += BinarySegmentProperty("Chroma Difference", ModelTraining.chromaDifference, params.cvRanges)
+      binarySegProps += BinarySegmentProperty("Relative Colorfulness", ModelTraining.relativeColorfulness, params.cvRanges)
+      binarySegProps += BinarySegmentProperty("Relative Lightness", ModelTraining.relativeLightness, params.cvRanges)
+      binarySegProps += BinarySegmentProperty("Name Similarity", ModelTraining.nameSimilarity, params.cvRanges)
     }
 
     /* Color group properties */
     val groupProps = new ArrayBuffer[ColorGroupProperty]()
     if (params.includeGroupTerms)
     {
-      groupProps += ColorGroupProperty("Lightness", ModelTraining.lightness, params.scalarRanges)
-      groupProps += ColorGroupProperty("Colorfulness", ModelTraining.colorfulness, params.scalarRanges)
-      groupProps += ColorGroupProperty("Name Saliency", ModelTraining.nameSaliency, params.scalarRanges)
+      groupProps += ColorGroupProperty("Lightness", ModelTraining.lightness, params.cvRanges)
+      groupProps += ColorGroupProperty("Colorfulness", ModelTraining.colorfulness, params.cvRanges)
+      groupProps += ColorGroupProperty("Name Saliency", ModelTraining.nameSaliency, params.cvRanges)
     }
+
+    val groupMarginalProps = new ArrayBuffer[ColorGroupProperty]() //color group properties that don't have any features
+
+    //we could add color choice properties for unary and binary factors too, but that might be overfitting
     if (params.includeColorChoiceTerms)
     {
-        val colorChoiceProp = ColorGroupProperty("LABColor", ModelTraining.labColor, params.colorRanges)
-        colorChoiceProp.quantLevel = 40
-        groupProps += colorChoiceProp
+      params.colorChoiceType match
+      {
+        case ModelTraining.ColorChoiceType.LABMarginal =>
+          groupMarginalProps += ColorGroupProperty("LABColor Marginal", ModelTraining.labColor, params.cvRanges, true)
+        case ModelTraining.ColorChoiceType.LABConditional =>
+          groupProps += ColorGroupProperty("LABColor Conditional", ModelTraining.labColor, params.cvRanges, false)
+        case ModelTraining.ColorChoiceType.NamesMarginal =>
+          groupMarginalProps += ColorGroupProperty("ColorNames Marginal", ModelTraining.colorNames, params.cvRanges, true, MathUtils.cosineDistance)
+        case ModelTraining.ColorChoiceType.NamesConditional =>
+          groupProps += ColorGroupProperty("ColorNames Conditional", ModelTraining.colorNames, params.cvRanges, false, MathUtils.cosineDistance)
+
+        case _ => throw new Error("No valid trainer type!")
+      }
     }
 
     def train(trainingMeshes:IndexedSeq[SegmentMesh]) : ColorInferenceModel =
@@ -273,7 +293,9 @@ class ModelTraining(val params:ModelTrainingParams)
             {
                 val fvec = SegmentGroup.getRegressionFeatures(group)
                 for (prop <- groupProps) { prop.examples += HistogramRegressor.RegressionExample(prop.extractor(group.color.observedColor), fvec._1, fvec._2)}
+                for (prop <- groupMarginalProps) {prop.examples += HistogramRegressor.RegressionExample(prop.extractor(group.color.observedColor), Tensor1(1))}   //for marginals, the only predictor is a constant...
             }
+
         }
 
         /** Construct model **/
@@ -298,6 +320,13 @@ class ModelTraining(val params:ModelTrainingParams)
         {
             val template = params.colorVarParams.newGroupTemplate(groupProps(i), loadDir)
             spatialModel += template
+        }
+
+        println("Training Group Marginal Templates...")
+        for (i <- 0 until groupMarginalProps.length)
+        {
+          val template = params.colorVarParams.newGroupTemplate(groupMarginalProps(i), loadDir)
+          spatialModel += template
         }
         val model = new CombinedColorInferenceModel(spatialModel)
         // Include the color compatibility term?

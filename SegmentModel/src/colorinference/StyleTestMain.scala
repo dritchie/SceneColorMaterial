@@ -4,7 +4,7 @@ import collection.immutable.HashMap
 import collection.mutable.ArrayBuffer
 import scala.Array
 import java.io.{File, FileWriter}
-import cc.factorie.{SamplingMaximizer, HashMapAssignment}
+import cc.factorie.{Family, SamplingMaximizer, HashMapAssignment}
 
 /**
  * Created with IntelliJ IDEA.
@@ -23,6 +23,20 @@ object StyleTestMain {
   val histDir:String = "../PatternColorizer/out/hist"
   var styleToModel = new HashMap[String, StyleItem] //map from the style name to the model
   var meshToStyleInfo = new HashMap[String, PatternItem]
+
+
+  //inference params
+
+  // Maximization parameters
+  val numParallelChains = 5
+  val iterations = 2000
+  val initTemp = 1.0
+  val finalTemp = 0.01
+  val rounds = 40
+
+  // Parallel tempering parameters
+  val chainTemps = Array(1.0, 0.5, 0.2, 0.05, 0.01)
+  val itersBetweenSwaps = 50
 
   val n = 3 //number of test patterns per style
 
@@ -101,9 +115,12 @@ object StyleTestMain {
     {
       val testPatterns = styleToModel(s).testPatterns.map(_.fullpath)
       var testMeshes = styleToModel(s).meshes.filter(m => testPatterns.contains(m.name))
+      val trainPatterns= styleToModel(s).trainPatterns.map(_.fullpath)
+      val trainMeshes = for (m<-styleToModel(s).meshes if trainPatterns.contains(m.name)) yield m
 
       //output histograms for test meshes
-      OutputAllHistograms(testMeshes, styleToModel(s).model, s)
+      //OutputAllHistograms(trainMeshes, styleToModel(s).model, s)
+      //OutputAllHistograms(testMeshes, styleToModel(s).model, s)
     }
 
     //for each test pattern, generate the top N colorings from each of the style models
@@ -125,6 +142,8 @@ object StyleTestMain {
 
         for (s2 <- styleToModel.keys)
         {
+          println("Sampling from model " + s)
+
           val item = styleToModel(s2)
           //mesh.randomizeVariableAssignments
           //mesh.setVariableValuesToObserved
@@ -132,28 +151,57 @@ object StyleTestMain {
 
           params.colorVarParams.initDomain(mesh)
 
-          val lambda = 0.25
-          //settings copied from MMRTest
-          val iterations = 2000
-          val initTemp = 1.0
-          val finalTemp = 0.01
-          val rounds = 40
-          val numParallelChains = 5
+          val lambda = 1.0 //for now, just look at the most probable ones
 
-          val sampler = new ContinuousColorSampler(item.model) with MemorizingSampler[ContinuousColorVariable]
+
+
+          /*val sampler = new ContinuousColorSampler(item.model) with MemorizingSampler[ContinuousColorVariable]
           val maximizer = new SamplingMaximizer(sampler)
-
-          //val samplerGenerator = () => new ContinuousColorSampler(item.model) with MemorizingSampler[ContinuousColorVariable]
-          //val maximizer = new ParallelMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, numParallelChains)
-          //maximizer.maximize(mesh, iterations, initTemp, finalTemp, rounds)
           maximizer.maximize(Array(mesh.variablesAs[ContinuousColorVariable]), iterations, initTemp, finalTemp, rounds)
           // Convert sampled values to LAB first, since our similarity metric operates in LAB space
-          //maximizer.samples.foreach(_.values.foreach(_.convertTo(LABColorSpace)))
-          sampler.samples.foreach(_.values.foreach(_.convertTo(LABColorSpace)))
+          sampler.samples.foreach(_.values.foreach(_.convertTo(LABColorSpace))) */
+
+          val model = item.model
+//          val samplerGenerator = () => new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable]
+//          val maximizer = new ParallelTemperingMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, chainTemps)
+//          model.conditionOn(mesh)
+            // TODO: This is a horrible, god-awful hack. I need to make the color compatibility factor
+            // TODO: into a proper template for it to work with parallel inference correctly.
+            model.conditionOn(mesh)
+            val samplerGenerator = (m:SegmentMesh) =>
+            {
+                val modelCopy = new CombinedColorInferenceModel
+                modelCopy += model.asInstanceOf[CombinedColorInferenceModel].subModels(0)
+                if (params.includeColorCompatibilityTerm)
+                {
+                    val itemModel = model.asInstanceOf[CombinedColorInferenceModel].subModels(1).asInstanceOf[ItemizedColorInferenceModel]
+                    val weight = itemModel.conditionalFactors.head.asInstanceOf[Family#Factor].family.asInstanceOf[ColorInferenceModel.Trainable].getWeight
+                    val itemCopy = new ItemizedColorInferenceModel
+                    val fam = new ColorCompatibilityFamily
+                    fam.setWeight(weight)
+                    val fac = new fam.Factor
+                    itemCopy.addConditionalFactor(fac.asInstanceOf[itemCopy.ConditionalFactor])
+                    itemCopy.conditionOn(m)
+                    modelCopy += itemCopy
+                }
+                new ContinuousColorSampler(modelCopy) with MemorizingSampler[ContinuousColorVariable]
+            }
+            val maximizer = new ParallelTemperingMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, chainTemps)
+          maximizer.maximize(mesh, iterations, itersBetweenSwaps)
+
+          // Convert sampled values to LAB first, since our similarity metric operates in LAB space
+          maximizer.samples.foreach(_.values.foreach(_.convertTo(LABColorSpace)))
 
           val metric = genMMRSimilarityMetric(mesh.variablesAs[ContinuousColorVariable])
-          //val mmr = new MMR(maximizer.samples, metric)
-          val mmr = new MMR(sampler.samples, metric)
+          val mmr = new MMR(maximizer.samples, metric)
+          //val mmr = new MMR(sampler.samples, metric)
+
+          //print out the original score
+          val originalScore = getObservedAssignmentScore(model, mesh)
+          val (minscore, maxscore) = mmr.getScoreRange
+          println("\nObserved pattern score: " + originalScore)
+          println("Min %f, Max %f".format(minscore, maxscore))
+
 
           val rankedSamples = mmr.getRankedSamples(n, lambda)
 
@@ -179,21 +227,25 @@ object StyleTestMain {
       val testPatterns = item.testPatterns.map(_.fullpath)
       var testMeshes = item.meshes.filter(m => testPatterns.contains(m.name))
 
-      println(testMeshes.length)
-      val sumWithin = testMeshes.foldLeft(0.0)((sofar, mesh) => {
+      val trainPatterns= styleToModel(s).trainPatterns.map(_.fullpath)
+      val trainMeshes = for (m<-styleToModel(s).meshes if trainPatterns.contains(m.name)) yield m
+
+      val theMeshes = testMeshes
+
+      val sumWithin = theMeshes.foldLeft(0.0)((sofar, mesh) => {
         val curScore = getObservedAssignmentScore(item.model, mesh)
         sofar+curScore
       })
-      println("Within style %s, avgscore %f".format(s, sumWithin/testMeshes.length))
+      println("Within style %s, avgscore %f".format(s, sumWithin/theMeshes.length))
 
       for (s2 <- styleToModel.keys if s!=s2)
       {
         val item2 = styleToModel(s2)
-        val sumOut = testMeshes.foldLeft(0.0)((sofar, mesh) => {
+        val sumOut = theMeshes.foldLeft(0.0)((sofar, mesh) => {
           val curScore = getObservedAssignmentScore(item2.model, mesh)
           sofar+curScore
         })
-        println("Style %s, avgscore %f".format(s2, sumOut/testMeshes.length))
+        println("Style %s, avgscore %f".format(s2, sumOut/theMeshes.length))
 
       }
 
@@ -226,7 +278,12 @@ object StyleTestMain {
 
     mesh.setVariableValuesToObserved()
     model.conditionOn(mesh)
-    model.itemizedModel(mesh.groups.map(_.color)).currentScore
+    val score = model.itemizedModel(mesh.groups.map(_.color)).currentScore
+
+    //revert
+    mesh.randomizeVariableAssignments()
+
+    score
 
   }
 

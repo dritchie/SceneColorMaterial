@@ -567,6 +567,7 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
 
     def propName:String
     def name = "Group " + propName
+    def isMarginal:Boolean
     protected def colorPropExtractor:ColorPropertyExtractor
     protected val data = new Data
 
@@ -575,7 +576,7 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
       data.clear()
       for (mesh<-meshes; group <- mesh.groups)
       {
-        val f = SegmentGroup.getRegressionFeatures(group)._1
+        val f = {if (isMarginal) Tensor1(1.0) else SegmentGroup.getRegressionFeatures(group)._1}
         data.put(group.index, new DatumVariable(Datum(group, regressor.predictHistogram(f))))
       }
     }
@@ -586,7 +587,7 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
         data.clear()
         for (group <- mesh.groups)
         {
-            val f = SegmentGroup.getRegressionFeatures(group)._1
+            val f = {if (isMarginal) Tensor1(1.0) else SegmentGroup.getRegressionFeatures(group)._1}
             data.put(group.index, new DatumVariable(Datum(group, regressor.predictHistogram(f))))
         }
     }
@@ -634,6 +635,7 @@ class DiscreteColorGroupTemplate(property:ModelTraining#ColorGroupProperty, load
     import ColorGroupTemplate._
 
     val propName = property.name
+    val isMarginal = property.isMarginal
     protected val colorPropExtractor = property.extractor
     protected val regressor = createRegressor(property)
     trainRegressor(property.examples, property.crossValidate, property.saveValidationLog, property.ranges, property.quantLevel, property.bandScale, loadFrom)
@@ -650,6 +652,7 @@ class ContinuousColorGroupTemplate(property:ModelTraining#ColorGroupProperty, lo
     import ColorGroupTemplate._
 
     val propName = property.name
+    val isMarginal = property.isMarginal
     protected val colorPropExtractor = property.extractor
     protected val regressor = createRegressor(property)
     trainRegressor(property.examples, property.crossValidate, property.saveValidationLog, property.ranges, property.quantLevel, property.bandScale, loadFrom)
