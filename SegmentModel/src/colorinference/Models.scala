@@ -301,7 +301,7 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
     protected def createRegressor(property:ModelTraining#UnarySegmentProperty) : HistogramRegressor =
     {
         println("Training " + name + "...")
-        property.regression(MathUtils.euclideanDistance, WekaMultiClassHistogramRegressor)
+        property.regression(property.metric, WekaMultiClassHistogramRegressor)
     }
 
     protected def computeStatistics(color:Color, datum:Datum) : Tensor1  =
@@ -423,7 +423,7 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
   protected def createRegressor(property:ModelTraining#BinarySegmentProperty) : HistogramRegressor =
     {
         println("Training " + name + "...")
-        property.regression(MathUtils.euclideanDistance, WekaMultiClassHistogramRegressor)
+        property.regression(property.metric, WekaMultiClassHistogramRegressor)
     }
 
     protected def computeStatistics(color1:Color, color2:Color, datum:Datum) : Tensor1  =
@@ -518,6 +518,7 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
 
     def propName:String
     def name = "Group " + propName
+    def isMarginal:Boolean
     protected def colorPropExtractor:ColorPropertyExtractor
     protected val data = new Data
 
@@ -526,7 +527,7 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
       data.clear()
       for (mesh<-meshes; group <- mesh.groups)
       {
-        val f = SegmentGroup.getRegressionFeatures(group)._1
+        val f = {if (isMarginal) Tensor1(1.0) else SegmentGroup.getRegressionFeatures(group)._1}
         data.put(group.index, new DatumVariable(Datum(group, regressor.predictHistogram(f))))
       }
     }
@@ -537,7 +538,7 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
         data.clear()
         for (group <- mesh.groups)
         {
-            val f = SegmentGroup.getRegressionFeatures(group)._1
+            val f = {if (isMarginal) Tensor1(1.0) else SegmentGroup.getRegressionFeatures(group)._1}
             data.put(group.index, new DatumVariable(Datum(group, regressor.predictHistogram(f))))
         }
     }
@@ -555,7 +556,7 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
     protected def createRegressor(property:ModelTraining#ColorGroupProperty) : HistogramRegressor =
     {
         println("Training " + name + "...")
-        property.regression(MathUtils.euclideanDistance, WekaMultiClassHistogramRegressor)
+        property.regression(property.metric, WekaMultiClassHistogramRegressor)
     }
 
     protected def computeStatistics(color:Color, datum:Datum) : Tensor1  =
@@ -585,6 +586,7 @@ class DiscreteColorGroupTemplate(property:ModelTraining#ColorGroupProperty, load
     import ColorGroupTemplate._
 
     val propName = property.name
+    val isMarginal = property.isMarginal
     protected val colorPropExtractor = property.extractor
     protected val regressor = createRegressor(property)
     trainRegressor(property.examples, property.quant, loadFrom)
@@ -601,6 +603,7 @@ class ContinuousColorGroupTemplate(property:ModelTraining#ColorGroupProperty, lo
     import ColorGroupTemplate._
 
     val propName = property.name
+    val isMarginal = property.isMarginal
     protected val colorPropExtractor = property.extractor
     protected val regressor = createRegressor(property)
     trainRegressor(property.examples, property.quant, loadFrom)

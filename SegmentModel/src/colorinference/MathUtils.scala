@@ -222,6 +222,8 @@ object MathUtils
 
     def euclideanDistance(a:Tensor1, b:Tensor1):Double = (a - b).twoNorm
 
+    def cosineDistance(a:Tensor1, b:Tensor1):Double = 1.0 - a.cosineSimilarity(b)
+
     // Returns the index of the closest vector
     def closestVectorBruteForce(queryVec:Tensor1, pool:Seq[Tensor1], metric:DistanceMetric) : Int =
     {

@@ -1,7 +1,7 @@
 package colorinference
 
 import collection.mutable.ArrayBuffer
-import cc.factorie.la.{DenseTensor2,DenseLayeredTensor2}
+import cc.factorie.la.{Tensor1, DenseTensor1, DenseTensor2, DenseLayeredTensor2}
 import io.Source
 import weka.core._
 import neighboursearch.KDTree
@@ -180,5 +180,13 @@ class ColorNamingModel(c3JsonFile:String)
         val c1 = bin(color1.copyIfNeededTo(LABColorSpace))
         val c2 = bin(color2.copyIfNeededTo(LABColorSpace))
         cosineSimilarity(c1, c2)
+    }
+
+
+    def getTermCountsVector(color:Color):Tensor1 =
+    {
+      val c = bin(color.copyIfNeededTo(LABColorSpace))
+      val vec = new DenseTensor1(terms.indices.map(w => counts(c,w).toDouble ).toArray)
+      vec
     }
 }

@@ -248,9 +248,26 @@ class SegmentMesh(private val gen:ColorVariableGenerator) extends VariableStruct
             val adjgroups = for (seg <- group.members; aseg <- seg.adjacencies.values) yield aseg.neighbor.group
             group.adjacencies ++= adjgroups.distinct
         }
+
+      //TODO: this is a bit hacky now, but just experimenting with the features without having to regenerate all the meshes
+      computeAdditionalFeatures()
     }
 
     /** Private helpers **/
+    private def computeAdditionalFeatures()
+    {
+      //adding an additional features, which are relative size normalized by the max size
+      //this might help detect cases where the segments are all roughly the same size, even if they are small
+      val maxSegSize = segments.map(_.size).max
+      for (seg <- segments)
+        seg.features("RelativeSizeOverMax") = Tensor1(seg.size/maxSegSize)
+
+      val maxGroupSize = groups.map(_.size).max
+      for (group <- groups)
+         group.features("RelativeSizeOverMax") = Tensor1(group.size/maxGroupSize)
+
+    }
+
 
     private def parseSegment(adj: ArrayBuffer[ ArrayBuffer[(Int, Double, Double, Double)] ], lineIterator:Iterator[String])
     {
