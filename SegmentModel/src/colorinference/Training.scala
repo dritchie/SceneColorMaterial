@@ -299,45 +299,40 @@ class ModelTraining(val params:ModelTrainingParams)
         }
 
         /** Construct model **/
+        val model = new ColorInferenceModel
         println("Training Unary Segment Templates...")
-        val spatialModel = new TemplateColorInferenceModel
         val loadDir = if (params.loadRegressorsIfPossible) params.modelSaveDirectory else ""
         for (i <- 0 until unarySegProps.length)
         {
             val template = params.colorVarParams.newUnarySegmentTemplate(unarySegProps(i), loadDir)
-            spatialModel += template
+            model += template
         }
         DebugRuntime.printStats
         println("Training Binary Segment Templates...")
         for (i <- 0 until binarySegProps.length)
         {
             val template = params.colorVarParams.newBinarySegmentTemplate(binarySegProps(i), loadDir)
-            spatialModel += template
+            model += template
         }
         DebugRuntime.printStats
         println("Training Group Templates...")
         for (i <- 0 until groupProps.length)
         {
             val template = params.colorVarParams.newGroupTemplate(groupProps(i), loadDir)
-            spatialModel += template
+            model += template
         }
 
         println("Training Group Marginal Templates...")
         for (i <- 0 until groupMarginalProps.length)
         {
           val template = params.colorVarParams.newGroupTemplate(groupMarginalProps(i), loadDir)
-          spatialModel += template
+            model += template
         }
-        val model = new CombinedColorInferenceModel(spatialModel)
         // Include the color compatibility term?
         if (params.includeColorCompatibilityTerm && params.colorVarParams.supportsColorCompatibility)
         {
             println("Adding color compatibility factor...")
-            val cfam = new ColorCompatibilityFamily
-            val cfac = new cfam.Factor
-            val cmodel = new ItemizedColorInferenceModel
-            cmodel.addConditionalFactor(cfac.asInstanceOf[cmodel.ConditionalFactor])
-            model += cmodel
+            model += new ColorCompatibilityTemplate
         }
 
         // Save stuff?

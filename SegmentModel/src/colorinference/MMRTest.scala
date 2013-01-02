@@ -9,7 +9,7 @@ package colorinference
  */
 
 import java.io.{FileWriter, File}
-import cc.factorie.{Family, SamplingMaximizer}
+import cc.factorie.{Model, Family, SamplingMaximizer}
 
 object MMRTest
 {
@@ -49,16 +49,16 @@ object MMRTest
         if (patterns.length == 0)
             println("No files found in the input directory!")
 
-        // Setup model training parameters (we'll use Discrete color variables in this test)
+        // Setup model training parameters
         params = new ModelTrainingParams
         {
             type VariableType = ContinuousColorVariable
             val colorVarParams = ContinuousColorVariableParams
 
             modelSaveDirectory = "savedModel"
-            doWeightTuning = true
-            saveRegressorsIfPossible = false
-            saveWeightsIfPossible = false
+            doWeightTuning = false
+            saveRegressorsIfPossible = true
+            saveWeightsIfPossible = true
             loadRegressorsIfPossible = true
             loadWeightsIfPossible = true
 
@@ -138,27 +138,8 @@ object MMRTest
 //        mesh.groups(0).color.setColor(Color.RGBColor(0.28, 0.03, 0.23))
 //        mesh.groups(0).color.fixed = true
 
-        // TODO: This is a horrible, god-awful hack. I need to make the color compatibility factor
-        // TODO: into a proper template for it to work with parallel inference correctly.
         model.conditionOn(mesh)
-        val samplerGenerator = (m:SegmentMesh) =>
-        {
-            val modelCopy = new CombinedColorInferenceModel
-            modelCopy += model.asInstanceOf[CombinedColorInferenceModel].subModels(0)
-            if (params.includeColorCompatibilityTerm)
-            {
-                val itemModel = model.asInstanceOf[CombinedColorInferenceModel].subModels(1).asInstanceOf[ItemizedColorInferenceModel]
-                val weight = itemModel.conditionalFactors.head.asInstanceOf[Family#Factor].family.asInstanceOf[ColorInferenceModel.Trainable].getWeight
-                val itemCopy = new ItemizedColorInferenceModel
-                val fam = new ColorCompatibilityFamily
-                fam.setWeight(weight)
-                val fac = new fam.Factor
-                itemCopy.addConditionalFactor(fac.asInstanceOf[itemCopy.ConditionalFactor])
-                itemCopy.conditionOn(m)
-                modelCopy += itemCopy
-            }
-            new ContinuousColorSampler(modelCopy) with MemorizingSampler[ContinuousColorVariable]
-        }
+        val samplerGenerator = () => { new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable] }
         val maximizer = new ParallelTemperingMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, chainTemps)
 
         maximizer.maximize(mesh, iterations, itersBetweenSwaps)

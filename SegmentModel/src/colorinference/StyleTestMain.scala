@@ -221,25 +221,9 @@ object StyleTestMain {
             //val samplerGenerator = () => new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable]
             //val maximizer = new ParallelTemperingMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, chainTemps)
 
-            // TODO: This is a horrible, god-awful hack. I need to make the color compatibility factor
-            // TODO: into a proper template for it to work with parallel inference correctly.
-            val samplerGenerator = (m:SegmentMesh) =>
+            val samplerGenerator = () =>
             {
-              val modelCopy = new CombinedColorInferenceModel
-              modelCopy += model.asInstanceOf[CombinedColorInferenceModel].subModels(0)
-              if (params.includeColorCompatibilityTerm)
-              {
-                val itemModel = model.asInstanceOf[CombinedColorInferenceModel].subModels(1).asInstanceOf[ItemizedColorInferenceModel]
-                val weight = itemModel.conditionalFactors.head.asInstanceOf[Family#Factor].family.asInstanceOf[ColorInferenceModel.Trainable].getWeight
-                val itemCopy = new ItemizedColorInferenceModel
-                val fam = new ColorCompatibilityFamily
-                fam.setWeight(weight)
-                val fac = new fam.Factor
-                itemCopy.addConditionalFactor(fac.asInstanceOf[itemCopy.ConditionalFactor])
-                itemCopy.conditionOn(m)
-                modelCopy += itemCopy
-              }
-              new ContinuousColorSampler(modelCopy) with MemorizingSampler[ContinuousColorVariable]
+              new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable]
             }
             val maximizer = new ParallelTemperingMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, chainTemps)
             maximizer.maximize(mesh, iterations, itersBetweenSwaps)

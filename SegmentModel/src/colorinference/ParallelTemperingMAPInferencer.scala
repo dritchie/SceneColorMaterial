@@ -19,7 +19,7 @@ import java.util.concurrent.CountDownLatch
  * MH acceptance ratio. Rather, it just *always* makes a swap. There's much less inter-thread communication this way, so
  * it's a lot easier to implement.
  */
-class ParallelTemperingMAPInferencer[V<:Variable, S<:(VariableStructure with Copyable[S])](private val baseSamplerGenerator:(S) => MemorizingSampler[V],
+class ParallelTemperingMAPInferencer[V<:Variable, S<:(VariableStructure with Copyable[S])](private val baseSamplerGenerator:() => MemorizingSampler[V],
                                                                                            private val chainTemps:IndexedSeq[Double])
 {
     type SampleRecord = ScoredValue[IndexedSeq[V#Value]]
@@ -31,7 +31,7 @@ class ParallelTemperingMAPInferencer[V<:Variable, S<:(VariableStructure with Cop
         samples.clear()
 
         // Set up the chains and the coordinator
-        val chains = for (t <- chainTemps) yield new SamplingChain(varying.copy, iterations, iterationsBetweenSwaps, t)
+        val chains = for (t <- chainTemps) yield new SamplingChain(varying, iterations, iterationsBetweenSwaps, t)
         val latch = new CountDownLatch(1)
         val coordinator = new ChainCoordinator(chains, latch)
         chains.foreach(_.coordinator = coordinator)
@@ -50,7 +50,7 @@ class ParallelTemperingMAPInferencer[V<:Variable, S<:(VariableStructure with Cop
         //for (i<-mixingScores.indices) println("Iteration %d, mixing score %f, mean samples score %f".format(i, mixingScores(i).mixingScore, mixingScores(i).meanF))
     }
 
-    case class MixingRecord(val mixingScore:Double, val meanF:Double)
+    case class MixingRecord(mixingScore:Double, meanF:Double)
 
     // Messages
     case object RoundComplete
@@ -59,10 +59,11 @@ class ParallelTemperingMAPInferencer[V<:Variable, S<:(VariableStructure with Cop
     case object ChainFinished
 
     // Actors
-    class SamplingChain(val varyingCopy:S, val iterations:Int, val itersBetweenSwaps:Int, temp:Double) extends Actor
+    class SamplingChain(varying:S, val iterations:Int, val itersBetweenSwaps:Int, temp:Double) extends Actor
     {
+        val varyingCopy = varying.copy
         var coordinator:ChainCoordinator = null     // This must be set before running this actor!
-        val sampler = baseSamplerGenerator(varyingCopy)
+        val sampler = baseSamplerGenerator()
         sampler.temperature = temp
         var f:Double = -1
         var W:Double = Double.PositiveInfinity
@@ -88,8 +89,8 @@ class ParallelTemperingMAPInferencer[V<:Variable, S<:(VariableStructure with Cop
                 sampler.process(varsOfInterest, itersBetweenSwaps)
 
                 //TODO: I'm also not sure if this is technically correct here, because from p.523 of PGM book, it seems
-                //like there should be a burn-in time and then only samples after that time should be considered
-                //if the chain restarts anew (without some acceptance prob), then does the time before count as burn-in time?
+                //TODO: like there should be a burn-in time and then only samples after that time should be considered
+                //TODO: if the chain restarts anew (without some acceptance prob), then does the time before count as burn-in time?
                 computeStats(itersBetweenSwaps)
 
                 coordinator ! RoundComplete
