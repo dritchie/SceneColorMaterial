@@ -17,7 +17,25 @@ Learning weights is cool.
 
 \subsection{Sampling}
 \label{sec:sampling}
-Which MH proposals do we use, etc.
+
+We use the Metropolis-Hastings algorithm (MH), a variant of Markov Chain Monte Carlo (MCMC), to sample coloring suggestions from the model~\cite{Metropolis,Hastings}. MH explores the coloring state space by \emph{proposing} candidate new states; these proposals are accepted with probability proportional to their model score. Our sampler uses the following proposals:
+\begin{itemize}
+	\item{\textbf{Perturb} a randomly chosen color by $v \sim \mathcal{N}(0, \sigma)$ in RGB color space}
+	\item{\textbf{Swap} two randomly chosen colors}
+\end{itemize}
+where $\sigma$ varies linearly with the model temperature $\tau$~\remark{Introduce this in an earlier section}. The sampler chooses between these two proposals with probability $\rho$, which also varies linearly with temperature.
+
+Asymptotically, MCMC samples states with a frequency proportional to their probability under the model. In practice, it can take a prohibitively long time to explore all the modes of a distribution as complex as the one encoded by our model. We would like our sampler to explore as many modes as possible so that it can suggest multiple, high-probability coloring states.
+
+To accelerate sampling, we use parallel tempering, a technique that runs multiple MCMC chains in parallel at different temperatures and swaps their states periodically~\cite{ParallelTempering}. Large values of $\tau$ yield flatter probability landscapes, so these `hot' chains are more likely to take large jumps across the state space. `Cool' chains, on the other hand, reject almost all proposed states that do not lead to higher probabilities, thus behaving like local hill-climbing optimizers. Running multiple chains in parallel allows the total system to alternatively explore and refine different coloring configurations.
+
+Finally, we use maximimum marginal relevance (MMR) to enforce diversity in the set of suggestions returned by the sampler~\cite{MMR}. MMR is a technique from information retrieval that re-ranks every item in a list according to a linear combination of relevance (model score, in our case) and similarity to the items preceding it. The similarity metric we use for two colorings of a pattern $\mathcal{P}$ is
+%% Pattern similarity metric
+\begin{equation*}
+\text{sim}(\mathbf{c_1}, \mathbf{c_2}, \mathcal{P}) = - \sum_{g \in P} {A_g \cdot ||\mathbf{c_1}(g) - \mathbf{c_2}(g)||}
+\end{equation*}
+%%
+which is the area-weighted sum of \lab distances between the corresponding colors in each coloring~\remark{Notation, terminology subject to change}.
 
 \subsection{Implementation}
 \label{sec:implementation}
