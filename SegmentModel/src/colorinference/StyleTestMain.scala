@@ -17,13 +17,20 @@ import cc.factorie.{Family, SamplingMaximizer, HashMapAssignment}
 
 object StyleTestMain {
   case class StyleItem( model:ColorInferenceModel,  trainPatterns:Seq[PatternItem],  testPatterns:Seq[PatternItem],  meshes:Seq[SegmentMesh])
-  val imageDir:String = "../../Colourlovers/styles"
+  val imageDir:String = "../Colourlovers/styles"
   val meshDir:String = "../PatternColorizer/out/mesh"
   val outDir:String = "../PatternColorizer/out/styles"
   val histDir:String = "../PatternColorizer/out/hist"
   var styleToModel = new HashMap[String, StyleItem] //map from the style name to the model
   var meshToStyleInfo = new HashMap[String, PatternItem]
   var styleToPatterns = new HashMap[String, ArrayBuffer[PatternItem]]
+  val savedModelsDir = "style_colorunary"
+
+  /** filtering options **/
+  val filterWhenTesting = true
+  val adjK = -1
+  val segK = -1
+  val ignoreNoise = true
 
   //inference params
 
@@ -44,11 +51,12 @@ object StyleTestMain {
 
   case class Setting(includeColorChoiceTerms:Boolean, colorChoiceType:ModelTraining.ColorChoiceType.Value, directoryLabel:String)
   val settings = Array(
-    new Setting(false, ModelTraining.ColorChoiceType.LABMarginal, ""),
-    new Setting(true, ModelTraining.ColorChoiceType.LABMarginal, "_labMarginal"),
-    new Setting(true, ModelTraining.ColorChoiceType.LABConditional,"_labConditional"),
-    new Setting(true, ModelTraining.ColorChoiceType.NamesMarginal,"_namesMarginal"),
-    new Setting(true, ModelTraining.ColorChoiceType.NamesConditional, "_namesConditional"))
+    //new Setting(false, ModelTraining.ColorChoiceType.LABMarginal, ""),
+    //new Setting(true, ModelTraining.ColorChoiceType.LABMarginal, "_labMarginal"),
+    //new Setting(true, ModelTraining.ColorChoiceType.LABConditional,"_labConditional"),
+    //new Setting(true, ModelTraining.ColorChoiceType.NamesMarginal,"_namesMarginal"),
+    new Setting(true, ModelTraining.ColorChoiceType.NamesConditional, "_namesConditional")
+    )
 
 
   //default model training params
@@ -56,7 +64,7 @@ object StyleTestMain {
   {
     type VariableType = ContinuousColorVariable
     val colorVarParams = ContinuousColorVariableParams
-    includeColorCompatibilityTerm = true
+    includeColorCompatibilityTerm = false
     saveRegressorsIfPossible = true
     saveWeightsIfPossible = true
     loadRegressorsIfPossible = true
@@ -70,6 +78,9 @@ object StyleTestMain {
 
     includeColorChoiceTerms = true
     colorChoiceType = ModelTraining.ColorChoiceType.NamesMarginal
+    includeUnaryTerms = true
+    includeGroupTerms = true
+    includeBinaryTerms = true
   }
 
   def main(args:Array[String])
@@ -78,6 +89,8 @@ object StyleTestMain {
     val visDirTestFile = new File(outDir)
     if (!visDirTestFile.exists)
       visDirTestFile.mkdir
+
+     new File(savedModelsDir).mkdir
 
      val styleinf = PatternIO.getPatterns(imageDir)
      val validPids = styleinf.map(_.name.replace(".png","").toInt).toSet
@@ -110,6 +123,10 @@ object StyleTestMain {
       else
         println("Training a model ignoring color choice terms")
 
+      TrainModels(setting)
+
+      //OutputModelHistograms(setting:Setting)
+
       GeneratePatterns(setting)
 
       //test 2 is to see if for each model, the model rates the test patterns in that style more highly than patterns in other styles
@@ -117,18 +134,58 @@ object StyleTestMain {
       //print out style model, ScoreWithinStyle, ScoreStyleA, ScoreStyleB
       CompareModelsOnObservedPatterns()
 
+
+      //See what happens when we filter out noise and/or only consider the topK segments
+      /*for (s <- styleToPatterns.keys)
+      {
+        val trainPatterns = styleToPatterns(s).take(styleToPatterns(s).length-n)
+        val testPatterns = {for (p<-styleToPatterns(s)if (!trainPatterns.contains(p))) yield p}.map(_.fullpath)
+        val meshes = styleToPatterns(s).map(p=> {
+          new SegmentMesh(params.colorVarParams.variableGenerator, p.fullpath)
+        })
+
+        var testMeshes = meshes.filter(m => testPatterns.contains(m.name))
+        for (mesh <- testMeshes)
+        {
+          println("\nMesh "+mesh.name)
+          InspectMeshStats(mesh, -1, -1, false)
+          InspectMeshStats(mesh, -1, -1, true)
+          InspectMeshStats(mesh, 5, 5, true)
+        }
+      }*/
+
+
+
     }
 
 
 
   }
 
-  def GeneratePatterns(setting:Setting)
+  def OutputModelHistograms(setting:Setting)
+  {
+    for (s <- styleToModel.keys)
+    {
+      val testPatterns = styleToModel(s).testPatterns.map(_.fullpath)
+      var testMeshes = styleToModel(s).meshes.filter(m => testPatterns.contains(m.name))
+      val trainPatterns= styleToModel(s).trainPatterns.map(_.fullpath)
+      val trainMeshes = for (m<-styleToModel(s).meshes if trainPatterns.contains(m.name)) yield m
+
+      //output histograms for test meshes
+      //OutputAllHistograms(trainMeshes, styleToModel(s).model, s)
+      OutputAllHistograms(testMeshes, styleToModel(s).model, s+setting.directoryLabel)
+    }
+  }
+
+
+
+
+  def TrainModels(setting:Setting)
   {
     for (s <- styleToPatterns.keys)
     {
       //change the save folder
-      params.modelSaveDirectory = s+setting.directoryLabel
+      params.modelSaveDirectory = savedModelsDir+"/"+s+setting.directoryLabel
       params.includeColorChoiceTerms = setting.includeColorChoiceTerms
       params.colorChoiceType = setting.colorChoiceType
 
@@ -145,21 +202,11 @@ object StyleTestMain {
       styleToModel += s -> new StyleItem(model, trainPatterns, testPatterns, meshes)
 
     }
+  }
 
-    //output histograms
 
-    /* for (s <- styleToModel.keys)
-   {
-     val testPatterns = styleToModel(s).testPatterns.map(_.fullpath)
-     var testMeshes = styleToModel(s).meshes.filter(m => testPatterns.contains(m.name))
-     val trainPatterns= styleToModel(s).trainPatterns.map(_.fullpath)
-     val trainMeshes = for (m<-styleToModel(s).meshes if trainPatterns.contains(m.name)) yield m
-
-     //output histograms for test meshes
-     //OutputAllHistograms(trainMeshes, styleToModel(s).model, s)
-     //OutputAllHistograms(testMeshes, styleToModel(s).model, s)
-   } */
-
+  def GeneratePatterns(setting:Setting)
+  {
     //for each test pattern, generate the top N colorings from each of the style models
     //visualization columns will look like:
     //original pattern + style name, style A, style B, style C
@@ -170,13 +217,17 @@ object StyleTestMain {
     {
       println("Test pattern from style " + s)
       val testPatterns = styleToModel(s).testPatterns.map(_.fullpath)
-      var testMeshes = styleToModel(s).meshes.filter(m => testPatterns.contains(m.name))
+      var testMeshes = styleToModel(s).meshes.filter(m => testPatterns.contains(m.name)).take(1)
 
       val trainPatterns= styleToModel(s).trainPatterns.map(_.fullpath)
       val trainMeshes = {for (m<-styleToModel(s).meshes if trainPatterns.contains(m.name)) yield m}.take(5)
 
       for (mesh<-testMeshes)
       {
+        //filter the mesh, if specified
+        if (filterWhenTesting)
+          mesh.filter(segK, adjK, ignoreNoise)
+
         var lambdaToFile = new HashMap[Double, FileWriter]()
         var doneAlready = true
         for (l <- lambdas)
@@ -379,6 +430,25 @@ object StyleTestMain {
       count+=1
 
     }
+  }
+
+  def InspectMeshStats(mesh:SegmentMesh, segK:Int = -1, adjK:Int = -1, ignoreNoise:Boolean)
+  {
+    //print out number of relevant segments, and percentage of original segments weights
+    println("Filtering segK = %d, adjK = %d, ignoreNoise %b".format(segK, adjK, ignoreNoise))
+    mesh.filter(segK, adjK, ignoreNoise)
+    val segPercent = mesh.segments.map(_.size).sum
+    println("Number of segments: %d, percent size of original: %f".format(mesh.segments.length, segPercent ))
+
+    //print out number of adjacencies considered, and percentage of adjacencies weights
+    var adjPercent =  0.0
+    var count = 0
+    for (seg1<-mesh.segments; adj<-seg1.adjacencies.values if seg1.index < adj.neighbor.index)
+    {
+      adjPercent += (adj.strength + adj.neighbor.adjacencies(seg1).strength)
+      count+=1
+    }
+    println("Number of adjacencies %d, percent size of original: %f".format(count, adjPercent))
   }
 
 

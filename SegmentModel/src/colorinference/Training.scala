@@ -39,8 +39,11 @@ abstract class ModelTrainingParams
     var cvRanges = CrossValidationRanges(VectorHistogram.numBandwidthEstimationNeighbors+1 until 15,
                                              Array(4.0, 2.0, 1.0, 1/2.0, 1/4.0, 1/8.0, 1/16.0, 1/32.0, 1/64.0, 1/128.0, 1/256.0))
 
-    //ignore the noise segments?
-    //var filterNoise = false
+    /** filtering options**/
+    var filterWhenTraining = false //filter meshes when training the model? If we want to filter when testing, we have to enforce that ourselves
+    var ignoreNoise = false
+    var segK  = -1 //only consider the top segK segments per group, -1 has no effect
+    var adjK = -1 //only consider the top adjK adjacencies per segment, -1 has no effect
 
     //threshold at which to cap the distance
     //var perceptualDistThresh = Double.PositiveInfinity
@@ -80,7 +83,7 @@ abstract class ModelTrainingParams
     def colorVarParams:ColorVariableParams[VariableType]
 
     var includeColorChoiceTerms = false
-    var colorChoiceType = ModelTraining.ColorChoiceType.LABMarginal
+    var colorChoiceType = ModelTraining.ColorChoiceType.LABConditional
 }
 
 /* Different variable types require different model building/training operations */
@@ -237,16 +240,19 @@ class ModelTraining(val params:ModelTrainingParams)
     //we could add color choice properties for unary and binary factors too, but that might be overfitting
     if (params.includeColorChoiceTerms)
     {
+      //lets try adding segment properties too.., maybe some of the terms would help inform better assignment. Also, we might as well be symmetric/consistent
       params.colorChoiceType match
       {
         case ModelTraining.ColorChoiceType.LABMarginal =>
           groupMarginalProps += ColorGroupProperty("LABColor Marginal", ModelTraining.labColor, params.cvRanges, true)
         case ModelTraining.ColorChoiceType.LABConditional =>
           groupProps += ColorGroupProperty("LABColor Conditional", ModelTraining.labColor, params.cvRanges, false)
+          unarySegProps += UnarySegmentProperty("LABColor Conditional", ModelTraining.labColor, params.cvRanges, MathUtils.cosineDistance)
         case ModelTraining.ColorChoiceType.NamesMarginal =>
           groupMarginalProps += ColorGroupProperty("ColorNames Marginal", ModelTraining.colorNames, params.cvRanges, true, MathUtils.cosineDistance)
         case ModelTraining.ColorChoiceType.NamesConditional =>
           groupProps += ColorGroupProperty("ColorNames Conditional", ModelTraining.colorNames, params.cvRanges, false, MathUtils.cosineDistance)
+          unarySegProps += UnarySegmentProperty("ColorNames Conditional", ModelTraining.colorNames, params.cvRanges, MathUtils.cosineDistance)
 
         case _ => throw new Error("No valid trainer type!")
       }
@@ -264,6 +270,10 @@ class ModelTraining(val params:ModelTrainingParams)
         // so we'll weight each example according to 1/numSegments or 1/numAdjacencies. Scale by 2, so we don't run into rounding errors (when Weka checks that weights add up to >=1)
         for (mesh <- shuffledTrainingMeshes)
         {
+            //filter the mesh, if specified
+            if (params.filterWhenTraining)
+              mesh.filter(params.segK, params.adjK, params.ignoreNoise)
+
             val unaryWeight = 2.0/mesh.segments.length
 
             // Unary segment properties
@@ -293,7 +303,9 @@ class ModelTraining(val params:ModelTrainingParams)
             {
                 val fvec = SegmentGroup.getRegressionFeatures(group)
                 for (prop <- groupProps) { prop.examples += HistogramRegressor.RegressionExample(prop.extractor(group.color.observedColor), fvec._1, fvec._2)}
-                for (prop <- groupMarginalProps) {prop.examples += HistogramRegressor.RegressionExample(prop.extractor(group.color.observedColor), Tensor1(1))}   //for marginals, the only predictor is a constant...
+
+                //weight marginals by their relative group size
+                for (prop <- groupMarginalProps) {prop.examples += HistogramRegressor.RegressionExample(prop.extractor(group.color.observedColor), Tensor1(1), Array("constant"))}//, group.size )}   //for marginals, the only predictor is a constant...
             }
 
         }
