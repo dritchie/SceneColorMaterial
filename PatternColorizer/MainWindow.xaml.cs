@@ -292,7 +292,7 @@ namespace PatternColorizer
         }
 
 
-        private void Vis()
+        private void Vis(bool figureQuality = false)
         {
             Directory.CreateDirectory(outdir + "\\viscolor\\");
 
@@ -351,10 +351,10 @@ namespace PatternColorizer
                 int nresult = 0;
                 int y = 0;
                 int x = 0;
-                int ncol = 10;
-                int iwidth = 100;
-                int iheight = 100;
-                int padding = 15;
+                int ncol = 8;
+                int iwidth = 200;
+                int iheight = 200;
+                int padding = (figureQuality) ? 8 : 15 ;
                 Font font = new Font("Arial", 8);
                 int colorIdx = 0;
 
@@ -377,7 +377,7 @@ namespace PatternColorizer
 
                         if (colorIdx > 0)
                         {
-                            Bitmap result = (renderFinal)? GetFinalRendering(Util.ConvertFileName(basename, "",""), data): template.SolidColor(data, slotToColor);
+                            Bitmap result = (renderFinal) ? GetFinalRendering(Util.ConvertFileName(basename, "",""), data): template.SolidColor(data, slotToColor);
                             //sometimes we can't get the nice image, so render the quantized image in this case
                             if (result == null)
                                 result = template.SolidColor(data, slotToColor);
@@ -390,7 +390,7 @@ namespace PatternColorizer
                                 label += ", ***";
                                 color = Color.Red;
                             }
-                            g.DrawString(label, font, new SolidBrush(color), x, y + iheight-padding); 
+                            if(!figureQuality) g.DrawString(label, font, new SolidBrush(color), x, y + iheight-padding); 
 
                             result.Dispose();
 
@@ -434,7 +434,7 @@ namespace PatternColorizer
                         color = Color.Red;
                     }
 
-                    g.DrawString(label, font, new SolidBrush(color), x, y + iheight - padding);
+                    if (!figureQuality) g.DrawString(label, font, new SolidBrush(color), x, y + iheight - padding);
 
                     result.Dispose();
 
@@ -701,7 +701,7 @@ namespace PatternColorizer
 
         private void VisPermutations_Click(object sender, RoutedEventArgs e)
         {
-            Vis();
+            Vis(true);
         }
 
 
