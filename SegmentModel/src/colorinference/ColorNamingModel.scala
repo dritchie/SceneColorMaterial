@@ -189,4 +189,6 @@ class ColorNamingModel(c3JsonFile:String)
       val vec = new DenseTensor1(terms.indices.map(w => counts(c,w).toDouble ).toArray)
       vec
     }
+
+    def getAllTerms:Array[String] = terms.toArray
 }

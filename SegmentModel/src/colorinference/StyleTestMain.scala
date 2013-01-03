@@ -64,7 +64,7 @@ object StyleTestMain {
   {
     type VariableType = ContinuousColorVariable
     val colorVarParams = ContinuousColorVariableParams
-    includeColorCompatibilityTerm = false
+    includeColorCompatibilityTerm = true
     saveRegressorsIfPossible = true
     saveWeightsIfPossible = true
     loadRegressorsIfPossible = true
@@ -127,7 +127,7 @@ object StyleTestMain {
 
       //OutputModelHistograms(setting:Setting)
 
-      GeneratePatterns(setting)
+      //GeneratePatterns(setting)
 
       //test 2 is to see if for each model, the model rates the test patterns in that style more highly than patterns in other styles
       //output file
@@ -154,6 +154,13 @@ object StyleTestMain {
         }
       }*/
 
+      //print out the name centroids to see if they make sense
+      for (s <- styleToModel.keys)
+      {
+        val model = styleToModel(s).model
+        println("\nModel %s color name centroids".format(s))
+        InspectNameCentroids(model)
+      }
 
 
     }
@@ -320,6 +327,8 @@ object StyleTestMain {
 
   def CompareModelsOnObservedPatterns()
   {
+    val test = true    //use test meshes or train meshes?
+
     for (s <- styleToModel.keys)
     {
       println("\nInspecting style model %s".format(s))
@@ -330,22 +339,31 @@ object StyleTestMain {
       val trainPatterns= styleToModel(s).trainPatterns.map(_.fullpath)
       val trainMeshes = for (m<-styleToModel(s).meshes if trainPatterns.contains(m.name)) yield m
 
-      val theMeshes = testMeshes
+      val inMeshes = {if (test) testMeshes else trainMeshes}
 
-      val sumWithin = theMeshes.foldLeft(0.0)((sofar, mesh) => {
+      val sumWithin = inMeshes.foldLeft(0.0)((sofar, mesh) => {
         val curScore = getObservedAssignmentScore(item.model, mesh)
         sofar+curScore
       })
-      println("Within style %s, avgscore %f".format(s, sumWithin/theMeshes.length))
+      println("Within style %s, avgscore %f".format(s, sumWithin/inMeshes.length))
 
       for (s2 <- styleToModel.keys if s!=s2)
       {
         val item2 = styleToModel(s2)
-        val sumOut = theMeshes.foldLeft(0.0)((sofar, mesh) => {
-          val curScore = getObservedAssignmentScore(item2.model, mesh)
+
+        val testPatterns = item2.testPatterns.map(_.fullpath)
+        var testMeshes = item2.meshes.filter(m => testPatterns.contains(m.name))
+
+        val trainPatterns= styleToModel(s).trainPatterns.map(_.fullpath)
+        val trainMeshes = for (m<-styleToModel(s).meshes if trainPatterns.contains(m.name)) yield m
+
+        val outMeshes = {if (test) testMeshes else trainMeshes}
+
+        val sumOut = outMeshes.foldLeft(0.0)((sofar, mesh) => {
+          val curScore = getObservedAssignmentScore(item.model, mesh)
           sofar+curScore
         })
-        println("Style %s, avgscore %f".format(s2, sumOut/theMeshes.length))
+        println("Style %s, avgscore %f".format(s2, sumOut/outMeshes.length))
 
       }
 
@@ -449,6 +467,28 @@ object StyleTestMain {
       count+=1
     }
     println("Number of adjacencies %d, percent size of original: %f".format(count, adjPercent))
+  }
+
+  def InspectNameCentroids(model:ColorInferenceModel)
+  {
+    val summary = model.summary
+    val terms = ModelTraining.namingModel.getAllTerms
+    var break = false
+    for (s <- summary.histograms if (!break))
+    {
+      if (s.propname.contains("ColorNames"))
+      {
+        //print out the centroids in a readable format, for each centroid, print out the top 5 terms plus counts
+        val centroids = s.hist.getCentroids
+        for (c <- centroids)
+        {
+          val topK = c.top(5)
+          val cTerms = topK.map(i=>(terms(i.index) + ":" + i.score))
+          println(cTerms.mkString(", "))
+          break = true
+        }
+      }
+    }
   }
 
 
