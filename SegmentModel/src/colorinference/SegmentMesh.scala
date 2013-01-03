@@ -23,7 +23,8 @@ class SegmentAdjacency(val neighbor:Segment, val strength:Double, val originEncl
 class Segment(val index:Int, var owner:SegmentMesh)
 {
     val features = new mutable.HashMap[String, Tensor1]
-    val adjacencies = new mutable.HashMap[Segment, SegmentAdjacency]
+    val adjacencies = new mutable.HashMap[Segment, SegmentAdjacency] //the relevant/filtered adjacencies
+    val allAdjacencies = new mutable.HashMap[Segment, SegmentAdjacency]  //all the original adjacencies
     var group : SegmentGroup = null
 
     // Quick-access to features that are accessed frequently
@@ -170,8 +171,9 @@ class SegmentGroup(val index:Int, var owner:SegmentMesh)
 {
     var color:ColorVariable = null
     val features = new mutable.HashMap[String, Tensor1]
-    val members = new ArrayBuffer[Segment]
-    val adjacencies = new HashSet[SegmentGroup]
+    val members = new ArrayBuffer[Segment]    //filtered/relevant members
+    val allMembers = new ArrayBuffer[Segment]  //all members
+    val adjacencies = new HashSet[SegmentGroup]  //TODO: not sure if we need to filter this as well
 
     // Quick-access to features that are accessed frequently
     // in inference inner loop
@@ -214,9 +216,15 @@ trait VariableStructure
 class SegmentMesh(private val gen:ColorVariableGenerator) extends VariableStructure with Copyable[SegmentMesh]
 {
     /** Data members **/
-    val segments = new ArrayBuffer[Segment]
+    val segments = new ArrayBuffer[Segment] //filtered/relevant segments
+    val allSegments = new ArrayBuffer[Segment] //all segments
     val groups = new ArrayBuffer[SegmentGroup]
     var name:String = "NO FILE LOADED"
+
+    //filtering parameters
+    private var segK = -1
+    private var adjK = -1
+    private var ignoreNoise = false
 
     def copy: SegmentMesh =
     {
@@ -232,6 +240,8 @@ class SegmentMesh(private val gen:ColorVariableGenerator) extends VariableStruct
             if (fixed)
                 newmesh.groups(i).color.setColor(this.groups(i).color.getColor)
         }
+
+        newmesh.filter(segK, adjK, ignoreNoise)
 
         newmesh
     }
@@ -279,6 +289,15 @@ class SegmentMesh(private val gen:ColorVariableGenerator) extends VariableStruct
             val adjgroups = for (seg <- group.members; aseg <- seg.adjacencies.values) yield aseg.neighbor.group
             group.adjacencies ++= adjgroups.distinct
         }
+
+      //make a backup of the original adjacencies and segments
+      for (s <- segments)
+        allSegments += s
+      for (seg <- segments; (s,a) <- seg.adjacencies)
+        seg.allAdjacencies += s -> a
+      for (g <- groups; s<-g.members)
+        g.allMembers += s
+
 
       //TODO: this is a bit hacky now, but just experimenting with the features without having to regenerate all the meshes
       computeAdditionalFeatures()
@@ -462,5 +481,66 @@ class SegmentMesh(private val gen:ColorVariableGenerator) extends VariableStruct
 
     -1*diffs///groups.length
 
+  }
+
+
+  /** Filtering **/
+  def filter(sK:Int, aK:Int, noNoise:Boolean)
+  {
+    //filtering the top segK segments per group, and the top adj K adjacencies per relevant segment
+    //we're filtering by group to allow more equal representation across color groups
+
+    //TODO: probably what we really would like to do is to merge similar segments together into one factor and just increase the weight on that factor, but this is easier for now...
+    //TODO: this doesn't preserve the order of the segments, but I don't think we really use that order anywhere, other than accessing the index field
+    //TODO: this filtering basically is like setting the value of the associated factors to 0.
+    // Should we renormalize the sizes (when used in factor weighting)? It doesn't affect the relative scores for a particular mesh
+
+    segK = sK
+    adjK = aK
+    ignoreNoise = noNoise
+
+    if (segK >= 0 || ignoreNoise)
+    {
+      //clear the segments
+      segments.clear()
+
+      for (g <- groups)
+      {
+        g.members.clear()
+        var sortedMembers = g.allMembers.filter(a=>(!ignoreNoise || !a.isNoise)).sortBy(_.size)
+        if (segK >= 0)
+          sortedMembers = sortedMembers.takeRight(segK)
+        g.members ++= sortedMembers
+        segments ++= g.members
+      }
+    }
+    //filter the adjacencies per segment
+    //compute the top K adjacencies per segment. Note: the adjacencies might involve segments that are not in the top segK segments per group
+    if (adjK >= 0 || ignoreNoise)
+    {
+      val segToTopK = new mutable.HashMap[Segment, Seq[Segment]]()
+      for (seg <- segments)
+      {
+        var topK = seg.allAdjacencies.values.toList.filter(a=>(!ignoreNoise || !a.neighbor.isNoise)).sortBy(_.strength)
+        if (adjK >= 0)
+          topK = topK.takeRight(aK)
+        segToTopK(seg) = topK.map(_.neighbor)
+      }
+
+      for (seg <- segments)
+      {
+        seg.adjacencies.clear()
+
+        //add the adjacency if it is in the topK of either the origin segment or its neighbor, if that neighbor is also non-filtered
+        //if the neighbor is not included in segments, then we don't need to check its adjacencies since there's no way we'll count that adjacency
+        //twice
+        for ((seg2, adj) <- seg.allAdjacencies)
+        {
+            if (segToTopK(seg).contains(seg2) || (segToTopK.contains(seg2) && segToTopK(seg2).contains(seg)))
+              seg.adjacencies(seg2) = adj
+        }
+
+      }
+    }
   }
 }
