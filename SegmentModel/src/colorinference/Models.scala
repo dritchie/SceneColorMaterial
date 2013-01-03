@@ -608,39 +608,72 @@ class UserColorConstraintGroupTemplate(name: String, extractor:ColorGroupTemplat
 
 object ColorCompatibilityTemplate
 {
-    var matlabProxy:MatlabProxyScalaWrapper = null
+    private val proxyFactory = new MatlabProxyFactory(new MatlabProxyFactoryOptions.Builder().setUsePreviouslyControlledSession(true).build())
+    private val thread2proxy = new java.util.concurrent.ConcurrentHashMap[Long, MatlabProxyScalaWrapper]
+    case class ProxyRecord(proxy:MatlabProxyScalaWrapper, var ownerId:Long) { var isInUse = true }
+    private val proxyPool = new mutable.ArrayBuffer[ProxyRecord]()
 
-    def ensureMatlabConnection()
+    // Should only be called from a synchronized block
+    private def releaseProxiesFromDeadThreads()
     {
-        this.synchronized
+        val numThreadsUpperBoundEstimate = Thread.activeCount() + Runtime.getRuntime.availableProcessors
+        val threads = new Array[Thread](numThreadsUpperBoundEstimate+1)
+        val numThreadsRetrieved = Thread.enumerate(threads)
+        assert(numThreadsRetrieved <= numThreadsUpperBoundEstimate, {println("ColorCompatibilityTemplate: Couldn't retrieve all active threads")})
+
+        // First, mark proxy records as no longer in use
+        val deadIds = new mutable.HashSet[Long]
+        for (record <- proxyPool if record.isInUse && threads.find(t => t != null && t.getId == record.ownerId) == None)
         {
-            if (matlabProxy == null)
-                setupMatlabConnection()
+            deadIds += record.ownerId
+            record.isInUse = false
+            record.ownerId = -1
         }
+
+        // Then, remove useless entries from the hash table
+        for (id <- deadIds) thread2proxy.remove(id)
     }
 
-    private def setupMatlabConnection()
+    def getMatlabProxy : MatlabProxyScalaWrapper =
     {
-        println("Setting up MATLAB connection...")
+        val id = Thread.currentThread.getId
 
-        // Open the connection to matlab
-        val options = new MatlabProxyFactoryOptions.Builder().setUsePreviouslyControlledSession(true).build()
-        val factory = new MatlabProxyFactory(options)
-        val proxy = factory.getProxy
-        matlabProxy = new MatlabProxyScalaWrapper(proxy)
-
-        // Set up the workspace for processing color rating queries
-        matlabProxy.eval("cd ../odonovan")
-        matlabProxy.eval("setup_rating_env")
-
-        println("MATLAB connection set up.")
-    }
-
-    // Will we ever actually call this, or will we just let the program terminate? Is there a problem
-    // if we do that?
-    def closeMatlabConnection()
-    {
-        matlabProxy.proxy.disconnect()
+        // First, check if we already have a proxy associated with this thread
+        var proxy = thread2proxy.get(id)
+        if (proxy == null)
+        {
+            // If we don't, then first try to reclaim an unused one
+            this.synchronized
+            {
+                releaseProxiesFromDeadThreads()
+                proxy = proxyPool.find(!_.isInUse) match
+                {
+                    case Some(proxyRecord) =>
+                    {
+                        // Assume ownership of this proxy
+                        proxyRecord.isInUse = true
+                        proxyRecord.ownerId = id
+                        thread2proxy.put(id, proxyRecord.proxy)
+                        println("Thread %d re-using available MATLAB proxy".format(id))
+                        proxyRecord.proxy
+                    }
+                    case _ => null
+                }
+            }
+            if (proxy == null)
+            {
+                // If all else fails, create a new proxy and set it up
+                val newproxy = proxyFactory.getProxy
+                val matlabProxy = new MatlabProxyScalaWrapper(newproxy)
+                matlabProxy.eval("cd ../odonovan")
+                matlabProxy.eval("setup_rating_env")
+                this.synchronized { proxyPool += ProxyRecord(matlabProxy, id) }
+                thread2proxy.put(id, matlabProxy)
+                println("Thread %d creating new MATLAB proxy".format(id))
+                proxy = matlabProxy
+            }
+        }
+        proxy
     }
 }
 
@@ -657,8 +690,6 @@ class ColorCompatibilityTemplate extends DotTemplateN[ContinuousColorVariable] w
     {
         assert(values.length <= 5, {println("ColorCompatibilityTemplate.statistics - values list has more than 5 elements")})
 
-        ColorCompatibilityTemplate.ensureMatlabConnection()
-
         // If we have less than 5 colors, then (partially) cycle the available colors(?)
         // These will be the colors of the n largest color groups, since we sorted the variables
         // NOTE: This is only guaranteed to be true if this method was invoked via 'currentStatistics'
@@ -667,7 +698,7 @@ class ColorCompatibilityTemplate extends DotTemplateN[ContinuousColorVariable] w
         val n = values.length
         for (i <- 0 until 5) c.update(i, values(i % n))
 
-        val retval = ColorCompatibilityTemplate.matlabProxy.returningFeval("getRating", 1, colorsToArray(c))
+        val retval = ColorCompatibilityTemplate.getMatlabProxy.returningFeval("getRating", 1, colorsToArray(c))
         val rating = retval(0).asInstanceOf[Array[Double]](0)
         val normalizedRating = rating / 5.0
         Tensor1(MathUtils.safeLog(normalizedRating))
