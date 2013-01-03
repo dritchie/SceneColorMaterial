@@ -572,7 +572,39 @@ class ContinuousColorGroupTemplate(property:ModelTraining#ColorGroupProperty, lo
     }
 }
 
+class UserColorConstraintGroupTemplate(name: String, extractor:ColorGroupTemplate.ColorPropertyExtractor, bandwidth: Double, metric:MathUtils.DistanceMetric = MathUtils.euclideanDistance, loadFrom:String = "")
+    extends DotTemplate2[ContinuousColorVariable, ColorGroupTemplate.DatumVariable] with ColorGroupTemplate[ContinuousColorVariable]
+{
+    import ColorGroupTemplate._
 
+    val propName = name
+    val isMarginal = true
+    protected val colorPropExtractor = extractor
+    protected val regressor = null // TODO: see if this is necessary
+
+    override def statistics(v1:ContinuousColorVariable#Value, v2:DatumVariable#Value) : Tensor =
+    {
+        Tensor1(MathUtils.logGaussianKernel(metric(colorPropExtractor(v2.group.color.observedColor), colorPropExtractor(v1)), 0, bandwidth))
+    }
+
+    override def conditionOn(mesh:SegmentMesh)
+    {
+        data.clear()
+        for (group <- mesh.groups)
+        {
+            data.put(group.index, new DatumVariable(Datum(group, null)))
+        }
+    }
+
+    override def conditionOnAll(meshes:Seq[SegmentMesh])
+    {
+        data.clear()
+        for (mesh<-meshes; group <- mesh.groups)
+        {
+            data.put(group.index, new DatumVariable(Datum(group, null)))
+        }
+    }
+}
 
 object ColorCompatibilityTemplate
 {
