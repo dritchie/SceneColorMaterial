@@ -1,6 +1,6 @@
 package colorinference
 
-import cc.factorie.{HashMapAssignment, Factor, Model}
+import cc.factorie.{ItemizedModel, HashMapAssignment, Factor, Model}
 import java.awt
 import scala.collection.mutable.ArrayBuffer
 import java.io.FileWriter
@@ -47,15 +47,13 @@ object PaletteFindingMain {
 
       // Create a color compatibility factor over those variables
       println("Creating compatibility factor...")
-      val family = new ColorCompatibilityFamily
-      val factor = new family.Factor
-      factor.vars ++= colorvars
+      val template = new ColorCompatibilityTemplate
+      val factor = new template.Factor(colorvars:_*)
 
       // Define an itemized model that just contains this one factor
       println("Creating itemized model...")
-      val model = new ItemizedColorInferenceModel
-      model.addConditionalFactor(factor.asInstanceOf[model.ConditionalFactor])
-
+      val model = new ItemizedModel
+      model += factor
 
       outputPatternPaletteScores(colorvars, model, filename)
     }

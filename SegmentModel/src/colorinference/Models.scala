@@ -163,10 +163,11 @@ object ColorInferenceModel
     }
 }
 
-trait ColorInferenceModel extends Model
+class ColorInferenceModel extends TemplateModel
     with ColorInferenceModel.Conditional with ColorInferenceModel.Summarizable
 {
     import ColorInferenceModel._
+
     def trainables:Seq[Trainable] = families.collect{case t:Trainable => t}
     def trainableWeights:Tensor1 = MathUtils.concatVectors(trainables.map(_.weights))
     def regressionBasedComps:Seq[RegressionBased] = families.collect{case rb:RegressionBased => rb}
@@ -180,37 +181,6 @@ trait ColorInferenceModel extends Model
     {
         for (t <- trainables) t.setWeight(math.random)
     }
-}
-
-class CombinedColorInferenceModel(theSubModels:Model*) extends CombinedModel(theSubModels:_*) with ColorInferenceModel
-{
-    import ColorInferenceModel._
-
-    def conditionOnAll(meshes:Seq[SegmentMesh])
-    {
-        for (c <- this.subModels.collect{case c:Conditional => c})
-            c.conditionOnAll(meshes)
-    }
-
-
-    def conditionOn(mesh:SegmentMesh)
-    {
-        for (c <- this.subModels.collect{case c:Conditional => c})
-            c.conditionOn(mesh)
-    }
-
-    def summary:Summary =
-    {
-        var summary = new Summary
-        for (s <- this.subModels.collect{case s:Summarizable => s})
-            summary ++= s.summary
-        summary
-    }
-}
-
-class TemplateColorInferenceModel(theSubModels:ModelAsTemplate*) extends TemplateModel(theSubModels:_*) with ColorInferenceModel
-{
-    import ColorInferenceModel._
 
     def conditionOnAll(meshes:Seq[SegmentMesh])
     {
@@ -229,67 +199,6 @@ class TemplateColorInferenceModel(theSubModels:ModelAsTemplate*) extends Templat
     {
         var summary = new Summary
         for (s <- this.templates.collect{case s:Summarizable => s})
-            summary ++= s.summary
-        summary
-    }
-}
-
-class ItemizedColorInferenceModel extends ItemizedModel with ColorInferenceModel
-{
-    import ColorInferenceModel._
-
-    type ConditionalFactor = Factor with Conditional
-
-    val conditionalFactors = new mutable.HashSet[ConditionalFactor]
-
-    // Some of this model's factors might come from families, so we must provide
-    // a way to retrieve all of those families (particularly important for training)
-    override def families: Seq[cc.factorie.Family] =
-    {
-        (this.factors ++ this.conditionalFactors).collect{case f:cc.factorie.Family#Factor => f.family}.toSeq.distinct
-    }
-
-    def addConditionalFactor(cf:ConditionalFactor)
-    {
-        conditionalFactors += cf
-        this.+=(cf)
-    }
-    def removeConditionalFactor(cf:ConditionalFactor)
-    {
-        conditionalFactors -= cf
-        this.-=(cf)
-    }
-
-    def conditionOnAll(meshes:Seq[SegmentMesh])
-    {
-        for (cf <- conditionalFactors)
-        {
-            this.-=(cf) // This will remove any existing variable->factor mappings
-            cf.conditionOnAll(meshes)   // This changes cf.variables
-            this.+=(cf) // This adds the new variable->factor mappings
-        }
-        for (c <- this.families.collect{case c:Conditional => c})
-            c.conditionOnAll(meshes)
-    }
-
-    def conditionOn(mesh:SegmentMesh)
-    {
-        for (cf <- conditionalFactors)
-        {
-            this.-=(cf) // This will remove any existing variable->factor mappings
-            cf.conditionOn(mesh)   // This changes cf.variables
-            this.+=(cf) // This adds the new variable->factor mappings
-        }
-        for (c <- this.families.collect{case c:Conditional => c})
-            c.conditionOn(mesh)
-    }
-
-    def summary:Summary =
-    {
-        var summary = new Summary//new ArrayBuffer[SummaryItem]
-        for (s <- this.factors.collect{case s:Summarizable => s})
-            summary ++= s.summary
-        for (s <- this.families.collect{case s:Summarizable => s})
             summary ++= s.summary
         summary
     }
@@ -663,173 +572,123 @@ class ContinuousColorGroupTemplate(property:ModelTraining#ColorGroupProperty, lo
     }
 }
 
-
-
-/*
-Base class of all factors that touch an arbitrary number of the same type of variable
- */
-abstract class FactorN[V<:Variable](varlist:V*) extends Factor
+class UserColorConstraintGroupTemplate(name: String, extractor:ColorGroupTemplate.ColorPropertyExtractor, bandwidth: Double, metric:MathUtils.DistanceMetric = MathUtils.euclideanDistance, loadFrom:String = "")
+    extends DotTemplate2[ContinuousColorVariable, ColorGroupTemplate.DatumVariable] with ColorGroupTemplate[ContinuousColorVariable]
 {
-    val vars = ArrayBuffer(varlist:_*)
+    import ColorGroupTemplate._
 
-    def variables: Seq[Variable] = vars
-    def numVariables: Int = vars.length
-    def variable(index: Int): Variable = vars(index)
+    val propName = name
+    val isMarginal = true
+    protected val colorPropExtractor = extractor
+    protected val regressor = null // TODO: see if this is necessary
 
-    def score(values:Seq[V#Value]): Double
-    def statistics(values:Seq[V#Value]): StatisticsType = values.asInstanceOf[StatisticsType]
-
-    def currentScore: Double = score(for (v <- vars) yield v.value.asInstanceOf[V#Value])
-    override def currentStatistics: StatisticsType = statistics(for (v <- vars) yield v.value.asInstanceOf[V#Value])
-
-    def currentAssignment = new HashMapAssignment(vars)
-    def assignmentScore(a:Assignment) = score(for (v <- a.variables.toSeq) yield a(v).asInstanceOf[V#Value])
-    override final def assignmentStatistics(a:Assignment): StatisticsType =
-        statistics(for (v <- a.variables.toSeq) yield a(v).asInstanceOf[V#Value])
-
-    def valuesIterator: ValuesIterator = new ValuesIterator
+    override def statistics(v1:ContinuousColorVariable#Value, v2:DatumVariable#Value) : Tensor =
     {
-        def factor: FactorN[V] = FactorN.this
-        def hasNext = false
-        def next() = null.asInstanceOf[Assignment]  // Not sure if this will work...
-    def score: Double = Double.NaN
-        def valuesTensor: Tensor = null
-    }
-}
-
-abstract class TensorFactorN[V<:Variable](varlist:V*) extends FactorN[V](varlist:_*)
-{
-    type StatisticsType = Tensor
-    override def statistics(values:Seq[V#Value]): Tensor
-    final def score(values:Seq[V#Value]): Double = statisticsScore(statistics(values))
-    def scoreAndStatistics(values:Seq[V#Value]): (Double, Tensor) = {
-        val tensor = statistics(values)
-        (statisticsScore(tensor), tensor)
-    }
-    def statisticsScore(t:Tensor): Double
-}
-
-abstract class DotFactorN[V<:Variable](varlist:V*) extends TensorFactorN[V](varlist:_*)
-{
-    def weights: Tensor
-    override def statisticsScore(t:Tensor): Double = weights dot t
-}
-
-
-/*
-A family of factors that touch an arbitrary number of the same type of variable
- */
-trait FamilyN[V<:Variable] extends Family
-{
-    type FactorType = Factor
-
-    // Stupid thing from Family that we have to define
-    type NeighborType1 = V
-
-    class Factor(varlist:V*) extends FactorN[V](varlist:_*) with super.Factor
-    {
-        // Another stupid thing from Family#Factor that we need to define
-        def _1:NeighborType1 = null.asInstanceOf[NeighborType1]
-
-        // Ignore the red squigglies below--this actually compiles just fine.
-        override def equalityPrerequisite: AnyRef = FamilyN.this
-        override def score(values:Seq[V#Value]): Double = FamilyN.this.score(values)
-        override def statistics(values:Seq[V#Value]): StatisticsType = FamilyN.this.statistics(values)
-        def scoreAndStatistics(values:Seq[V#Value]): (Double,StatisticsType) = FamilyN.this.scoreAndStatistics(values)
+        Tensor1(MathUtils.logGaussianKernel(metric(colorPropExtractor(v2.group.color.observedColor), colorPropExtractor(v1)), 0, bandwidth))
     }
 
-    /* Methods that the inner Factor class links to */
-    def score(values:Seq[V#Value]): Double
-    def statistics(values:Seq[V#Value]): StatisticsType = values.asInstanceOf[StatisticsType]
-    def scoreAndStatistics(values:Seq[V#Value]): (Double,StatisticsType) = (score(values), statistics(values))
-}
-
-trait TensorFamilyN[V<:Variable] extends FamilyN[V] with TensorFamily
-{
-    override def statistics(values:Seq[V#Value]): Tensor
-}
-
-trait DotFamilyN[V<:Variable] extends FamilyN[V] with DotFamily
-{
-    def score(values:Seq[V#Value]): Double = statisticsScore(statistics(values))
-}
-
-
-object ColorCompatibilityFamily
-{
-    var matlabProxy:MatlabProxyScalaWrapper = null
-
-    def ensureMatlabConnection()
+    override def conditionOn(mesh:SegmentMesh)
     {
-        this.synchronized
+        data.clear()
+        for (group <- mesh.groups)
         {
-            if (matlabProxy == null)
-                setupMatlabConnection()
+            data.put(group.index, new DatumVariable(Datum(group, null)))
         }
     }
 
-    private def setupMatlabConnection()
+    override def conditionOnAll(meshes:Seq[SegmentMesh])
     {
-        println("Setting up MATLAB connection...")
-
-        // Open the connection to matlab
-        val options = new MatlabProxyFactoryOptions.Builder().setUsePreviouslyControlledSession(true).build()
-        val factory = new MatlabProxyFactory(options)
-        val proxy = factory.getProxy
-        matlabProxy = new MatlabProxyScalaWrapper(proxy)
-
-        // Set up the workspace for processing color rating queries
-        matlabProxy.eval("cd ../odonovan")
-        matlabProxy.eval("setup_rating_env")
-
-        println("MATLAB connection set up.")
-    }
-
-    // Will we ever actually call this, or will we just let the program terminate? Is there a problem
-    // if we do that?
-    def closeMatlabConnection()
-    {
-        matlabProxy.proxy.disconnect()
+        data.clear()
+        for (mesh<-meshes; group <- mesh.groups)
+        {
+            data.put(group.index, new DatumVariable(Datum(group, null)))
+        }
     }
 }
 
-class ColorCompatibilityFamily extends DotFamilyN[ContinuousColorVariable]
-    with ColorInferenceModel.Trainable
+object ColorCompatibilityTemplate
 {
-    import ColorInferenceModel._
+    private val proxyFactory = new MatlabProxyFactory(new MatlabProxyFactoryOptions.Builder().setUsePreviouslyControlledSession(true).build())
+    private val thread2proxy = new java.util.concurrent.ConcurrentHashMap[Long, MatlabProxyScalaWrapper]
+    case class ProxyRecord(proxy:MatlabProxyScalaWrapper, var ownerId:Long) { var isInUse = true }
+    private val proxyPool = new mutable.ArrayBuffer[ProxyRecord]()
 
+    // Should only be called from a synchronized block
+    private def releaseProxiesFromDeadThreads()
+    {
+        val numThreadsUpperBoundEstimate = Thread.activeCount() + Runtime.getRuntime.availableProcessors
+        val threads = new Array[Thread](numThreadsUpperBoundEstimate+1)
+        val numThreadsRetrieved = Thread.enumerate(threads)
+        assert(numThreadsRetrieved <= numThreadsUpperBoundEstimate, {println("ColorCompatibilityTemplate: Couldn't retrieve all active threads")})
+
+        // First, mark proxy records as no longer in use
+        val deadIds = new mutable.HashSet[Long]
+        for (record <- proxyPool if record.isInUse && threads.find(t => t != null && t.getId == record.ownerId) == None)
+        {
+            deadIds += record.ownerId
+            record.isInUse = false
+            record.ownerId = -1
+        }
+
+        // Then, remove useless entries from the hash table
+        for (id <- deadIds) thread2proxy.remove(id)
+    }
+
+    def getMatlabProxy : MatlabProxyScalaWrapper =
+    {
+        val id = Thread.currentThread.getId
+
+        // First, check if we already have a proxy associated with this thread
+        var proxy = thread2proxy.get(id)
+        if (proxy == null)
+        {
+            // If we don't, then first try to reclaim an unused one
+            this.synchronized
+            {
+                releaseProxiesFromDeadThreads()
+                proxy = proxyPool.find(!_.isInUse) match
+                {
+                    case Some(proxyRecord) =>
+                    {
+                        // Assume ownership of this proxy
+                        proxyRecord.isInUse = true
+                        proxyRecord.ownerId = id
+                        thread2proxy.put(id, proxyRecord.proxy)
+                        println("Thread %d re-using available MATLAB proxy".format(id))
+                        proxyRecord.proxy
+                    }
+                    case _ => null
+                }
+            }
+            if (proxy == null)
+            {
+                // If all else fails, create a new proxy and set it up
+                val newproxy = proxyFactory.getProxy
+                val matlabProxy = new MatlabProxyScalaWrapper(newproxy)
+                matlabProxy.eval("cd ../odonovan")
+                matlabProxy.eval("setup_rating_env")
+                this.synchronized { proxyPool += ProxyRecord(matlabProxy, id) }
+                thread2proxy.put(id, matlabProxy)
+                println("Thread %d creating new MATLAB proxy".format(id))
+                proxy = matlabProxy
+            }
+        }
+        proxy
+    }
+}
+
+class ColorCompatibilityTemplate extends DotTemplateN[ContinuousColorVariable] with ColorInferenceModel.Trainable
+{
     def name = "ColorCompatibility"
-
-    // Again, ignore the squiggly--this builds fine.
-    final class Factor(varlist:ContinuousColorVariable*) extends super.Factor(varlist:_*) with Conditional
-    {
-        override def conditionOnAll(meshes:Seq[SegmentMesh])
-        {
-            //this method doesn't really make sense here...(at least, not yet)
-            throw new Error("ColorCompatibilityFactor: conditionOnAll doesn't really make sense here")
-        }
-
-        override def conditionOn(mesh:SegmentMesh)
-        {
-            // This factor touches (at most) the 5 largest color groups
-            vars.clear()
-            val sortedGroups = mesh.groups.sortWith((g1, g2) => g1.size > g2.size)
-            val n = math.min(sortedGroups.length, 5)
-            for (i <- 0 until n)
-                vars += sortedGroups(i).color.asInstanceOf[ContinuousColorVariable]
-        }
-    }
 
     private def colorsToArray(colors:Seq[Color]) : Array[Double] =
     {
         MathUtils.concatVectors(colors.map(_.copyIfNeededTo(RGBColorSpace))).toArray
     }
 
-    override def statistics(values:Seq[ContinuousColorVariable#Value]): Tensor =
+    override def statistics(values:Seq[Color]): Tensor =
     {
-        assert(values.length <= 5, {println("ColorCompatibilityFactor.statistics - values list has more than 5 elements")})
-
-        ColorCompatibilityFamily.ensureMatlabConnection()
+        assert(values.length <= 5, {println("ColorCompatibilityTemplate.statistics - values list has more than 5 elements")})
 
         // If we have less than 5 colors, then (partially) cycle the available colors(?)
         // These will be the colors of the n largest color groups, since we sorted the variables
@@ -839,12 +698,25 @@ class ColorCompatibilityFamily extends DotFamilyN[ContinuousColorVariable]
         val n = values.length
         for (i <- 0 until 5) c.update(i, values(i % n))
 
-        // TODO: Permutations?
-        val retval = ColorCompatibilityFamily.matlabProxy.returningFeval("getRating", 1, colorsToArray(c))
+        val retval = ColorCompatibilityTemplate.getMatlabProxy.returningFeval("getRating", 1, colorsToArray(c))
         val rating = retval(0).asInstanceOf[Array[Double]](0)
         val normalizedRating = rating / 5.0
         Tensor1(MathUtils.safeLog(normalizedRating))
     }
-}
 
+    def sizedOrderedVars(mesh:SegmentMesh) =
+    {
+        // (At most) the top five biggest groups in the mesh
+        mesh.groups.sortWith(_.size > _.size).map(_.color.asInstanceOf[ContinuousColorVariable]).slice(0,5)
+    }
+
+    def unroll(v:ContinuousColorVariable) : Iterable[Factor] =
+    {
+        val orderedVars = sizedOrderedVars(v.group.owner)
+        if (orderedVars.contains(v))
+            new Factor(orderedVars:_*)
+        else
+            Nil
+    }
+}
 

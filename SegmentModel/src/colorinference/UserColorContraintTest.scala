@@ -9,15 +9,15 @@ package colorinference
  */
 
 import java.io.{FileWriter, File}
-import cc.factorie.{Model, Family, SamplingMaximizer}
+import collection.mutable.ArrayBuffer
 
-object MMRTest
+object UserColorContraintTest
 {
     var params:ModelTrainingParams = null
 
     val inputDir = "../PatternColorizer/out/mesh"
-    val randVisDir = "../PatternColorizer/out/vis_rand"
-    val mmrVisDir = "../PatternColorizer/out/vis_mmr"
+    val randVisDir = "../PatternColorizer/out/vis_random_offset"
+    val mmrVisDir = "../PatternColorizer/out/vis_constraint"
     val lambdas = Array(0.25, 0.5, 0.75)
     val numSamplesToOutput = 20
 
@@ -28,16 +28,15 @@ object MMRTest
     val finalTemp = 0.01
     val rounds = 40
 
+    val deviationBandwidth = 25.0
+    val constraintFactorWeight = 5.0
+
     // Parallel tempering parameters
     val chainTemps = Array(1.0, 0.5, 0.2, 0.05, 0.01)
     val itersBetweenSwaps = 50
 
     def main(args:Array[String])
     {
-        // Verify that visDirs exists
-//        var visDirTestFile = new File(randVisDir)
-//        if (!visDirTestFile.exists)
-//            visDirTestFile.mkdir
         val visDirTestFile = new File(mmrVisDir)
         if (!visDirTestFile.exists)
             visDirTestFile.mkdir
@@ -118,16 +117,34 @@ object MMRTest
     def outputRandomPatterns(mesh:SegmentMesh, pattern:PatternItem, model:ColorInferenceModel)
     {
         println("Generating random patterns...")
-        val samples = (for (i <- 0 until numSamplesToOutput) yield
-        {
-            mesh.randomizeVariableAssignments()
-            val variables = mesh.variablesAs[ContinuousColorVariable]
-            model.conditionOn(mesh)
-            val score = model.currentScore(variables)
-            ScoredValue(variables.map(_.getColor), score)
-        }).sortWith(_.score > _.score)
 
-        savePatterns(mesh, samples, randVisDir, pattern)
+        val simpleModel = new ColorInferenceModel
+        simpleModel += new UserColorConstraintGroupTemplate("userLABConstraint", ModelTraining.labColor, deviationBandwidth)
+        simpleModel.conditionOn(mesh)
+
+        val samplerGenerator = () => { new ContinuousColorSampler(simpleModel) with MemorizingSampler[ContinuousColorVariable] }
+        val maximizer = new ParallelTemperingMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, chainTemps)
+
+        maximizer.maximize(mesh, iterations, itersBetweenSwaps)
+
+        // Convert sampled values to LAB first, since our similarity metric operates in LAB space
+        maximizer.samples.foreach(_.values.foreach(_.convertTo(LABColorSpace)))
+
+        // Spit out a bunch of different versions for different lambdas
+        val metric = genMMRSimilarityMetric(mesh.variablesAs[ContinuousColorVariable])
+        val mmr = new MMR(maximizer.samples, metric)
+        for (lambda <- lambdas)
+        {
+            val dirName = "%s/%1.2f".format(randVisDir, lambda)
+
+            // Ensure directory exits
+            val dir = new File(dirName)
+            if (!dir.exists)
+                dir.mkdir
+
+            val rankedSamples = mmr.getRankedSamples(numSamplesToOutput, lambda)
+            savePatterns(mesh, rankedSamples, dirName, pattern)
+        }
     }
 
     def outputOptimizedPatterns(mesh:SegmentMesh, pattern:PatternItem, model:ColorInferenceModel)
@@ -137,8 +154,11 @@ object MMRTest
 //        // TEST: Fix one of the colors for conditional inference.
 //        mesh.groups(0).color.setColor(Color.RGBColor(0.28, 0.03, 0.23))
 //        mesh.groups(0).color.fixed = true
-
+        val constraintTemplate = new UserColorConstraintGroupTemplate("userLABConstraint", ModelTraining.labColor, deviationBandwidth)
+        constraintTemplate.setWeight(model.trainableWeights.sum * constraintFactorWeight)
+        model += constraintTemplate
         model.conditionOn(mesh)
+
         val samplerGenerator = () => { new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable] }
         val maximizer = new ParallelTemperingMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, chainTemps)
 
