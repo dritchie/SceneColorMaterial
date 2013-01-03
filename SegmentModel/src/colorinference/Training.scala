@@ -299,13 +299,14 @@ class ModelTraining(val params:ModelTrainingParams)
 
             // Group properties
             // TODO: Should these training examples be weighted like the ones above? I think it's probably unnecessary.
+            val groupWeight = 2.0/mesh.groups.length
             for (group <- mesh.groups.shuffle)
             {
                 val fvec = SegmentGroup.getRegressionFeatures(group)
-                for (prop <- groupProps) { prop.examples += HistogramRegressor.RegressionExample(prop.extractor(group.color.observedColor), fvec._1, fvec._2)}
+                for (prop <- groupProps) { prop.examples += HistogramRegressor.RegressionExample(prop.extractor(group.color.observedColor), fvec._1, fvec._2, groupWeight)}
 
                 //weight marginals by their relative group size
-                for (prop <- groupMarginalProps) {prop.examples += HistogramRegressor.RegressionExample(prop.extractor(group.color.observedColor), Tensor1(1), Array("constant"))}//, group.size )}   //for marginals, the only predictor is a constant...
+                for (prop <- groupMarginalProps) {prop.examples += HistogramRegressor.RegressionExample(prop.extractor(group.color.observedColor), Tensor1(1), Array("constant"), groupWeight)}//, group.size )}   //for marginals, the only predictor is a constant...
             }
 
         }

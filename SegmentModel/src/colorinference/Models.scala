@@ -523,6 +523,9 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
         var density = datum.hist.evaluateAt(props)
         density = MathUtils.safeLog(density)
         // TODO: Some form of size weighting? I don't think it's needed...
+        //TODO: might as well be consistent?  This just prefers scores of large groups over small groups. If we want to weight groups equally, the segment size should be normalized by the group size
+      //when weighting unary terms
+        density *= datum.group.size
         Tensor1(density)
     }
 
