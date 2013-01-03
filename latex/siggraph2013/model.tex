@@ -23,7 +23,7 @@ We use the Metropolis-Hastings algorithm (MH), a variant of Markov Chain Monte C
 	\item{\textbf{Perturb} a randomly chosen color by $v \sim \mathcal{N}(0, \sigma)$ in RGB color space}
 	\item{\textbf{Swap} two randomly chosen colors}
 \end{itemize}
-where $\sigma$ varies linearly with the model temperature $\tau$~\remark{Introduce this in an earlier section}. The sampler chooses between these two proposals with probability $\rho$, which also varies linearly with temperature.
+where $\sigma$ varies linearly with the model temperature $\tau$~\remark{Introduce this in an earlier section}. The sampler chooses between these two proposals with probability $\rho$, which also varies linearly with temperature. Since the RGB color space is bounded, the perturbation proposal draws from a truncated normal distribution in order to maintain ergodicity of the chain~\cite{TruncatedGaussians}.
 
 Asymptotically, MCMC samples states with a frequency proportional to their probability under the model. In practice, it can take a prohibitively long time to explore all the modes of a distribution as complex as the one encoded by our model. We would like our sampler to explore as many modes as possible so that it can suggest multiple, high-probability coloring states.
 
