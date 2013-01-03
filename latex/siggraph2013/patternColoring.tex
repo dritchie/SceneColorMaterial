@@ -104,10 +104,20 @@
 \teaser{
 
 \centering
-\includegraphics[width=\linewidth]{figs/teaser}
-\caption{This is the awesome caption for the teaser!}
+%\includegraphics[width=\linewidth]{figs/teaser}
+
+%
+%\begin{table}
+    \begin{tabular}{ccc}
+        \includegraphics[width=.18\linewidth]{figs/teaser00} & \includegraphics[width=.45\linewidth]{figs/teaser01} & \includegraphics[width=.27\linewidth]{figs/teaser02}\vspace{0.6em}\\
+        
+        \includegraphics[width=.18\linewidth]{figs/teaser10} & \includegraphics[width=.45\linewidth]{figs/teaser11} & \includegraphics[width=.27\linewidth]{figs/teaser12} \\ 
+        Input Pattern                   & Sampled Colorings               & Random Colorings                \\
+    \end{tabular}
+%\end{table}
+\caption{This is the awesome caption for the teaser! \remark{Other ideas: show no comparison, show O'Donovan comparison} \remark{Visio PDF export for these images is pretty low quality, so I'd vote for keeping everything in TeX and using PNGs/tables.}}
 \label{fig:teaser}
-\vspace{-1.0em}
+\vspace{1.0em}
 
 }
 
@@ -134,7 +144,8 @@
 \input{background.tex}
 \input{approach.tex}
 \input{model.tex}
-\input{resultsAndEval.tex}
+\input{results.tex}
+\input{evaluation.tex}
 \input{discussion.tex}
 %\input{acknowledgments.tex}
 
