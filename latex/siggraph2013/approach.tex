@@ -8,17 +8,18 @@ Restate problem statement, why it's hard, and our approach (emphasizing the key 
 %Start of notes on pattern template terminology/definition.
 Pattern Template terminology/definition
 \remark{S: Do we want to use 'pattern template' or something more general like 'coloring template'?}
-Our approach takes as input a pattern template specification and outputs suggested colorings for that pattern template. A pattern template specifies which regions in an image can be colored in, and which regions must map to the same color. For example, an image of a flower on a background may have a template that specifies all petals of the flower must be the same color, and all background regions must be the same color. In the rest of the paper, we refer to the set of regions that map to the same color as a \emph{color group}. Figure~\ref{fig:teaser} shows an example of a pattern template visualized in grayscale, where each different lightness level identifies a different color group. This pattern template representation is relatively easy to author from images composed of segments, such as website design, renderings of 3D scenes, and line drawings. In this paper, we focus on 2D graphic design patterns. 
+Our approach takes as input a pattern template and any user-provided guidelines if available, and outputs suggested colorings for that pattern template. A pattern template specifies which regions in an image can be colored in, and which regions must map to the same color. For example, an image of a flower on a background may have a template that specifies all petals of the flower must be the same color, and all background regions must be the same color. In the rest of the paper, we refer to the set of regions that map to the same color as a \emph{color group}. Figure~\ref{fig:teaser} shows an example of a pattern template visualized in grayscale, where each different lightness level identifies a different color group. This pattern template representation is relatively easy to author from images composed of segments, such as website design, renderings of 3D scenes, and line drawings. In this paper, we focus on 2D graphic design patterns. 
 %S: An alternative description of a pattern template: A pattern template is a segmented image with additional specifications on which segments must have the same color, or in other words, belong to the same color group
 
 %TODO: Mention/Describe Colourlovers dataset somewhere. Briefly describe image preprocessing, and final renderings (probably this will be in the probabilistic model section?). 
 
 
-The (log linear) factor graph formalism (and any other persistent terminology).
+%The (log linear) factor graph formalism (and any other persistent terminology).
+\remark{S: An initial attempt at notation. Not sure if the general log-linear form equations are needed, since we'll go into specifics later and it might be confusing.}
+
+We model the pattern colorization problem as a factor graph where the variables are the color groups $G_i$ and values are colors. We parameterize the likelihood of a color assignment as $P(G_1,..,G_n) \propto \prod_{i=1}^{k} \phi(D_i)$ where $D_i$ is some subset of variables. The factors $\Phi$ have the general log-linear form $\Phi(D_i) = exp(\sum_{j=1}^{m_i} \theta_j f_j(D_i))$ where $f_j(D_i)$ is some scoring function over $D_i$ and $\theta_j$ are weights. The log-linear form compactly represents the distribution of color assignments where the variable domain is potentially the whole color space. In addition, we can take advantage of well-established sampling techniques such as Markov-Chain Monte Carlo (MCMC) to generate multiple alternative colorings.
 
 
-
-
-
+% Examples of similar cases where factor graphs have been used (does image segmentation/labeling count?)
 
 Roadmap for the next section (which describes the technical details) / overview of the system.
