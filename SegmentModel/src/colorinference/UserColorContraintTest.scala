@@ -18,8 +18,8 @@ object UserColorContraintTest
     val inputDir = "../PatternColorizer/out/mesh"
     val randVisDir = "../PatternColorizer/out/vis_random_offset"
     val mmrVisDir = "../PatternColorizer/out/vis_constraint"
-    val lambdas = Array(0.25, 0.5, 0.75)
-    val numSamplesToOutput = 20
+    val lambdas = Array(0.45, 0.5, 0.55)
+    val numSamplesToOutput = 8
 
     // Maximization parameters
     val numParallelChains = 5
@@ -28,8 +28,8 @@ object UserColorContraintTest
     val finalTemp = 0.01
     val rounds = 40
 
-    val deviationBandwidth = 25.0
-    val constraintFactorWeight = 5.0
+    val deviationBandwidth = 30.0
+    val constraintFactorWeight = 3.0
 
     // Parallel tempering parameters
     val chainTemps = Array(1.0, 0.5, 0.2, 0.05, 0.01)
@@ -41,7 +41,11 @@ object UserColorContraintTest
         if (!visDirTestFile.exists)
             visDirTestFile.mkdir
 
-        val trainingArtists = Set("sugar!", "davidgav")
+        val visDirRandomFile = new File(randVisDir)
+        if (!visDirRandomFile.exists)
+            visDirRandomFile.mkdir
+
+        val trainingArtists = Set("sugar!", "davidgav", "earlgrey", "sandradumit")
         //val trainingArtists = Set("sugar!")
         val patterns = PatternIO.getPatterns(inputDir).filter(p=>(trainingArtists.contains(p.directory))).toArray
 
@@ -61,7 +65,7 @@ object UserColorContraintTest
             loadRegressorsIfPossible = true
             loadWeightsIfPossible = true
 
-            includeColorCompatibilityTerm = true
+            includeColorCompatibilityTerm = false
 //            includeUnaryTerms = false
 //            includeBinaryTerms = false
 //            includeGroupTerms = false
@@ -81,20 +85,12 @@ object UserColorContraintTest
 
         // These are the ids of the patterns we will test on
         val pids = Array(
-            296605,
-            244833,
-            231386,
-            447439,
-            499194,
-            506633,
             789577,
-            304986,
-            243893,
-            220077,
-            500393,
-            508162,
             515691,
-            798455)
+            1760884,
+            1468857,
+            1897867,
+            2007304)
 //            515691)
 
 
@@ -109,12 +105,13 @@ object UserColorContraintTest
             val pattern = patterns(i)
             println("Generating patterns for mesh %s...".format(pattern.name))
             val mesh = meshes(i)
-            //outputRandomPatterns(mesh, pattern, model)
-            outputOptimizedPatterns(mesh, pattern, model)
+            outputRandomPatterns(mesh, pattern)
+            //outputOptimizedPatterns(mesh, pattern, model)
         }
+        println("Done generating patterns")
     }
 
-    def outputRandomPatterns(mesh:SegmentMesh, pattern:PatternItem, model:ColorInferenceModel)
+    def outputRandomPatterns(mesh:SegmentMesh, pattern:PatternItem)
     {
         println("Generating random patterns...")
 
