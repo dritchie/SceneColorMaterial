@@ -39,6 +39,17 @@ Style&Example&Results\\ %\hline
 \vspace{-1.0em}
 \end{figure}
 
+\begin{figure*}[ht]
+\begin{tabular}{cc} 
+\includegraphics[width=.475\linewidth]{figs/constrainedSearchUnconstrained}&\includegraphics[width=.475\linewidth]{figs/constrainedSearchConstrained}\\
+Unconstrained sampling&Constrained sampling\\
+\end{tabular}
+
+\caption{An artist coloring a pattern is presented with the results shown on the left, and decides that she does not like results where the stem of the plant is not green. On the right, we use conditional inference to sample from our model subject to the constraint that the desired entry is fixed to a specific color. This is a natural way to incorporate semantic information about regions which cannot be easily learned by our model.}
+\label{fig:constrainedInference}
+\vspace{-1.0em}
+\end{figure*}
+
 Lots of pictures
 
 Quantitative results from reconstruction experiments, etc.
