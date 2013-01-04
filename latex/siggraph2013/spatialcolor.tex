@@ -1,5 +1,43 @@
 \subsection{Spatial Compatibility}
 \label{sec:spatialCompat}
+\remark{S: Some initial attempt at notation, need to sync with other notation. Open to any suggestions, particularly on symbology or terminology. I think there are still some ambiguity issues when differentiating between the different factors/helper factors}
+
+In the spatial component of our model, we define factors over single and adjacent color groups to capture color-group dependencies and their spatial arrangement. The likelihood of a color assignment is:
+\begin{equation}
+L(G_1,..,G_n) = \prod_{i=1}^n \phi(G_i) \prod_{(j,k) \in adj} \phi(G_j, G_k)
+\end{equation}
+where $G_i$ is group i in the pattern.
+
+$\phi(G_i)$ computes how well group i matches its assigned color and is group-dependent. Each color group has a different number of member segments, each of which may impact what color the group takes on. As an example, smaller segments may often be more saturated, and a group composed of many small segments may be more saturated than a group composed of a few small segments but also one large segment \remark{S: Made up example. Should probably find one that holds in our data}. Thus, we generate segment-based helper factors $\phi_s$. These helper factors compute scores based on the features of individual member segments. In addition, we define a group-based helper factor $\phi_g$ which computes scores based on overall features of the group, such as total size. Combined together:
+\begin{equation}
+\phi(G_i) = \phi_g(G_i)^{size(G_i)} \prod_{s \in seg(G_i)} \phi_{s}(G_i)^{size(s)}
+\end{equation}
+where $size(G_i)$ is the relative size of the color group i in the pattern and $size({s_j})$ is the relative size of the segment j. This weighting gives preference for terms that cover more of the pattern, and thus may have a stronger impact on the appearance of the pattern coloring.
+
+\remark{S: Here I'm using the weighting scheme where we weight unary group factors too, but we can revert back by just removing the $w_i$}
+
+Similarly, the adjacency factor between groups $\phi(G_i, G_j)$ also depends on individual segment adjacencies within the groups:
+\begin{equation}
+\phi(G_i, G_j) = \prod_{(a,b) \in segadj(G_i, G_j)}^{} \phi_{(a,b)}(G_i, G_j)^{str(a,b)}
+\end{equation}
+where (a,b) are segment adjacencies within the two groups, $\phi_{(a,b)}$ is a helper factor that scores color assignments based on features on the adjacency between segment a and b, and str(a,b) is the relative strength of that adjacency.
+TODO: define adjacency strength
+
+In general, our factors compute scores based on the probabilities of color properties (i.e. lightness or colorfulness values) given either group, segment, or adjacency features. For example: 
+\begin{equation}
+\phi_g(G_i) = \prod_{c \in prop}P(c(G_i)|f_g(G_i))^{w_c}
+\end{equation}
+where $f(G_i)$ is a vector of group features and $w_c$ is the weight of the color property for groups. This is equivalent to the log-linear function $exp\left(\sum_{c \in prop} w_c * logP(c(G_i)|f_g(G_i))\right)$.
+
+The unary color properties we consider are lightness, colorfulness, name saliency, and color names (which is vector valued). The computation of color properties and segment features are detailed in the Appendix.
+We compute probabilities over color properties instead of individual colors to allow for better generalization over different colors that have not been seen in the training examples \remark{S:Talk about data/training examples somewhere before this?}. In addition, we can inspect the weights $w_c$ to gain a sense of which color properties are more significant within a particular set of training examples.
+
+$\phi_s(G_i)$ is defined in the same way, but taking into account individual segment features instead of overall group features.
+TODO, adjacency color properties
+
+
+TODO: Computing the probabilities/histograms/regression
+
 
 
 \subsection{Color Compatibility}
