@@ -38,7 +38,7 @@ Sufficient statistics for a term in our model: $\termStats$. Sufficient statisti
 
 The probability distribution encoded by our model:
 \begin{equation*}
-p(\pattern : \weights) = \frac{1}{Z_\weights(\pattern)} \prod_{\term \in \model} \exp{\frac{\termStats(\pattern : \weights)}{t}}
+p(\pattern : \weights) = \frac{1}{Z_\pattern(\weights)} \prod_{\term \in \model} \exp{\frac{\termStats(\pattern : \weights)}{t}}
 \end{equation*}
 
 The statistics of a term:
