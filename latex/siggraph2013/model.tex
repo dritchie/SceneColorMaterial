@@ -1,6 +1,8 @@
 \section{Probabilistic Model}
 \label{sec:model}
 
+\input{notation.tex}
+
 In every subsection, motivate why this particular component is important/difficult and why we had to develop something new. Briefly relate to algorithmic details from relevant previous work.
 
 %To be safe, temporarily separating out the spatial arrangement and color compatibility subsection
@@ -31,46 +33,37 @@ which is the area-weighted sum of \lab distances between the corresponding color
 \subsection{Weight Learning}
 \label{sec:weights}
 
-\newcommand{\pattern}{\mathcal{P}}
-\newcommand{\model}{\mathcal{M}}
-\newcommand{\template}{\mathcal{T}}
-\newcommand{\weights}{\mathbf{w}}
-\newcommand{\dataset}{\mathcal{D}}
-\newcommand{\factor}{\mathcal{F}}
-\newcommand{\variable}[1]{\mathbf{#1}}
-\newcommand{\stats}[3]{\phi_{#1}(#2,#3)}
-\newcommand{\expectation}{\mathds{E}}
-
 \remark{Notation in here needs work + synchronization with previous notation.}
 
-The model defined thus far has several terms $\template$, and each has a weight parameter $\weights_\template$. These weights control the relative importance of the different terms in the model---so how should they be set?
+The model defined thus far has several terms $\term$, and each has a weight parameter $\weights_\term$. These weights control the relative importance of the different terms in the model---so how should they be set?
 
 As a first approach, we could assume that all terms are equally important. Figure ? shows several high-scoring samples from the resulting model.~\remark{Insert figure, discuss problems: adjacent equi-luminant regions, etc.} These results suggest that some terms are, in fact, more critical than others.
 
 A better approach is to set the weights so that the resulting model is highly likely to generate the training examples. That is, we would like to tune the weights so that the training examples---the patterns whose style we want to reproduce---have high probability under the model. This weight-tuning problem is an instance of maximum-likelihood parameter estimation~\cite{PGMBook}. The log-likelihood function of our model is
 %% log-likelihood function
 \begin{multline*}
-\ell(\weights : \dataset) =
-	\sum_{\pattern \in \dataset}
-	(
-		\sum_{\template \in \model}
-			\sum_{\factor \in \template}
-				\weights_\template \cdot \stats{\template}{\variable{c_\factor}(\pattern)}{\variable{f_\factor}(\pattern)} \\
-		- \ln{Z_\pattern(\weights)}
-	)
+%\ell(\weights : \dataset) =
+%	\sum_{(\pattern, \colors) \in \dataset}
+%	(
+%		\sum_{\term \in \model}
+%			\weights_\term \cdot
+%			\sum_{\factor \in \factors(\pattern)}
+%				\factorStats(\variable{c_\factor}(\pattern), \variable{f_\factor}(\pattern)) \\
+%		- \ln{Z_\pattern(\weights)}
+%	)
 %%\ell(w : \mathcal{D}) = \sum_{T \in \mathcal{T}} { \sum_{F \in T} {w_T \phi(\mathbf{c_F}(\mathcal{P}), \mathbf{f_F}(\mathcal{P}))} }
 \end{multline*}
 %%
 where $Z_\pattern(\weights)$ is the pattern-dependent partition function which normalizes the distribution. Convex log-likelihoods such as this one are typically maximized via gradient ascent. The partial derivatives of this function with respect to the weights are given by
 %% Partial derivatives
 \begin{multline*}
-\frac{\partial}{\partial \weights_\template} \ell(\weights : \dataset) = 
-	\sum_{\pattern \in \dataset}
-		\sum_{\factor \in \template}
-		(
-			\stats{\template}{\variable{c_\factor}(\pattern)}{\variable{f_\factor}(\pattern)} \\
-				- \expectation_\weights[\stats{\template}{\variable{C_\factor}}{\variable{f_\factor}(\pattern)}]
-		)
+%\frac{\partial}{\partial \weights_\term} \ell(\weights : \dataset) = 
+%	\sum_{\pattern \in \dataset}
+%		\sum_{\factor \in \term}
+%		(
+%			\termStats_\term(\variable{c_\factor}(\pattern), \variable{f_\factor}(\pattern)) \\
+%				- \expectation_\weights[\termStats_\term(\variable{C_\factor}, \variable{f_\factor}(\pattern))]
+%		)
 \end{multline*}
 %%
 where $\expectation_\weights$ denotes an expectation under the model with weights $\weights$. Unfortunately, these quantities are extremely expensive to compute. The expectation term requires probabilistic inference---an NP-complete problem---for training pattern, for every iteration of gradient ascent.
@@ -78,13 +71,13 @@ where $\expectation_\weights$ denotes an expectation under the model with weight
 This computational intractability has motivated the development of alternative, `biased' parameter estimation schemes which do not directly maximize the likelihood function but nevertheless yield parameters that give high likelihoods~\cite{NonMLEParameterEstimation}. We use one such method, called \emph{Contrastive Divergence} (CD)~\cite{ContrastiveDivergence}. CD uses the following approximation to the likelihood gradient:
 %% CD gradient
 \begin{multline*}
-CD(\weights : \dataset) = 
-	\sum_{\pattern \in \dataset}
-		\sum_{\factor \in \template}
-		(
-			\stats{\template}{\variable{c_\factor}(\pattern)}{\variable{f_\factor}(\pattern)} \\
-			- \stats{\template}{\variable{\hat{c}_\factor}}{\variable{f_\factor}(\pattern)}
-		)
+%CD(\weights : \dataset) = 
+%	\sum_{\pattern \in \dataset}
+%		\sum_{\factor \in \term}
+%		(
+%			\termStats_\term(\variable{c_\factor}(\pattern), \variable{f_\factor}(\pattern)) \\
+%			- \termStats_\term(\variable{\hat{c}_\factor}(\pattern), \variable{f_\factor}(\pattern))
+%		)
 \end{multline*}
 %%
 where $\variable{\hat{c}_\factor}$ is the coloring state obtained by running an MCMC chain for one step from the initial state $\variable{c_\factor}(\pattern)$. CD essentially forms a local approximation to the likelihood gradient around the neighborhood of state $\variable{c_\factor}(\pattern)$. Since all terms in our model are conditional log-probabilities, we enforce the additional constraint during optimization that all weights be positive.~\remark{Happy to take this out if we can find a way around it}

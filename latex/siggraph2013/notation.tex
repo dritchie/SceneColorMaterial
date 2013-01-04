@@ -1,0 +1,47 @@
+
+\newcommand{\pattern}{\mathcal{P}}
+\newcommand{\group}{g}
+\newcommand{\groups}{\mathcal{G}}
+\newcommand{\segment}{s}
+\newcommand{\segments}{\mathcal{S}}
+\newcommand{\model}{\mathcal{M}}
+\newcommand{\term}{\mathcal{T}}
+\newcommand{\factor}{f}
+\newcommand{\factors}{\mathcal{F}_\term}
+\newcommand{\weights}{\mathbf{w}}
+\newcommand{\dataset}{\mathcal{D}}
+\newcommand{\variable}[1]{\mathbf{#1}}
+\newcommand{\colorVars}{\variable{C}}
+\newcommand{\colors}{\variable{c}}
+\newcommand{\features}{\variable{f}}
+\newcommand{\termStats}{\Phi_\term}
+\newcommand{\factorStats}{\phi^\term_\factor}
+\newcommand{\expectation}{\mathds{E}}
+
+Notational conventions:
+
+Our model: $\model$. A term in our model: $\term$. A factor from a term: $\factor$. The vector of weights for the entire model: $\weights$. The weight for a particular term: $\weights_\term$.
+
+A pattern template: $\pattern = (\segments, \groups, \colorVars, \features)$, where $\groups$ is a set of individual groups $\group$, $\segments$ is a set of individual segments $\segment$, $\colorVars$ is a set of color variables, and $\features$ is a set of features.
+
+The set of all factors for a term, unrolled for a particular pattern: $\factors(\pattern)$
+
+The color variable of a group: $\colorVars(\group)$. The color variable of a segment: $\colorVars(\segment)$.
+
+An assignment of colors to color variables: $\colors$.
+
+The features of a segment: $\features(\segment)$. The features of a group: $\features(\group)$. The features of a pair of segments: $\features(\segment_1, \segment_2)$.
+
+A training dataset: $\dataset$. An example from a training dataset: $(\pattern, \colors)$.
+
+Sufficient statistics for a term in our model: $\termStats$. Sufficient statistics for an individual factor of a term: $\factorStats$
+
+The probability distribution encoded by our model:
+\begin{equation*}
+p(\pattern) = \frac{1}{Z(\pattern)} \prod_{\term \in \model} \exp{\frac{\termStats(\pattern)}{t}}
+\end{equation*}
+
+The statistics of a term:
+\begin{equation*}
+\termStats(\pattern) = \weights_\term \cdot \sum_{\factor \in \factors(\pattern)} \factorStats(\colorVars_\pattern, \features_\pattern)
+\end{equation*}
