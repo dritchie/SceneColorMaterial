@@ -38,10 +38,10 @@ Sufficient statistics for a term in our model: $\termStats$. Sufficient statisti
 
 The probability distribution encoded by our model:
 \begin{equation*}
-p(\pattern) = \frac{1}{Z(\pattern)} \prod_{\term \in \model} \exp{\frac{\termStats(\pattern)}{t}}
+p(\pattern : \weights) = \frac{1}{Z_\weights(\pattern)} \prod_{\term \in \model} \exp{\frac{\termStats(\pattern : \weights)}{t}}
 \end{equation*}
 
 The statistics of a term:
 \begin{equation*}
-\termStats(\pattern) = \weights_\term \cdot \sum_{\factor \in \factors(\pattern)} \factorStats(\colorVars_\pattern, \features_\pattern)
+\termStats(\pattern : \weights) = \weights_\term \cdot \sum_{\factor \in \factors(\pattern)} \factorStats(\colorVars_\pattern, \features_\pattern)
 \end{equation*}
