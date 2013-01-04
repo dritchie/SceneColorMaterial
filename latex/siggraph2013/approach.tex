@@ -5,13 +5,20 @@
 
 Restate problem statement, why it's hard, and our approach (emphasizing the key idea)~\remark{Why it's hard: This might be the best place to show the results when we only use color compatibility, i.e. ``As a first approach, you might try using existing color compatibility models...'' and then show how that doesn't work, thus motivating the machinery we're about to describe.}
 
-%Start of notes on pattern template terminology.
+%Start of notes on pattern template terminology/definition.
+Pattern Template terminology/definition
+\remark{S: Do we want to use 'pattern template' or something more general like 'coloring template'?}
+Our approach takes as input a pattern template specification and outputs suggested colorings for that pattern template. A pattern template specifies which regions in an image can be colored in, and which regions must map to the same color. For example, an image of a flower on a background may have a template that specifies all petals of the flower must be the same color, and all background regions must be the same color. In the rest of the paper, we refer to the set of regions that map to the same color as a \emph{color group}. Figure~\ref{fig:teaser} shows an example of a pattern template visualized in grayscale, where each different lightness level identifies a different color group. This pattern template representation is relatively easy to author from images composed of segments, such as website design, renderings of 3D scenes, and line drawings. In this paper, we focus on 2D graphic design patterns. 
+%S: An alternative description of a pattern template: A pattern template is a segmented image with additional specifications on which segments must have the same color, or in other words, belong to the same color group
 
-
-
-
+%TODO: Mention/Describe Colourlovers dataset somewhere. Briefly describe image preprocessing, and final renderings (probably this will be in the probabilistic model section?). 
 
 
 The (log linear) factor graph formalism (and any other persistent terminology).
+
+
+
+
+
 
 Roadmap for the next section (which describes the technical details) / overview of the system.
