@@ -477,6 +477,7 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
     def propName:String
     def name = "Group " + propName
     def isMarginal:Boolean
+    def weightBySize:Boolean
     protected def colorPropExtractor:ColorPropertyExtractor
     protected val data = new Data
 
@@ -525,7 +526,8 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
         // TODO: Some form of size weighting? I don't think it's needed...
         //TODO: might as well be consistent?  This just prefers scores of large groups over small groups. If we want to weight groups equally, the segment size should be normalized by the group size
       //when weighting unary terms
-        density *= datum.group.size
+        if (weightBySize)
+          density *= datum.group.size
         Tensor1(density)
     }
 
@@ -541,13 +543,14 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
     }
 }
 
-class DiscreteColorGroupTemplate(property:ModelTraining#ColorGroupProperty, loadFrom:String = "")
+class DiscreteColorGroupTemplate(property:ModelTraining#ColorGroupProperty, loadFrom:String = "",wBySize:Boolean=false)
     extends DotTemplate2[DiscreteColorVariable, ColorGroupTemplate.DatumVariable] with ColorGroupTemplate[DiscreteColorVariable]
 {
     import ColorGroupTemplate._
 
     val propName = property.name
     val isMarginal = property.isMarginal
+    val weightBySize = wBySize
     protected val colorPropExtractor = property.extractor
     protected val regressor = createRegressor(property)
     trainRegressor(property.examples, property.crossValidate, property.saveValidationLog, property.ranges, property.quantLevel, property.bandScale, loadFrom)
@@ -558,13 +561,14 @@ class DiscreteColorGroupTemplate(property:ModelTraining#ColorGroupProperty, load
     }
 }
 
-class ContinuousColorGroupTemplate(property:ModelTraining#ColorGroupProperty, loadFrom:String = "")
+class ContinuousColorGroupTemplate(property:ModelTraining#ColorGroupProperty, loadFrom:String = "", wBySize:Boolean=false)
     extends DotTemplate2[ContinuousColorVariable, ColorGroupTemplate.DatumVariable] with ColorGroupTemplate[ContinuousColorVariable]
 {
     import ColorGroupTemplate._
 
     val propName = property.name
     val isMarginal = property.isMarginal
+    val weightBySize = wBySize
     protected val colorPropExtractor = property.extractor
     protected val regressor = createRegressor(property)
     trainRegressor(property.examples, property.crossValidate, property.saveValidationLog, property.ranges, property.quantLevel, property.bandScale, loadFrom)
@@ -575,13 +579,14 @@ class ContinuousColorGroupTemplate(property:ModelTraining#ColorGroupProperty, lo
     }
 }
 
-class UserColorConstraintGroupTemplate(name: String, extractor:ColorGroupTemplate.ColorPropertyExtractor, bandwidth: Double, metric:MathUtils.DistanceMetric = MathUtils.euclideanDistance, loadFrom:String = "")
+class UserColorConstraintGroupTemplate(name: String, extractor:ColorGroupTemplate.ColorPropertyExtractor, bandwidth: Double, metric:MathUtils.DistanceMetric = MathUtils.euclideanDistance, loadFrom:String = "", wBySize:Boolean=false)
     extends DotTemplate2[ContinuousColorVariable, ColorGroupTemplate.DatumVariable] with ColorGroupTemplate[ContinuousColorVariable]
 {
     import ColorGroupTemplate._
 
     val propName = name
     val isMarginal = true
+    val weightBySize = wBySize
     protected val colorPropExtractor = extractor
     protected val regressor = null // TODO: see if this is necessary
 

@@ -81,6 +81,8 @@ object StyleTestMain {
     includeUnaryTerms = true
     includeGroupTerms = true
     includeBinaryTerms = true
+
+    weightGroups = false //I think setting this to true produces more expected results for some styles (i.e. blue and pink), and is a bit more consistent
   }
 
   def main(args:Array[String])

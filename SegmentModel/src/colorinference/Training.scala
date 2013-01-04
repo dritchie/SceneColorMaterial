@@ -84,6 +84,9 @@ abstract class ModelTrainingParams
 
     var includeColorChoiceTerms = false
     var colorChoiceType = ModelTraining.ColorChoiceType.LABConditional
+
+    //weigh the groups or not?
+    var weightGroups = false
 }
 
 /* Different variable types require different model building/training operations */
@@ -93,7 +96,7 @@ trait ColorVariableParams[V<:ColorVariable]
     def variableGenerator:ColorVariableGenerator
     def newUnarySegmentTemplate(prop:ModelTraining#UnarySegmentProperty, loadFrom:String = ""):UnarySegmentTemplate[V]
     def newBinarySegmentTemplate(prop:ModelTraining#BinarySegmentProperty, loadFrom:String = ""):BinarySegmentTemplate[V]
-    def newGroupTemplate(prop:ModelTraining#ColorGroupProperty, loadFrom:String = ""):ColorGroupTemplate[V]
+    def newGroupTemplate(prop:ModelTraining#ColorGroupProperty, loadFrom:String = "", wBySize:Boolean=false):ColorGroupTemplate[V]
     def newInferenceSampler(model:Model, objective:Model, params:ModelTrainingParams):MHSampler[SamplingContextType]
     def newTrainingSampler(model:Model, params:ModelTrainingParams):KStepContrastiveDivergence[SamplingContextType]
     def initDomain(mesh:SegmentMesh)
@@ -105,7 +108,7 @@ object DiscreteColorVariableParams extends ColorVariableParams[DiscreteColorVari
     def variableGenerator = DiscreteColorVariable
     def newUnarySegmentTemplate(prop:ModelTraining#UnarySegmentProperty, loadFrom:String = "") = new DiscreteUnarySegmentTemplate(prop,loadFrom)
     def newBinarySegmentTemplate(prop:ModelTraining#BinarySegmentProperty, loadFrom:String = "") = new DiscreteBinarySegmentTemplate(prop,loadFrom)
-    def newGroupTemplate(prop:ModelTraining#ColorGroupProperty, loadFrom:String = "") = new DiscreteColorGroupTemplate(prop,loadFrom)
+    def newGroupTemplate(prop:ModelTraining#ColorGroupProperty, loadFrom:String = "", wBySize:Boolean=false) = new DiscreteColorGroupTemplate(prop,loadFrom, wBySize)
     def newInferenceSampler(model:Model, objective:Model, params:ModelTrainingParams) = new DiscreteColorSampler(model, objective)
     def newTrainingSampler(model:Model, params:ModelTrainingParams) = new DiscreteColorTrainingSampler(model, params.cdK)
     def initDomain(mesh:SegmentMesh)
@@ -122,7 +125,7 @@ object ContinuousColorVariableParams extends ColorVariableParams[ContinuousColor
     def variableGenerator = ContinuousColorVariable
     def newUnarySegmentTemplate(prop:ModelTraining#UnarySegmentProperty, loadFrom:String = "") = new ContinuousUnarySegmentTemplate(prop,loadFrom)
     def newBinarySegmentTemplate(prop:ModelTraining#BinarySegmentProperty, loadFrom:String = "") = new ContinuousBinarySegmentTemplate(prop,loadFrom)
-    def newGroupTemplate(prop:ModelTraining#ColorGroupProperty, loadFrom:String = "") = new ContinuousColorGroupTemplate(prop,loadFrom)
+    def newGroupTemplate(prop:ModelTraining#ColorGroupProperty, loadFrom:String = "", wBySize:Boolean=false) = new ContinuousColorGroupTemplate(prop,loadFrom, wBySize)
     def newInferenceSampler(model:Model, objective:Model, params:ModelTrainingParams) =
         new ContinuousColorSampler(model, objective, params.minRadius, params.maxRadius,
             params.minSwapProb, params.maxSwapProb, null)
@@ -299,7 +302,8 @@ class ModelTraining(val params:ModelTrainingParams)
 
             // Group properties
             // TODO: Should these training examples be weighted like the ones above? I think it's probably unnecessary.
-            val groupWeight = 2.0/mesh.groups.length
+            //TODO: might be more consistent to weight the groups anyways, so patterns with fewer groups get equal weight
+            val groupWeight = if (params.weightGroups) 2.0/mesh.groups.length else 1.0
             for (group <- mesh.groups.shuffle)
             {
                 val fvec = SegmentGroup.getRegressionFeatures(group)
@@ -331,14 +335,14 @@ class ModelTraining(val params:ModelTrainingParams)
         println("Training Group Templates...")
         for (i <- 0 until groupProps.length)
         {
-            val template = params.colorVarParams.newGroupTemplate(groupProps(i), loadDir)
+            val template = params.colorVarParams.newGroupTemplate(groupProps(i), loadDir, params.weightGroups)
             model += template
         }
 
         println("Training Group Marginal Templates...")
         for (i <- 0 until groupMarginalProps.length)
         {
-          val template = params.colorVarParams.newGroupTemplate(groupMarginalProps(i), loadDir)
+          val template = params.colorVarParams.newGroupTemplate(groupMarginalProps(i), loadDir, params.weightGroups)
             model += template
         }
         // Include the color compatibility term?
