@@ -11,10 +11,6 @@ Talk about spatial stuff here
 \label{sec:colorCompat}
 Talk about color stuff e.g. O'Donovan's model here.
 
-\subsection{Weight Learning}
-\label{sec:weights}
-Learning weights is cool.
-
 \subsection{Sampling}
 \label{sec:sampling}
 
@@ -36,6 +32,40 @@ Finally, we use maximimum marginal relevance (MMR) to enforce diversity in the s
 \end{equation*}
 %%
 which is the area-weighted sum of \lab distances between the corresponding colors in each coloring~\remark{Notation, terminology subject to change}.
+
+\subsection{Weight Learning}
+\label{sec:weights}
+
+\remark{Notation in here needs work + synchronization with previous notation.}
+
+The model defined thus far has several terms, and each has a weight parameter $w$. These weights control the relative importance of the different terms in the model---so how should they be set?
+
+As a first approach, we could assume that all terms are equally important. Figure ? shows several high-scoring samples from the resulting model. Note the following problems: blah, blah, blah. These results suggest that some terms are, in fact, more critical than others.
+
+Ideally, we would like to tune the weights so that the training examples---the patterns whose style we want to reproduce---have high probability under the model. This weight-tuning problem is an instance of maximum-likelihood parameter estimation~\cite{PGMBook}. The likelihood function of our model is
+%% log-likelihood function
+\begin{equation*}
+%%\ell(w : \mathcal{D}) = \sum_{T \in \mathcal{T}} { \sum_{F \in T} {w_T \phi(\mathbf{c_F}(\mathcal{P}), \mathbf{f_F}(\mathcal{P}))} }
+\text{herp derp}
+\end{equation*}
+%%
+where ? is the data-dependent partition function which normalizes the distribution. Convex likelihoods such as this one are typically maximized via gradient ascent. The partial derivatives of this function with respect to the weights are given by
+%% Partial derivatives
+\begin{equation*}
+\text{herp derp}
+\end{equation*}
+%%
+where ? is the expectation under the model of blah blah blah. Unfortunately, these quantities are extremely expensive to compute. The expectation term requires probabilistic inference---an NP-complete problem---for every data point, for every iteration of gradient ascent.
+
+This computational intractability has motivated the development of alternative, `biased' parameter estimation schemes which do not directly maximize the likelihood function but nevertheless yield parameters that give high likelihoods~\cite{NonMLEParameterEstimation}. We use one such method, called \emph{Contrastive Divergence} (CD)~\cite{ContrastiveDivergence}. CD uses the following approximation to the likelihood gradient:
+%% CD gradient
+\begin{equation*}
+\text{herp derp}
+\end{equation*}
+%%
+where ? is the state obtained by running an MCMC chain for one step from the initial state ?. CD essentially forms a local approximation to the likelihood gradient around the neighborhood of state ?. Since all terms in our model are conditional log-probabilities, we enforce the additional constraint during optimization that all weights be positive.~\remark{Happy to take this out if we can find a way around it}
+
+While the exact weights learned depend on the training dataset, there are several strong general trends.~\remark{Trends: Color compat, perceptual difference strong. Name stuff is not strong. Etc.} The colorings shown in Figure~\ref{fig:teaser} were sampled from a model with automatically-tuned weights.
 
 \subsection{Implementation}
 \label{sec:implementation}
