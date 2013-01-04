@@ -24,7 +24,7 @@ object StyleTestMain {
   var styleToModel = new HashMap[String, StyleItem] //map from the style name to the model
   var meshToStyleInfo = new HashMap[String, PatternItem]
   var styleToPatterns = new HashMap[String, ArrayBuffer[PatternItem]]
-  val savedModelsDir = "style_colorunary"
+  val savedModelsDir = "style_colorunary_groupWeighted"
 
   /** filtering options **/
   val filterWhenTesting = true
@@ -54,7 +54,7 @@ object StyleTestMain {
     //new Setting(false, ModelTraining.ColorChoiceType.LABMarginal, ""),
     //new Setting(true, ModelTraining.ColorChoiceType.LABMarginal, "_labMarginal"),
     //new Setting(true, ModelTraining.ColorChoiceType.LABConditional,"_labConditional"),
-    //new Setting(true, ModelTraining.ColorChoiceType.NamesMarginal,"_namesMarginal"),
+    //new Setting(true, ModelTraining.ColorChoiceType.NamesMarginal,"_namesMarginal")
     new Setting(true, ModelTraining.ColorChoiceType.NamesConditional, "_namesConditional")
     )
 
@@ -81,6 +81,8 @@ object StyleTestMain {
     includeUnaryTerms = true
     includeGroupTerms = true
     includeBinaryTerms = true
+
+    weightGroups = false //I think setting this to true produces more expected results for some styles (i.e. blue and pink), and is a bit more consistent
   }
 
   def main(args:Array[String])
@@ -127,7 +129,7 @@ object StyleTestMain {
 
       //OutputModelHistograms(setting:Setting)
 
-      //GeneratePatterns(setting)
+      GeneratePatterns(setting)
 
       //test 2 is to see if for each model, the model rates the test patterns in that style more highly than patterns in other styles
       //output file
