@@ -45,9 +45,9 @@ which is the area-weighted sum of \lab distances between the corresponding color
 
 The model defined thus far has several terms $\template$, and each has a weight parameter $\weights_\template$. These weights control the relative importance of the different terms in the model---so how should they be set?
 
-As a first approach, we could assume that all terms are equally important. Figure ? shows several high-scoring samples from the resulting model. Note the following problems: blah, blah, blah. These results suggest that some terms are, in fact, more critical than others.
+As a first approach, we could assume that all terms are equally important. Figure ? shows several high-scoring samples from the resulting model.~\remark{Insert figure, discuss problems: adjacent equi-luminant regions, etc.} These results suggest that some terms are, in fact, more critical than others.
 
-Ideally, we would like to tune the weights so that the training examples---the patterns whose style we want to reproduce---have high probability under the model. This weight-tuning problem is an instance of maximum-likelihood parameter estimation~\cite{PGMBook}. The log-likelihood function of our model is
+A better approach is to set the weights so that the resulting model is highly likely to generate the training examples. That is, we would like to tune the weights so that the training examples---the patterns whose style we want to reproduce---have high probability under the model. This weight-tuning problem is an instance of maximum-likelihood parameter estimation~\cite{PGMBook}. The log-likelihood function of our model is
 %% log-likelihood function
 \begin{multline*}
 \ell(\weights : \dataset) =
@@ -89,7 +89,7 @@ CD(\weights : \dataset) =
 %%
 where $\variable{\hat{c}_\factor}$ is the coloring state obtained by running an MCMC chain for one step from the initial state $\variable{c_\factor}(\pattern)$. CD essentially forms a local approximation to the likelihood gradient around the neighborhood of state $\variable{c_\factor}(\pattern)$. Since all terms in our model are conditional log-probabilities, we enforce the additional constraint during optimization that all weights be positive.~\remark{Happy to take this out if we can find a way around it}
 
-While the exact weights learned depend on the training dataset, there are several strong general trends.~\remark{Trends: Color compat, perceptual difference strong. Name stuff is not strong. Etc.} The colorings shown in Figure~\ref{fig:teaser} were sampled from a model with automatically-tuned weights.
+While the exact weights learned depend on the training dataset, there are several strong general trends.~\remark{Discuss trends here: Color compat, perceptual difference strong. Name stuff is not strong. Etc.} The colorings shown in Figure~\ref{fig:teaser} were sampled from a model with automatically-tuned weights.
 
 \subsection{Implementation}
 \label{sec:implementation}
