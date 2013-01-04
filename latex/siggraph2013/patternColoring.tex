@@ -60,7 +60,7 @@
 %\TOGdataURL{}
 %\TOGcodeURL{}
 
-\title{Amazing Paper Title that Grabs Your Attention}
+\title{Probabilistic Color-by-Numbers:\\ Suggesting Pattern Colorizations Using Factor Graphs}
 
 %%% The ``\author{}'' command takes the names and affiliations of each of the
 %%% authors of your paper or abstract. The ``\thanks{}'' command takes the
@@ -85,6 +85,16 @@
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{dsfont}
+
+%% For auto-inserting line breaks in extra long equations
+\usepackage{etoolbox}
+\usepackage{breqn}
+%% Because dmath and line numbering don't play well together
+% See http://tex.stackexchange.com/questions/86529/breqn-and-lineno-incompatibility
+\BeforeBeginEnvironment{dmath}{\begin{nolinenumbers}}
+\AfterEndEnvironment{dmath}{\end{nolinenumbers}}
+\BeforeBeginEnvironment{dmath*}{\begin{nolinenumbers}}
+\AfterEndEnvironment{dmath*}{\end{nolinenumbers}}
 
 \usepackage{booktabs}
 \usepackage{multirow}
