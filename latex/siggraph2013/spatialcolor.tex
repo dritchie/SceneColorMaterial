@@ -1,10 +1,10 @@
-We formulate the problem of generating colorings for a pattern template as finding high-probability colorings. Formally, we define a pattern template $\pattern = (\segments, \groups, \colorVars, \features)$, where $\groups$ is a set of individual groups $\group$, and $\segments$ is a set of individual segments $\segment$, $\colorVars$ is a set of color variables, and $\features$ is a set of features over different groups, segments, and adjacencies within the pattern. Each $\group$ and $\segment$ is associated with a color variable $C(\group)$ and $C(\segment)$ respectively. Because all segments within a color group are defined to have the same color, $C(group(\segment))$ always has the same value as $C(\segment)$. A coloring $\colors$ is an assignment of colors to color variables.
+We formulate the problem of generating colorings for a pattern template as finding high-probability colorings. Formally, we define a pattern template $\pattern = (\segments, \groups, \colorVars, \features)$, where $\groups$ is a set of individual groups $\group$, and $\segments$ is a set of individual segments $\segment$, $\colorVars$ is a set of color variables, and $\features$ is a set of features over different groups, segments, and adjacencies within the pattern. Each $\group$ and $\segment$ is associated with a color variable $C(\group)$ and $C(\segment)$ respectively. Because all segments within a color group are defined to have the same color, $C(group(\segment))$ always has the same value as $C(\segment)$, so for the rest of the paper we equate them as the same variable. A coloring $\colors$ is an assignment of colors to color variables.
 
 We model the probability of a coloring for a particular pattern template as a product of different terms $\term$:   
 \begin{equation*}
  p(\colors | \pattern : \weights) = \frac{1}{Z_\pattern(\weights)} \prod_{\term \in \model} \exp{\frac{ \weights_\term \cdot \termStats(\colors, \pattern)}{t}}
 \end{equation*}
-where each term $\term$ scores the goodness of a color assignment based on a term-dependent statistics function $\termStats(\colors,\pattern)$, and the temperature $t$ affects the peakiness of the distribution. $\weights_\term$ indicates the weight of term. On example of a term is the overall color compatibility of the color assignment, where its associated statistic is based on the predicted compatibility rating of the five colors with the most area. This formulation of the probability distribution allows us to compare the weights of different terms to see which contribute most to predicting a good coloring. It is also general enough, such that we can add additional terms based on user feedback and constraints in order to guide the search.
+where each term $\term$ scores the goodness of a color assignment based on a term-dependent sufficient statistics function $\termStats(\colors,\pattern)$, and the temperature $t$ affects the peakiness of the distribution. $\weights_\term$ indicates the weight of term. On example of a term is the overall color compatibility of the color assignment, where its associated sufficient statistic is based on the predicted compatibility rating of the five colors with the most area. This formulation of the probability distribution allows us to compare the weights of different terms to see which contribute most to predicting a good coloring. It is also general enough, such that we can add additional terms based on user feedback and constraints in order to guide the search.
 
 In our model, we include terms for color compatibility and spatial terms for groups, segments, and segment adjacencies. The statistics function for each term will be detailed in the next sections. We also describe how factors over the color variables can be generated from each term, so we can sample high-probability colorings from the resulting factor graph.
 
@@ -13,7 +13,7 @@ In our model, we include terms for color compatibility and spatial terms for gro
 
 Previous work has shown that we can enhance the aesthetic appeal of an image by increasing the compatibility or harmony of image colors ~\cite{CohenOrHarmonization,DressUp,ColorizationUsingHarmony,ODonovan}. Thus, we include a color compatibility term to score the general appeal of the colors in an assignment, based on the compatibility model introduced by O'Donovan et al. ~\cite{ODonovan}. The compatibility model was originally trained to predict the aesthetic ratings of 5-color themes, an ordered row of 5 colors. 
 
-For the term's statistics function, we extract a color theme by taking the colors of the 5 largest color groups, and order them by size. If there are fewer than 5 color groups, we cycle the colors of the groups in order of size to fill the rest of theme. We then compute their log-normalized theme rating using O'Donovan's compatibility model. Informal inspection of 5-color patterns showed that size-ordering of the colors tended to produce themes that were rated higher than random orderings, though rated lower than the optimal ordering on average. Formally:
+For the term's sufficient statistics function, we extract a color theme by taking the colors of the 5 largest color groups, and order them by size. If there are fewer than 5 color groups, we cycle the colors of the groups in order of size to fill the rest of theme. We then compute their log-normalized theme rating using O'Donovan's compatibility model. Informal inspection of 5-color patterns showed that size-ordering of the colors tended to produce themes that were rated higher than random orderings, though rated lower than the optimal ordering on average. Formally:
 \begin{equation*}
 \colorCompatTerm(\colors, \pattern) = ln(compat(theme(\colors, \pattern))/5)
 \end{equation*}
@@ -32,18 +32,45 @@ To capture these dependencies, we include spatial terms over groups, segments, a
 \textbf{Group and segment terms}
 Both global group features as well as local segment features affect the appearance of a color assignment. The total area of a group and overall spread of its member segments correspond to the overall proportion and spread of its assigned color within an image. In addition, the size and shape of member segments may impact the color a group takes on. As an example, smaller segments may often be more saturated, and a group composed of many small segments may be more likely to be saturated than a group composed of a few small segments but also one large segment \remark{S: Made up example. Should probably find one that holds in our data}.   
 
-In general, our spatial terms score color assignments based on the conditional probability of properties of colors (i.e. lightness or colorfulness) given either group, segment, or adjacency features. 
-% \begin{equation*}
-% \groupTerm(\colors, \pattern) = \sum_{\group \in \groups_\pattern} \ln p( \prop( \colors(\group) ) | \features_\pattern(\group)) \cdot \size_\group
-% \end{equation*}
+In general, our spatial terms score color assignments based on the conditional probability of properties of colors (i.e. lightness or colorfulness) given either group, segment, or adjacency features. We compute probabilities over color properties instead of individual colors to allow for more generalization over different colors that have not been seen in the training examples. For group and segment terms, we use the unary properties lightness and colorfulness in CIELAB space, a perception-based colorspace. We also use color name counts (counts of how many times a color is described with different names) and name saliency (how uniquely a color is named), as described by Heer and Stone~\shortcite{ColorNamingModels}. While lightness and colorfulness capture perceptual properties of color, name saliency and color name counts capture more categorical properties. More details on the computation of these color properties and region features are included in the Appendix.
 
-% Statistics for segment terms:
-% \begin{equation*}
-% \segTerm(\colors, \pattern) = \sum_{\segment \in \segments_\pattern} \ln p( \prop( \colors(\segment) ) | \features_\pattern(\segment)) \cdot \size_\segment
-% \end{equation*}
+Our model includes one group and segment term per color property. The group term for property $\prop \in \unaryProps$ has the sufficient statistics function:
+\begin{equation*}
+ \groupTerm(\colors, \pattern) = \sum_{\group \in \groups} \ln p( \prop( \colors(\group) ) | \features(\group)) \cdot \size_\group
+\end{equation*}
+where $\size_\group$ is the size of the group $\group$ and $\features(\group)$ are the features of the $\group$. We weight the contribution of each group to the term statistics by its relative area as larger regions tend to have more impact on the appearance of a coloring. We'll refer to the group-specific inner-sum term $\ln p( \prop( \colors(\group) ) | \features(\group)) \cdot \size_\group$ as the group instance statistic $\groupInstStats(g)$. 
 
+Similarly, the segment term for property $\prop$ has the statistics function:
+ \begin{equation*}
+ \segTerm(\colors, \pattern) = \sum_{\segment \in \segments} \ln p( \prop( \colors(\segment) ) | \features(\segment)) \cdot \size_\segment
+ \end{equation*}
+where $\size_\segment$ is the size of the segment $\segment$ and $\features(\segment)$ are the features of $\segment$. We'll refer to the segment-specific inner-sum term as the segment instance statistic $\segInstStats(s)$.
+
+We generate factors over each color variable by gathering its associated group and segments and computing their instance statistics for each term. Formally:
+ \begin{equation*}
+ \factor_\pattern(\colorVars(\group)) = exp\left(\sum_{\prop \in \unaryProps} \groupInstStats(\group) \sum_{\segment \in \group} \segInstStats(\segment)\right) 
+ \end{equation*}
 
 \textbf{Segment adjacency terms}
+While group and segment terms model the dependency of color assignments on features of same-color regions, they do not capture relationships among different-color regions. In particular, adjacent color regions can have strong effects on their neighbor's perceived color, for example making colors seem more or less saturated or causing vibrating boundaries if adjacent lightness and colorfulness are too similar~\cite{AlbersInteractionOfColor}. Thus, we also add segment adjacency terms to the model.
+
+Good color assignments to adjacent segments may depend on specific features of their adjacency. For example, a square enclosed by a thin border appears different than a square enclosed by a larger square, and different than a square side-by-side with another square. Thus, when computing features of an adjacency we include the features of the member segments as well as how much one neighbor encloses another. The Appendix contains more details on feature computation for adjacencies. 
+
+Analogous to the group and segment terms, adjacency terms compute statistics based on the conditional probability distribution of binary color properties given the adjacency features. Binary color properties include relative lightness, relative colorfulness, perceptual distance in LAB space, and color name cosine similarity ~\cite{ColorNamingModels}.
+
+The sufficient statistics function for each binary property is:
+ \begin{equation*}
+ \adjTerm(\colors, \pattern) =
+ 	\sum_{(\segment, \segprime) \in \adj(\pattern)}
+ 		\ln p( \prop( \colors(\segment), \colors(\segprime) ) | \features(\segment, \segprime) ) \cdot \adjStrength(\segment, \segprime) 
+ \end{equation*}
+ where $\adjStrength(\segment,\segprime)$ is the adjacency strength of $(\segment,\segprime)$. Again, we define the inner-sum term to be the adjacency instance statistic $\adjInstStats$.
+
+ We generate factors over each adjacent pair of color variables:
+  \begin{equation*}
+ \factor_\pattern(\colorVars(\group), \colorVars(\groupprime)) = exp\left(\sum_{\prop \in \binaryProps}\sum_{(\segment, \segprime) \in \adj(\group, \groupprime)} \adjInstStats(\segment, \segprime)\right) 
+ \end{equation*}
+
 % Each color group has a different number of member segments, each of which may impact what color the group takes on. As an example, smaller segments may often be more saturated, and a group composed of many small segments may be more saturated than a group composed of a few small segments but also one large segment \remark{S: Made up example. Should probably find one that holds in our data}. Thus, we generate segment-based helper factors $\phi_s$. These helper factors compute scores based on the features of individual member segments. In addition, we define a group-based helper factor $\phi_g$ which computes scores based on overall features of the group, such as total size. Combined together:
 % \begin{equation}
 % \phi(G_i) = \phi_g(G_i)^{size(G_i)} \prod_{s \in seg(G_i)} \phi_{s}(G_i)^{size(s)}

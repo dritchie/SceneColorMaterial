@@ -4,13 +4,20 @@
 Summarize, restate contributions.
 
 Discuss...stuff.
+Some suggestions:
+\begin{itemize}
+\item{How many training images are needed? (though maybe this should be part of the results section. We could look at the change in weight/coefficient differences as the number of training examples increases. Or possibly the fluctation in model score as number of training images increases?)}
+\item{What the model does well and what doesn't it do well? (i.e. maybe it does better on certain types of patterns?) }
+\end{itemize}
+
 
 Some ideas for future work:
 \begin{itemize}
  \item{Making it real-time: GPU implementation of parallel tempering (cite Merrell)}
  \item{Making it real-time: Hamiltonian MCMC via automatic differentiation (cite Wingate)}
- \item{Working with vector artwork, instead of bitmaps}
  \item{Beyond a fixed number of color groups: Transdimensional inference.}
- \item{`Soft' segments with `soft' membership in color groups? Useful for color blending, dealing with more sophisticated artwork}
+  \item{Working with vector artwork, instead of bitmaps...They are much cleaner. Vector/layered artwork is also interesting due to possible blending effects (like mentioned below). Though one good thing about using bitmaps is that they are more readily available.}
+ \item{More sophisticated templates and/or model: `Soft' segments with `soft' membership in color groups? Useful for color blending, dealing with more sophisticated artwork.}
+ \item{Templatizing images: In line with the above..automatically or semi-automatically generating pattern templates from images. In our training set, we're provided the source color palette, but for other images, we don't necessarily have that. Currently, we could extract a color theme from the image using K-means or some other technique, and then do a quantization, but this is not very sophisticated and doesn't work well for complicated patterns}
  \item{Semantics: use the web to associate color distributions with labels, so that a user can label a region as 'skin' and we can respect that}
 \end{itemize}
