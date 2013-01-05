@@ -37,9 +37,7 @@ which is the area-weighted sum of \lab distances between the corresponding color
 
 The model defined thus far has several terms $\term$, and each has a weight parameter $\weights_\term$. These weights control the relative importance of the different terms in the model---so how should they be set?
 
-As a first approach, we could assume that all terms are equally important. Figure ? shows several high-scoring samples from the resulting model.~\remark{Insert figure, discuss problems: adjacent equi-luminant regions, etc.} These results suggest that some terms are, in fact, more critical than others.
-
-A better approach is to set the weights so that the resulting model is highly likely to generate the training examples. That is, we would like to tune the weights so that the training examples---the patterns whose style we want to reproduce---have high probability under the model. This weight-tuning problem is an instance of maximum-likelihood parameter estimation~\cite{PGMBook}. The log-likelihood function of our model is
+Ideally, we'd like to set the weights such that the resulting model is highly likely to generate the training examples. In other words, we would like the training examples---the patterns whose style we want to reproduce---have high probability under the model. This weight-tuning problem is an instance of maximum-likelihood parameter estimation~\cite{PGMBook}. The log-likelihood function of our model is
 %% log-likelihood function
 \begin{equation*}
 \ell(\weights : \dataset) =
