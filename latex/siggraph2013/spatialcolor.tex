@@ -11,7 +11,7 @@ In our model, we include terms for color compatibility and spatial terms for gro
 \subsection{Color Compatibility}
 \label{sec:colorCompat}
 
-Previous work has shown that we can enhance the aesthetic appeal of an image by increasing the compatibility or harmony of image colors ~\cite{CohenOrHarmonization,DressUp,ColorizationUsingHarmony,ODonovan}. Thus, we include a color compatibility term to score the general appeal of the colors in an assignment, based on the compatibility model introduced by O'Donovan et al. ~\cite{ODonovan}. The compatibility model was originally trained to predict the aesthetic ratings of 5-color themes, an ordered row of 5 colors. 
+Previous work has shown that we can enhance the aesthetic appeal of an image by increasing the compatibility or harmony of image colors ~\cite{CohenOrHarmonization,DressUp,ColorizationUsingHarmony,ODonovan}. Thus, we include a color compatibility term to score the general appeal of the colors in an assignment, based on the compatibility model introduced by O'Donovan et al.~\shortcite{ODonovan}. The compatibility model was originally trained to predict the aesthetic ratings of 5-color themes, an ordered row of 5 colors. 
 
 For the term's sufficient statistics function, we extract a color theme by taking the colors of the 5 largest color groups, and order them by size. If there are fewer than 5 color groups, we cycle the colors of the groups in order of size to fill the rest of theme. We then compute their log-normalized theme rating using O'Donovan's compatibility model. Informal inspection of 5-color patterns showed that size-ordering of the colors tended to produce themes that were rated higher than random orderings, though rated lower than the optimal ordering on average. Formally:
 \begin{equation*}
@@ -25,7 +25,7 @@ where $theme$ is the ordered theme extracted from a pattern and $compat$ is the 
 \subsection{Spatial Compatibility}
 \label{sec:spatialCompat}
 
-As shown in Figure ?, general color compatibility alone does not predict good colorings, and can lead to TODO artifacts (i.e. adjacent regions with little perceptual separation and loud backgrounds). Good color assignments also depend on the properties of the regions and their spatial arrangement. 
+As shown in Figure~\ref{fig:ColorCompatOnly}, general color compatibility alone does not predict good colorings, and can lead to TODO artifacts (i.e. adjacent regions with little perceptual separation and loud backgrounds). Good color assignments also depend on the properties of the regions and their spatial arrangement. 
 
 To capture these dependencies, we include spatial terms over groups, segments, and adjacencies. Group and segment terms capture color dependencies on region features, and segment adjacency terms capture color dependencies on the relationship between nearby regions.
 
