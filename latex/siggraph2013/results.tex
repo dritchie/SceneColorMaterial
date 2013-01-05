@@ -1,6 +1,12 @@
 \section{Results}
 \label{sec:results}
 
+The data-driven probabilistic model we have presented produces good-looking patterns and can be applied to a variety of tasks. The factor graph representation makes it easy to adapt our framework to handle new problems or incorporate user-provided design constraints by introducing additional factors to the factor graph, or changing the source data used to train the factor weights and histograms.
+
+\remark{Discuss parameters used to train model ``unless otherwise specified''. Number of artists, weights, etc.}
+
+\subsection{Coloring Pattern Templates}
+
 \begin{figure*}[ht]
 \begin{tabular}{ccc}
 \includegraphics[width=.15\linewidth]{figs/permutationTemplatePalette} & \includegraphics[width=.4\linewidth]{figs/permutationBest8} & \includegraphics[width=.4\linewidth]{figs/permutationWorst8} %& \includegraphics[width=.12\linewidth]{figs/permutationArtist}
@@ -9,10 +15,11 @@
 \\
 \end{tabular}
 
-\caption{Given a segmented image and corresponding palette as input, we use our color model to compute the likelihood of each possible assignment of the palette to the image regions. \textbf{(b)} and \textbf{(c)} show the top-eight and bottom-eight assignments, respectively. The assignment provided by the artist received the second-highest score and is highlighted in blue.}
+\caption{Given a segmented image and corresponding palette as input, we use our color model to compute the likelihood of each possible assignment of the palette to the image regions. \textbf{(b)} and \textbf{(c)} show the top-eight and bottom-eight assignments. The assignment provided by the artist received the second-highest score and is highlighted in blue.}
 \label{fig:permutation}
-\vspace{-1.0em}
 \end{figure*}
+
+\paragraph{Spatial arrangement} In some cases, an artist already knows what colors they want to use in an image. They might have found a palette they are enamored with elsewhere, or they might have a very specific theme in mind. Even with a fixed palette, there are still a range of images that can be created by mapping different colors to different regions, only some of which are desirable to the artist. To support this task, we rank all 120 possible permutations of the colors using the score assigned by our model. Figure~\ref{fig:permutation} shows one example of this process. \ref{fig:permutation}b shows the eight highest-rated color assignments which exhibits a variety of color styles and contrasts strongly against the lowest-rated assignments. Our color model assignment a very low score to assigning the tangerine color to the background region because its color properties were not similar to background colors in the model's training set. The actual color assignment originally provided by the artist for this color template received the second-highest score, suggesting that our model was able to capture the artist's intent.
 
 \begin{figure}[ht]
 \begin{tabular}{cc}
@@ -62,8 +69,6 @@ Artist A&Artist B\\
 \vspace{-1.0em}
 \end{figure*}
 
-Lots of pictures
-
-Quantitative results from reconstruction experiments, etc.
+\subsection{Performance}
 
 Performance figures? (training time, inference time, etc.)

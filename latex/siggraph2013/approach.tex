@@ -3,10 +3,20 @@
 
 \remark{D: Tom Funkhouser sold me on the value of this section, and one of the best examples from his papers is in http://www.cs.princeton.edu/~funk/pvg01.pdf. I actually like combining the Approach and Overview sections into one shorter section, though.}
 
+%Restate the goal/problem. Use Sharon's more descriptive definition of a pattern template.
+
+%The first thing you might think to try is to use a color compatibility model. But here's what happens when you do that, and it doesn't look good.
+
+%While color compatibility plays a role, it's clearly not the whole story. There's a combination of color compatibility and spatial consistency at work. Large, background regions are colored in a different manner than smaller, scattered `accent' regions.
+
+%Rather than try to develop specialized algorithms for this problem, we had the insight that all of this stuff could be encoded in the extremely general probabilistic factor graph formalism. This allows us to leverage existing models of color compatibility, to plug in additional constraints in response to user input, and to handle interesting types of queries such as conditional inference.
+
+%To build a data-driven model, we obviously require a source of data. For the experiments in this paper, we used a dataset of colored patterns scraped from Colourlovers. The dataset contains 100 colored patterns for each of N artists. The artists were chosen based on...what, exactly? Popularity?
+
 Restate problem statement, why it's hard, and our approach (emphasizing the key idea)~\remark{Why it's hard: This might be the best place to show the results when we only use color compatibility, i.e. ``As a first approach, you might try using existing color compatibility models...'' and then show how that doesn't work, thus motivating the machinery we're about to describe.}
 
 %Start of notes on pattern template terminology/definition.
-Our approach takes as input a pattern template and any user-provided guidelines if available, and outputs suggested colorings for that pattern template. A pattern template specifies which regions in an image can be colored in, and which regions must map to the same color. For example, an image of a flower on a background may have a template that specifies all petals of the flower must be the same color, and all background regions must be the same color. In the rest of the paper, we refer to the set of regions that map to the same color as a \emph{color group}. Figure~\ref{fig:teaser} shows an example of a pattern template visualized in grayscale, where each different lightness level identifies a different color group. This pattern template representation is relatively easy to author from images composed of segments, such as website design, renderings of 3D scenes, and line drawings. In this paper, we focus on 2D graphic design patterns. 
+Our approach takes as input a pattern template and any user-provided guidelines if available, and outputs suggested colorings for that pattern template. A pattern template specifies which regions in an image can be colored in, and which regions must map to the same color. For example, an image of a flower on a background may have a template that specifies all petals of the flower must be the same color, and all background regions must be the same color. In the rest of the paper, we refer to the set of regions that map to the same color as a \emph{color group}. Figure~\ref{fig:teaser} shows an example of a pattern template visualized in grayscale, where each different lightness level identifies a different color group. This pattern template representation is relatively easy to author from images composed of segments, such as web designs, renderings of 3D scenes, and line drawings. In this paper, we focus on 2D graphic design patterns. 
 %S: An alternative description of a pattern template: A pattern template is a segmented image with additional specifications on which segments must have the same color, or in other words, belong to the same color group
 
 %TODO: Mention/Describe Colourlovers dataset somewhere. Briefly describe image preprocessing, and final renderings (probably this will be in the probabilistic model section?). 
