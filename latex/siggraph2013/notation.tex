@@ -15,11 +15,12 @@
 \newcommand{\termStats}{\Phi_\term}
 \newcommand{\expectation}{\mathds{E}}
 
-\newcommand{\groupTerm}{\Phi^{Group}}
-\newcommand{\segTerm}{\Phi^{Seg}}
-\newcommand{\adjTerm}{\Phi^{Adj}}
-\newcommand{\prop}{\text{prop}}
+\newcommand{\prop}{\pi}
+\newcommand{\groupTerm}{\Phi^{Group}_\pi}
+\newcommand{\segTerm}{\Phi^{Seg}_\pi}
+\newcommand{\adjTerm}{\Phi^{Adj}_\pi}
 \newcommand{\neighbors}{n}
+\newcommand{\adj}{\text{adj}}
 \newcommand{\adjStrength}{\text{str}}
 \newcommand{\size}{A}
 
@@ -46,19 +47,18 @@ p(\colors | \pattern : \weights) = \frac{1}{Z_\pattern(\weights)} \prod_{\term \
 
 Statistics for group terms:
 \begin{equation*}
-\groupTerm(\colors, \pattern : \prop) = \sum_{\group \in \groups_\pattern} \ln p( \prop( \colors(\group) ) | \features_\pattern(\group)) \cdot \size_\group
+\groupTerm(\colors, \pattern) = \sum_{\group \in \groups_\pattern} \ln p( \prop( \colors(\group) ) | \features_\pattern(\group)) \cdot \size_\group
 \end{equation*}
 
 Statistics for segment terms:
 \begin{equation*}
-\segTerm(\colors, \pattern : \prop) = \sum_{\segment \in \segments_\pattern} \ln p( \prop( \colors(\segment) ) | \features_\pattern(\segment)) \cdot \size_\segment
+\segTerm(\colors, \pattern) = \sum_{\segment \in \segments_\pattern} \ln p( \prop( \colors(\segment) ) | \features_\pattern(\segment)) \cdot \size_\segment
 \end{equation*}
 
 Statistics for adjacency terms:
 \begin{equation*}
 \newcommand{\segprime}{\segment^{\prime}}
-\adjTerm(\colors, \pattern : \prop) =
-	\sum_{\segment \in \segments_\pattern}
-		\sum_{\segprime \in \neighbors(\segment); \segprime \neq \segment}
-			\ln p( \prop( \colors(\segment), \colors(\segprime) ) | \features_\pattern(\segment, \segprime) ) \cdot \adjStrength(\segment, \segprime) 
+\adjTerm(\colors, \pattern) =
+	\sum_{(\segment, \segprime) \in \adj(\pattern)}
+		\ln p( \prop( \colors(\segment), \colors(\segprime) ) | \features_\pattern(\segment, \segprime) ) \cdot \adjStrength(\segment, \segprime) 
 \end{equation*}
