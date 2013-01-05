@@ -1,0 +1,64 @@
+
+\newcommand{\pattern}{\mathcal{P}}
+\newcommand{\group}{g}
+\newcommand{\groups}{\mathcal{G}}
+\newcommand{\segment}{s}
+\newcommand{\segments}{\mathcal{S}}
+\newcommand{\model}{\mathcal{M}}
+\newcommand{\term}{\mathcal{T}}
+\newcommand{\weights}{\mathbf{w}}
+\newcommand{\dataset}{\mathcal{D}}
+\newcommand{\variable}[1]{\mathbf{#1}}
+\newcommand{\colorVars}{\variable{C}}
+\newcommand{\colors}{\variable{c}}
+\newcommand{\features}{\variable{f}}
+\newcommand{\termStats}{\Phi_\term}
+\newcommand{\expectation}{\mathds{E}}
+
+\newcommand{\groupTerm}{\Phi^{Group}}
+\newcommand{\segTerm}{\Phi^{Seg}}
+\newcommand{\adjTerm}{\Phi^{Adj}}
+\newcommand{\prop}{\text{prop}}
+\newcommand{\neighbors}{n}
+\newcommand{\adjStrength}{\text{str}}
+\newcommand{\size}{A}
+
+Notational conventions:
+
+Our model: $\model$. A term in our model: $\term$. The vector of weights for the entire model: $\weights$. The weight for a particular term: $\weights_\term$.
+
+A pattern template: $\pattern = (\segments, \groups, \colorVars, \features)$, where $\groups$ is a set of individual groups $\group$, $\segments$ is a set of individual segments $\segment$, $\colorVars$ is a set of color variables, and $\features$ is a set of features.
+
+The color variable of a group: $\colorVars(\group)$. The color variable of a segment: $\colorVars(\segment)$.
+
+An assignment of colors to color variables: $\colors$.
+
+The features of a segment: $\features(\segment)$. The features of a group: $\features(\group)$. The features of a pair of segments: $\features(\segment_1, \segment_2)$.
+
+A training dataset: $\dataset$. An example from a training dataset: $(\pattern, \colors)$.
+
+Sufficient statistics for a term in our model: $\termStats$.
+
+The probability distribution encoded by our model:
+\begin{equation*}
+p(\colors | \pattern : \weights) = \frac{1}{Z_\pattern(\weights)} \prod_{\term \in \model} \exp{\frac{ \weights_\term \cdot \termStats(\colors, \pattern)}{t}}
+\end{equation*}
+
+Statistics for group terms:
+\begin{equation*}
+\groupTerm(\colors, \pattern : \prop) = \sum_{\group \in \groups_\pattern} \ln p( \prop( \colors(\group) ) | \features_\pattern(\group)) \cdot \size_\group
+\end{equation*}
+
+Statistics for segment terms:
+\begin{equation*}
+\segTerm(\colors, \pattern : \prop) = \sum_{\segment \in \segments_\pattern} \ln p( \prop( \colors(\segment) ) | \features_\pattern(\segment)) \cdot \size_\segment
+\end{equation*}
+
+Statistics for adjacency terms:
+\begin{equation*}
+\newcommand{\segprime}{\segment^{\prime}}
+\adjTerm(\colors, \pattern : \prop) =
+	\sum_{\segment \in \segments_\pattern}
+		\sum_{\segprime \in \neighbors(\segment); \segprime \neq \segment}
+			\ln p( \prop( \colors(\segment), \colors(\segprime) ) | \features_\pattern(\segment, \segprime) ) \cdot \adjStrength(\segment, \segprime) 
+\end{equation*}
