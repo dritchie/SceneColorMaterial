@@ -21,13 +21,6 @@ Our approach takes as input a pattern template and any user-provided guidelines 
 
 %TODO: Mention/Describe Colourlovers dataset somewhere. Briefly describe image preprocessing, and final renderings (probably this will be in the probabilistic model section?). 
 
-
-\remark{S: An initial attempt at notation. Not sure if the general log-linear form equations are needed, since we'll go into specifics later and it might be confusing.}
-\remark{D: Now that I see it, I think these details would be better in the beginning of the next section.}
-
-We model the pattern colorization problem as a factor graph where the variables are the color groups $G_i$ and values are colors. We parameterize the likelihood of a color assignment as $P(G_1,..,G_n) \propto \prod_{i=1}^{k} \phi(D_i)$ where $D_i$ is some subset of variables. The factors $\Phi$ have the general log-linear form $\Phi(D_i) = exp(\sum_{j=1}^{m_i} \theta_j f_j(D_i))$ where $f_j(D_i)$ is some scoring function over $D_i$ and $\theta_j$ are weights. The log-linear form compactly represents the distribution of color assignments where the variable domain is potentially the whole color space. In addition, we can take advantage of well-established sampling techniques such as Markov-Chain Monte Carlo (MCMC) to generate multiple alternative colorings.
-
-
 % Examples of similar cases where factor graphs have been used (does image segmentation/labeling count?)
 
 Roadmap for the next section (which describes the technical details) / overview of the system.

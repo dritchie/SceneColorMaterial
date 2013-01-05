@@ -4,59 +4,74 @@ We model the probability of a coloring for a particular pattern template as a pr
 \begin{equation*}
  p(\colors | \pattern : \weights) = \frac{1}{Z_\pattern(\weights)} \prod_{\term \in \model} \exp{\frac{ \weights_\term \cdot \termStats(\colors, \pattern)}{t}}
 \end{equation*}
-where each term \t scores the goodness of a color assignment based on a term-dependent statistics function $\termStats(\colors,\pattern)$. $\weights_\term$ indicates the weight of term. On example of a term is the overall color compatibility of the color assignment, where its associated statistic is just the predicted compatibility rating of the five colors with the most area. This formulation of the probability distribution allows us to compare the weights of different terms to see which contribute most to predicting a good coloring. It is also general enough, such that we can add additional terms based on user feedback and constraints in order to guide the search.
+where each term $\term$ scores the goodness of a color assignment based on a term-dependent statistics function $\termStats(\colors,\pattern)$, and the temperature $t$ affects the peakiness of the distribution. $\weights_\term$ indicates the weight of term. On example of a term is the overall color compatibility of the color assignment, where its associated statistic is based on the predicted compatibility rating of the five colors with the most area. This formulation of the probability distribution allows us to compare the weights of different terms to see which contribute most to predicting a good coloring. It is also general enough, such that we can add additional terms based on user feedback and constraints in order to guide the search.
 
 In our model, we include terms for color compatibility and spatial terms for groups, segments, and segment adjacencies. The statistics function for each term will be detailed in the next sections. We also describe how factors over the color variables can be generated from each term, so we can sample high-probability colorings from the resulting factor graph.
-
-\subsection{Spatial Compatibility}
-
-\label{sec:spatialCompat}
-
-\remark{D: Say why we need spatial terms. Subsubsections (or paragraph notation) for unary, binary, group. Describe how they unroll factors (very simple), and how they compute sufficient statistics (qualitatively describe the color properties that we model). Do not yet say anything about how we actually learn these p(property|features) distributions.}
-
-\remark{D: After the above is all done, have a new subsubsection that describes how we learn the distributions using histogram regression.}
-
-\remark{S: Some initial attempt at notation, need to sync with other notation. Open to any suggestions, particularly on symbology or terminology. I think there are still some ambiguity issues when differentiating between the different factors/helper factors}
-
-In the spatial component of our model, we define factors over single and adjacent color groups to capture color-group dependencies and their spatial arrangement. The likelihood of a color assignment is:
-\begin{equation}
-L(G_1,..,G_n) = \prod_{i=1}^n \phi(G_i) \prod_{(j,k) \in adj} \phi(G_j, G_k)
-\end{equation}
-where $G_i$ is group i in the pattern.
-
-$\phi(G_i)$ computes how well group i matches its assigned color and is group-dependent. Each color group has a different number of member segments, each of which may impact what color the group takes on. As an example, smaller segments may often be more saturated, and a group composed of many small segments may be more saturated than a group composed of a few small segments but also one large segment \remark{S: Made up example. Should probably find one that holds in our data}. Thus, we generate segment-based helper factors $\phi_s$. These helper factors compute scores based on the features of individual member segments. In addition, we define a group-based helper factor $\phi_g$ which computes scores based on overall features of the group, such as total size. Combined together:
-\begin{equation}
-\phi(G_i) = \phi_g(G_i)^{size(G_i)} \prod_{s \in seg(G_i)} \phi_{s}(G_i)^{size(s)}
-\end{equation}
-where $size(G_i)$ is the relative size of the color group i in the pattern and $size({s_j})$ is the relative size of the segment j. This weighting gives preference for terms that cover more of the pattern, and thus may have a stronger impact on the appearance of the pattern coloring.
-
-\remark{S: Here I'm using the weighting scheme where we weight unary group factors too, but we can revert back by just removing the $w_i$}
-
-Similarly, the adjacency factor between groups $\phi(G_i, G_j)$ also depends on individual segment adjacencies within the groups:
-\begin{equation}
-\phi(G_i, G_j) = \prod_{(a,b) \in segadj(G_i, G_j)}^{} \phi_{(a,b)}(G_i, G_j)^{str(a,b)}
-\end{equation}
-where (a,b) are segment adjacencies within the two groups, $\phi_{(a,b)}$ is a helper factor that scores color assignments based on features on the adjacency between segment a and b, and str(a,b) is the relative strength of that adjacency.
-TODO: define adjacency strength
-
-In general, our factors compute scores based on the probabilities of color properties (i.e. lightness or colorfulness values) given either group, segment, or adjacency features. For example: 
-\begin{equation}
-\phi_g(G_i) = \prod_{c \in prop}P(c(G_i)|f_g(G_i))^{w_c}
-\end{equation}
-where $f(G_i)$ is a vector of group features and $w_c$ is the weight of the color property for groups. This is equivalent to the log-linear function $exp\left(\sum_{c \in prop} w_c * logP(c(G_i)|f_g(G_i))\right)$.
-
-The unary color properties we consider are lightness, colorfulness, name saliency, and color names (which is vector valued). The computation of color properties and segment features are detailed in the Appendix.
-We compute probabilities over color properties instead of individual colors to allow for better generalization over different colors that have not been seen in the training examples \remark{S:Talk about data/training examples somewhere before this?}. In addition, we can inspect the weights $w_c$ to gain a sense of which color properties are more significant within a particular set of training examples.
-
-$\phi_s(G_i)$ is defined in the same way, but taking into account individual segment features instead of overall group features.
-TODO, adjacency color properties
-
-
-TODO: Computing the probabilities/histograms/regression
-
-
 
 \subsection{Color Compatibility}
 \label{sec:colorCompat}
 
-\remark{D: Why we need this term. It only has one factor, and its statistics are very easy to describe. POSSIBILITY: Put this *before* the spatial stuff, because it's so simple to describe?}
+Previous work has shown that we can enhance the aesthetic appeal of an image by increasing the compatibility or harmony of image colors ~\cite{CohenOrHarmonization,DressUp,ColorizationUsingHarmony,ODonovan}. Thus, we include a color compatibility term to score the general appeal of the colors in an assignment, based on the compatibility model introduced by O'Donovan et al. ~\cite{ODonovan}. The compatibility model was originally trained to predict the aesthetic ratings of 5-color themes, an ordered row of 5 colors. 
+
+For the term's statistics function, we extract a color theme by taking the colors of the 5 largest color groups, and order them by size. If there are fewer than 5 color groups, we cycle the colors of the groups in order of size to fill the rest of theme. We then compute their log-normalized theme rating using O'Donovan's compatibility model. Informal inspection of 5-color patterns showed that size-ordering of the colors tended to produce themes that were rated higher than random orderings, though rated lower than the optimal ordering on average. Formally:
+\begin{equation*}
+\colorCompatTerm(\colors, \pattern) = ln(compat(theme(\colors, \pattern))/5)
+\end{equation*}
+where $theme$ is the ordered theme extracted from a pattern and $compat$ is the predicted rating from the O'Donovan model.
+
+\remark{S: To get more justification for the ordering criteria, we can also try looking at the ordered themes associated patterns and see if they look reasonable. I think we can also try getting the optimal rating of the top 5 colors in MATLAB (instead of having Scala pass permutations 120 times to MATLAB) to see how slow it is...or for comparison}.
+
+
+\subsection{Spatial Compatibility}
+\label{sec:spatialCompat}
+
+As shown in Figure ?, general color compatibility alone does not predict good colorings, and can lead to TODO artifacts (i.e. adjacent regions with little perceptual separation and loud backgrounds). Good color assignments also depend on the properties of the regions and their spatial arrangement. 
+
+To capture these dependencies, we include spatial terms over groups, segments, and adjacencies. Group and segment terms capture color dependencies on region features, and segment adjacency terms capture color dependencies on the relationship between nearby regions.
+
+\textbf{Group and segment terms}
+Both global group features as well as local segment features affect the appearance of a color assignment. The total area of a group and overall spread of its member segments correspond to the overall proportion and spread of its assigned color within an image. In addition, the size and shape of member segments may impact the color a group takes on. As an example, smaller segments may often be more saturated, and a group composed of many small segments may be more likely to be saturated than a group composed of a few small segments but also one large segment \remark{S: Made up example. Should probably find one that holds in our data}.   
+
+In general, our spatial terms score color assignments based on the conditional probability of properties of colors (i.e. lightness or colorfulness) given either group, segment, or adjacency features. 
+% \begin{equation*}
+% \groupTerm(\colors, \pattern) = \sum_{\group \in \groups_\pattern} \ln p( \prop( \colors(\group) ) | \features_\pattern(\group)) \cdot \size_\group
+% \end{equation*}
+
+% Statistics for segment terms:
+% \begin{equation*}
+% \segTerm(\colors, \pattern) = \sum_{\segment \in \segments_\pattern} \ln p( \prop( \colors(\segment) ) | \features_\pattern(\segment)) \cdot \size_\segment
+% \end{equation*}
+
+
+\textbf{Segment adjacency terms}
+% Each color group has a different number of member segments, each of which may impact what color the group takes on. As an example, smaller segments may often be more saturated, and a group composed of many small segments may be more saturated than a group composed of a few small segments but also one large segment \remark{S: Made up example. Should probably find one that holds in our data}. Thus, we generate segment-based helper factors $\phi_s$. These helper factors compute scores based on the features of individual member segments. In addition, we define a group-based helper factor $\phi_g$ which computes scores based on overall features of the group, such as total size. Combined together:
+% \begin{equation}
+% \phi(G_i) = \phi_g(G_i)^{size(G_i)} \prod_{s \in seg(G_i)} \phi_{s}(G_i)^{size(s)}
+% \end{equation}
+% where $size(G_i)$ is the relative size of the color group i in the pattern and $size({s_j})$ is the relative size of the segment j. This weighting gives preference for terms that cover more of the pattern, and thus may have a stronger impact on the appearance of the pattern coloring.
+
+% \remark{S: Here I'm using the weighting scheme where we weight unary group factors too, but we can revert back by just removing the $w_i$}
+
+% Similarly, the adjacency factor between groups $\phi(G_i, G_j)$ also depends on individual segment adjacencies within the groups:
+% \begin{equation}
+% \phi(G_i, G_j) = \prod_{(a,b) \in segadj(G_i, G_j)}^{} \phi_{(a,b)}(G_i, G_j)^{str(a,b)}
+% \end{equation}
+% where (a,b) are segment adjacencies within the two groups, $\phi_{(a,b)}$ is a helper factor that scores color assignments based on features on the adjacency between segment a and b, and str(a,b) is the relative strength of that adjacency.
+% TODO: define adjacency strength
+
+% In general, our factors compute scores based on the probabilities of color properties (i.e. lightness or colorfulness values) given either group, segment, or adjacency features. For example: 
+% \begin{equation}
+% \phi_g(G_i) = \prod_{c \in prop}P(c(G_i)|f_g(G_i))^{w_c}
+% \end{equation}
+% where $f(G_i)$ is a vector of group features and $w_c$ is the weight of the color property for groups. This is equivalent to the log-linear function $exp\left(\sum_{c \in prop} w_c * logP(c(G_i)|f_g(G_i))\right)$.
+
+% The unary color properties we consider are lightness, colorfulness, name saliency, and color names (which is vector valued). The computation of color properties and segment features are detailed in the Appendix.
+% We compute probabilities over color properties instead of individual colors to allow for better generalization over different colors that have not been seen in the training examples \remark{S:Talk about data/training examples somewhere before this?}. In addition, we can inspect the weights $w_c$ to gain a sense of which color properties are more significant within a particular set of training examples.
+
+% $\phi_s(G_i)$ is defined in the same way, but taking into account individual segment features instead of overall group features.
+% TODO, adjacency color properties
+
+
+\subsection{Learning Probability Distributions}
+
+TODO: Computing the probabilities/histograms/regression
