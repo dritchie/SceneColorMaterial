@@ -3,7 +3,7 @@
 
 \input{notation.tex}
 
-\remark{D: ``Our model is composed of several terms. Each may have multiple factors (give an example of this happening). Here's the mathematical expression of our probability distribution. The rest of section will describe each term in detail, blah blah blah.''}
+\remark{D: ``Our model is composed of several terms. Here's the mathematical expression of our probability distribution. The rest of section will describe each term in detail, blah blah blah.''}
 
 In every subsection, motivate why this particular term is needed. Briefly relate to any relevant algorithmic details from previous work.
 
@@ -41,39 +41,35 @@ As a first approach, we could assume that all terms are equally important. Figur
 
 A better approach is to set the weights so that the resulting model is highly likely to generate the training examples. That is, we would like to tune the weights so that the training examples---the patterns whose style we want to reproduce---have high probability under the model. This weight-tuning problem is an instance of maximum-likelihood parameter estimation~\cite{PGMBook}. The log-likelihood function of our model is
 %% log-likelihood function
-\begin{multline*}
+\begin{equation*}
 \ell(\weights : \dataset) =
 	\sum_{(\pattern, \colors) \in \dataset}
 	(
 		\sum_{\term \in \model}
-			\weights_\term \cdot
-			\sum_{\factor \in \factors(\pattern)}
-				\factorStats(\colors, \features_\pattern)
+			\weights_\term \cdot \termStats(\colors, \pattern)
 	)			
 		- \ln{Z_\pattern(\weights)}
-\end{multline*}
+\end{equation*}
 %%
 where $Z_\pattern(\weights)$ is the pattern-dependent partition function which normalizes the distribution. Convex log-likelihoods such as this one are typically maximized via gradient ascent. The partial derivatives of this function with respect to the weights are given by
 %% Partial derivatives
-\begin{multline*}
+\begin{equation*}
 \frac{\partial}{\partial \weights_\term} \ell(\weights : \dataset) = 
 	\sum_{(\pattern, \colors) \in \dataset}
-		\sum_{\factor \in \factors(\pattern)}
-			\factorStats(\colors, \features_\pattern)
-				- \expectation_\weights[\factorStats(\colorVars_\pattern, \features_\pattern)]
-\end{multline*}
+			\termStats(\colors, \pattern)
+		- \expectation_\weights[\termStats(\colorVars_\pattern, \pattern)]
+\end{equation*}
 %%
 where $\expectation_\weights$ denotes an expectation under the model with weights $\weights$. Unfortunately, these quantities are extremely expensive to compute. The expectation term requires probabilistic inference---an NP-complete problem---for every training pattern, for every iteration of gradient ascent.
 
 This computational intractability has motivated the development of alternative, `biased' parameter estimation schemes which do not directly maximize the likelihood function but nevertheless yield parameters that give high likelihoods~\cite{NonMLEParameterEstimation}. We use one such method, called \emph{Contrastive Divergence} (CD)~\cite{ContrastiveDivergence}. CD uses the following approximation to the likelihood gradient:
 %% CD gradient
-\begin{multline*}
+\begin{equation*}
 CD(\weights : \dataset) = 
 	\sum_{(\pattern, \colors) \in \dataset}
-		\sum_{\factor \in \factors(\pattern)}
-			\factorStats(\colors, \features_\pattern)
-		 -\factorStats(\hat{\colors}, \features_\pattern)
-\end{multline*}
+			\termStats(\colors, \pattern)
+		 -\termStats(\hat{\colors}, \pattern)
+\end{equation*}
 %%
 where $\hat{\colors}$ is the coloring state obtained by running an MCMC chain for one step from the initial state $\colors$. CD essentially forms a local approximation to the likelihood gradient around the neighborhood of state $\colors$. Since all terms in our model are conditional log-probabilities, we enforce the additional constraint during optimization that all weights be positive.~\remark{Happy to take this out if we can find a way around it}
 
