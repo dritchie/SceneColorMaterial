@@ -71,34 +71,22 @@ The sufficient statistics function for each binary property is:
  \factor_\pattern(\colorVars(\group), \colorVars(\groupprime)) = exp\left(\sum_{\prop \in \binaryProps}\sum_{(\segment, \segprime) \in \adj(\group, \groupprime)} \adjInstStats(\segment, \segprime)\right) 
  \end{equation*}
 
-% Each color group has a different number of member segments, each of which may impact what color the group takes on. As an example, smaller segments may often be more saturated, and a group composed of many small segments may be more saturated than a group composed of a few small segments but also one large segment \remark{S: Made up example. Should probably find one that holds in our data}. Thus, we generate segment-based helper factors $\phi_s$. These helper factors compute scores based on the features of individual member segments. In addition, we define a group-based helper factor $\phi_g$ which computes scores based on overall features of the group, such as total size. Combined together:
-% \begin{equation}
-% \phi(G_i) = \phi_g(G_i)^{size(G_i)} \prod_{s \in seg(G_i)} \phi_{s}(G_i)^{size(s)}
-% \end{equation}
-% where $size(G_i)$ is the relative size of the color group i in the pattern and $size({s_j})$ is the relative size of the segment j. This weighting gives preference for terms that cover more of the pattern, and thus may have a stronger impact on the appearance of the pattern coloring.
-
-% \remark{S: Here I'm using the weighting scheme where we weight unary group factors too, but we can revert back by just removing the $w_i$}
-
-% Similarly, the adjacency factor between groups $\phi(G_i, G_j)$ also depends on individual segment adjacencies within the groups:
-% \begin{equation}
-% \phi(G_i, G_j) = \prod_{(a,b) \in segadj(G_i, G_j)}^{} \phi_{(a,b)}(G_i, G_j)^{str(a,b)}
-% \end{equation}
-% where (a,b) are segment adjacencies within the two groups, $\phi_{(a,b)}$ is a helper factor that scores color assignments based on features on the adjacency between segment a and b, and str(a,b) is the relative strength of that adjacency.
-% TODO: define adjacency strength
-
-% In general, our factors compute scores based on the probabilities of color properties (i.e. lightness or colorfulness values) given either group, segment, or adjacency features. For example: 
-% \begin{equation}
-% \phi_g(G_i) = \prod_{c \in prop}P(c(G_i)|f_g(G_i))^{w_c}
-% \end{equation}
-% where $f(G_i)$ is a vector of group features and $w_c$ is the weight of the color property for groups. This is equivalent to the log-linear function $exp\left(\sum_{c \in prop} w_c * logP(c(G_i)|f_g(G_i))\right)$.
-
-% The unary color properties we consider are lightness, colorfulness, name saliency, and color names (which is vector valued). The computation of color properties and segment features are detailed in the Appendix.
-% We compute probabilities over color properties instead of individual colors to allow for better generalization over different colors that have not been seen in the training examples \remark{S:Talk about data/training examples somewhere before this?}. In addition, we can inspect the weights $w_c$ to gain a sense of which color properties are more significant within a particular set of training examples.
-
-% $\phi_s(G_i)$ is defined in the same way, but taking into account individual segment features instead of overall group features.
-% TODO, adjacency color properties
-
 
 \subsection{Learning Probability Distributions}
 
-TODO: Computing the probabilities/histograms/regression
+As described previously, each group, segment, and adjacency term is associated with a conditional probability distributions (pdfs) of the term's color property given instance features, from which it computes term statistics. To learn these conditional pdfs, we adapt the approach of Charpiat et al.~\shortcite{MultimodalColorization}, where we first discretize the distribution by binning property values. Bins are determined by K-means clustering on property values found in the training examples. However, we use multinomial logistic regression to predict the probability of a bin given a feature vector for an instance, instead of kernel density estimation on training instances that fall in the same bin. 
+
+TODO: multinomial logistic regression instead of KDE+KNN because....faster during training? advantage of not having to store training instances, and performance seemed reasonable qualitatively. In addition, inspecting coefficients could be informative.  
+
+The specific form of the training input to the regression depends on the term. For example, for the group term statistics $\groupTerm$, training instances from the training dataset $\dataset$ have the form 
+
+$(bin(\prop(\colors(\group))), \features(\group)) \in (\pattern, \colors) \in \dataset$ 
+
+where the bin indicates the class label. To give each pattern template in the training set equal weight in the regression, we weight each group example by one over the number of groups in the template. Similar instances and instance weightings are used for segment and adjacency term regressions, but with the respective segment and adjacency features.
+
+Finally, to evaluate the probability density of a property value, we use kernel density estimation on the bins. We set the number of bins to be ? and the bandwidth of the kernel to be ?. 
+
+This approach is relatively fast. Because the features of a pattern template do not change during inference, we only need to compute the discretized conditional pdfs once per tuple of group, segment, or adjacency and their associated property when generating a coloring.
+
+
+TODO: possibly mention importance of multimodality at the beginning..how approaches that predict some best property value (i.e. averaging), don't take that into account.
