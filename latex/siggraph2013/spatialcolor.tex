@@ -1,4 +1,15 @@
+We formulate the problem of generating colorings for a pattern template as finding high-probability colorings. Formally, we define a pattern template $\pattern = (\segments, \groups, \colorVars, \features)$, where $\groups$ is a set of individual groups $\group$, and $\segments$ is a set of individual segments $\segment$, $\colorVars$ is a set of color variables, and $\features$ is a set of features over different groups, segments, and adjacencies within the pattern. Each $\group$ and $\segment$ is associated with a color variable $C(\group)$ and $C(\segment)$ respectively. Because all segments within a color group are defined to have the same color, $C(group(\segment))$ always has the same value as $C(\segment)$. A coloring $\colors$ is an assignment of colors to color variables.
+
+We model the probability of a coloring for a particular pattern template as a product of different terms $\term$:   
+\begin{equation*}
+ p(\colors | \pattern : \weights) = \frac{1}{Z_\pattern(\weights)} \prod_{\term \in \model} \exp{\frac{ \weights_\term \cdot \termStats(\colors, \pattern)}{t}}
+\end{equation*}
+where each term \t scores the goodness of a color assignment based on a term-dependent statistics function $\termStats(\colors,\pattern)$. $\weights_\term$ indicates the weight of term. On example of a term is the overall color compatibility of the color assignment, where its associated statistic is just the predicted compatibility rating of the five colors with the most area. This formulation of the probability distribution allows us to compare the weights of different terms to see which contribute most to predicting a good coloring. It is also general enough, such that we can add additional terms based on user feedback and constraints in order to guide the search.
+
+In our model, we include terms for color compatibility and spatial terms for groups, segments, and segment adjacencies. The statistics function for each term will be detailed in the next sections. We also describe how factors over the color variables can be generated from each term, so we can sample high-probability colorings from the resulting factor graph.
+
 \subsection{Spatial Compatibility}
+
 \label{sec:spatialCompat}
 
 \remark{D: Say why we need spatial terms. Subsubsections (or paragraph notation) for unary, binary, group. Describe how they unroll factors (very simple), and how they compute sufficient statistics (qualitatively describe the color properties that we model). Do not yet say anything about how we actually learn these p(property|features) distributions.}
