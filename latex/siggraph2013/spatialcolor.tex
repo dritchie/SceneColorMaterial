@@ -1,5 +1,10 @@
 \subsection{Spatial Compatibility}
 \label{sec:spatialCompat}
+
+\remark{D: Say why we need spatial terms. Subsubsections (or paragraph notation) for unary, binary, group. Describe how they unroll factors (very simple), and how they compute sufficient statistics (qualitatively describe the color properties that we model). Do not yet say anything about how we actually learn these p(property|features) distributions.}
+
+\remark{D: After the above is all done, have a new subsubsection that describes how we learn the distributions using histogram regression.}
+
 \remark{S: Some initial attempt at notation, need to sync with other notation. Open to any suggestions, particularly on symbology or terminology. I think there are still some ambiguity issues when differentiating between the different factors/helper factors}
 
 In the spatial component of our model, we define factors over single and adjacent color groups to capture color-group dependencies and their spatial arrangement. The likelihood of a color assignment is:
@@ -42,4 +47,5 @@ TODO: Computing the probabilities/histograms/regression
 
 \subsection{Color Compatibility}
 \label{sec:colorCompat}
-Talk about color stuff e.g. O'Donovan's model here.
+
+\remark{D: Why we need this term. It only has one factor, and its statistics are very easy to describe. POSSIBILITY: Put this *before* the spatial stuff, because it's so simple to describe?}

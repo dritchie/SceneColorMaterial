@@ -3,7 +3,9 @@
 
 \input{notation.tex}
 
-In every subsection, motivate why this particular component is important/difficult and why we had to develop something new. Briefly relate to algorithmic details from relevant previous work.
+\remark{D: ``Our model is composed of several terms. Each may have multiple factors (give an example of this happening). Here's the mathematical expression of our probability distribution. The rest of section will describe each term in detail, blah blah blah.''}
+
+In every subsection, motivate why this particular term is needed. Briefly relate to any relevant algorithmic details from previous work.
 
 %To be safe, temporarily separating out the spatial arrangement and color compatibility subsection
 \input{spatialcolor.tex}
@@ -28,12 +30,10 @@ Finally, we use maximimum marginal relevance (MMR) to enforce diversity in the s
 \text{sim}(\colors_1, \colors_2, \pattern) = - \sum_{\group \in \groups_\pattern} {A_\group \cdot ||\colors_1(\group) - \colors_2(\group)||}
 \end{equation*}
 %%
-which is the area-weighted sum of \lab distances between the corresponding colors in each coloring~\remark{Notation, terminology subject to change}.
+which is the area-weighted sum of \lab distances between the corresponding colors in each coloring.
 
 \subsection{Weight Learning}
 \label{sec:weights}
-
-\remark{Notation in here needs work + synchronization with previous notation.}
 
 The model defined thus far has several terms $\term$, and each has a weight parameter $\weights_\term$. These weights control the relative importance of the different terms in the model---so how should they be set?
 
