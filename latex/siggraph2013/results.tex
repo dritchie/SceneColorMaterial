@@ -1,7 +1,7 @@
 \section{Results}
 \label{sec:results}
 
-The data-driven probabilistic model we have presented produces good-looking patterns and can be applied to a variety of tasks. The factor graph representation makes it easy to adapt our framework to handle new problems or incorporate user-provided design constraints by introducing additional factors to the factor graph, or changing the source data used to train the factor weights and histograms.
+The data-driven probabilistic model we have presented produces good-looking patterns and can be applied in many different ways. The factor graph representation makes it easy to adapt our framework to handle new problems or incorporate user-provided design constraints by introducing additional factors to the factor graph, or changing the source data used to train the factor weights and histograms.
 
 \remark{Discuss parameters used to train model ``unless otherwise specified''. Number of artists, weights, etc.}
 
@@ -59,8 +59,6 @@ Suggestion&Results\\
 
 Figure~\ref{fig:nearbySuggestions} shows examples where a proposed coloring is given, and the artist asks for colorings that are similar; this results in a new factor being added to each input color region. \remark{Discussion on hold since the results will likely change}
 
-\paragraph{Style capture} Stuff.
-
 \begin{figure}[ht]
 \begin{tabular}{ccc} 
 Style&Example&Results\\ %\hline
@@ -84,7 +82,10 @@ Artist A&Artist B\\
 
 \caption{Our data-driven approach makes it easy to capture the styles of different artists. Top: representative images from two different artists. Bottom: results sampled from a model trained on 100 images from the artist.}
 \vspace{-1.0em}
+\label{fig:artistTraining}
 \end{figure*}
+
+\paragraph{Style capture} A powerful advantage of a data-driven approach is the ability to modify the underlying training source to achieve specialization of the resulting model. This allows us to capture a specific style and color preferences such as ``high-contrast palettes'' simply by selecting a set of images with the desired property. Figure~\ref{fig:styleTraining} demonstrates this using four style categories: \emph{Light}, \emph{Dark}, \emph{Bold}, and \emph{Mellow}. With only 17 training examples, our model is still able to capture general properties of the images such as the distribution of colors over the background regions and the amount of contrast between adjacent regions. It is also easy to capture the style of a specific artist, as shown in Figure~\ref{fig:artistTraining}. Here, 100 images from each artist were used for training. The sampled images mimic certain properties of the the style of each artist, such as the light backgrounds preferred by artist A and the bold colors and dark backgrounds preferred by artist B.
 
 \subsection{Performance}
 
