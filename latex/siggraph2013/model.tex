@@ -47,7 +47,7 @@ Ideally, we'd like to set the weights such that the resulting model is highly li
 		- \ln{Z_\pattern(\weights)}
 \end{equation*}
 %%
-where $Z_\pattern(\weights)$ is the pattern-dependent partition function which normalizes the distribution. Convex log-likelihoods such as this one are typically maximized via gradient ascent. The partial derivatives of this function with respect to the weights are given by
+Convex log-likelihoods such as this one are typically maximized via gradient ascent. The partial derivatives of this function with respect to the weights are given by
 %% Partial derivatives
 \begin{equation*}
 \frac{\partial}{\partial \weights_\term} \ell(\weights : \dataset) = 
