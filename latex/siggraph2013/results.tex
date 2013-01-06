@@ -9,6 +9,8 @@ The data-driven probabilistic model we have presented produces good-looking patt
 
 \subsection{Coloring Pattern Templates}
 
+\paragraph{Automatic pattern coloring} In the most direct application of our framework, we can sample from our model to produce colorings for a pattern template that are similar to the colorings used for training. Figure~\ref{fig:teaser} shows two examples of this process. The sampled patterns exhibit a range of colors and styles employed by the Colourlover artists. For comparison, the same patterns colored with palettes randomly sampled from RGB-space are shown on the right. These patterns exhibit significant problems, such as low color harmony and adjacent regions with equi-limuinant colors.
+
 \begin{figure*}[ht]
 \begin{tabular}{ccc}
 \includegraphics[width=.15\linewidth]{figs/permutationTemplatePalette} & \includegraphics[width=.4\linewidth]{figs/permutationBest8} & \includegraphics[width=.4\linewidth]{figs/permutationWorst8} %& \includegraphics[width=.12\linewidth]{figs/permutationArtist}
@@ -21,9 +23,22 @@ The data-driven probabilistic model we have presented produces good-looking patt
 \label{fig:permutation}
 \end{figure*}
 
-\paragraph{Automatic pattern generation} In the most direct application of our framework, we can sample from our model to produce colorings for a pattern template that are similar to the patterns used for training. Figure~\ref{fig:teaser} shows two examples of this. The sampled patterns exhibit a range of colors and styles employed by some of the Colourlover artists. For comparison, the same patterns colored with palettes randomly sampled from RGB-space are shown on the right. These patterns exhibit significant problems, such as low color harmony and adjacent regions with equi-limuinant colors.
+\paragraph{Spatial arrangement} In some cases, an artist already knows what colors they want to use in an image. They might have found a palette they are enamored with elsewhere, or they might have a very specific theme in mind. Even with a fixed palette, there are still a range of images that can be created by mapping different colors to different regions, only some of which are desirable. To support this task, we use our model's score to rank all possible permutations of the colors. Figure~\ref{fig:permutation} shows one example of this process. \ref{fig:permutation}b shows the eight highest-rated color assignments which exhibit a variety of color styles, such as using four different background colors. On the other hand, the lowest-rated assignments all use the tangerine background color. Our color model assigns a very low score to using this color for the background region because its color properties are not similar to background colors in the training set. The actual color assignment originally provided by the artist for this color template received the second-highest score, suggesting that our model was able to capture the artist's intent.
 
-\paragraph{Spatial arrangement} In some cases, an artist already knows what colors they want to use in an image. They might have found a palette they are enamored with elsewhere, or they might have a very specific theme in mind. Even with a fixed palette, there are still a range of images that can be created by mapping different colors to different regions, only some of which are desirable to the artist. To support this task, we use our model's score to rank all possible permutations of the colors. Figure~\ref{fig:permutation} shows one example of this process. \ref{fig:permutation}b shows the eight highest-rated color assignments which exhibits a variety of color styles, such as using four different background colors. On the other hand, the lowest-rated assignments all use the tangerine background color. Our color model assignment a very low score to assigning this color to the background region because its color properties were not similar to background colors in the model's training set. The actual color assignment originally provided by the artist for this color template received the second-highest score, suggesting that our model was able to capture the artist's intent.
+\begin{figure*}[ht]
+\begin{tabular}{cc} 
+\includegraphics[width=.475\linewidth]{figs/constrainedSearchUnconstrained}&\includegraphics[width=.475\linewidth]{figs/constrainedSearchConstrained}\\
+Unconstrained sampling&Constrained sampling\\
+\end{tabular}
+
+\caption{An artist coloring a pattern is presented with the results shown on the left, and decides that she only likes results where the stem of the plant is dark green. On the right, we use conditional inference to sample from our model subject to the constraint that the desired palette entry is fixed to a specific color. This is a natural way to incorporate semantic information about region colors which cannot be easily learned by our model.}
+\label{fig:constrainedInference}
+\vspace{-1.0em}
+\end{figure*}
+
+\remark{I realize that we may not keep in the hard or soft constraint figures and results, in favor of more ``interesting'' constraints; I'm still trying to find better examples of the hard and soft constraints though.}
+
+\paragraph{Adding hard constraints} Often a user has some idea of what types of palettes they are interested in. When this idea takes the form of a hard constraint on a region color, it is straightforward to accommodate this by using constrained inference to sample from the factor graph. Figure~\ref{fig:constrainedInference} shows an example. The model samples from the highest-scoring patterns subject to the constraint that the plant stem must be a specific shade of green.
 
 \begin{figure}[ht]
 \begin{tabular}{cc}
@@ -38,6 +53,14 @@ Suggestion&Results\\
 \vspace{-1.0em}
 \end{figure}
 
+\paragraph{Adding soft constraints} When the user has only a general idea of what kind of palette they want, soft constraints can be incorporated by adding new factors. A simple constraint is that the color assigned to a region should be close to a target color, which we represent using a factor of the form:
+
+\remark{Check up on factor notation. Adds two parameters: one sigma (how far out should you search?) and one weight (what is the tradeoff between pattern-goodness and adhering to the provided colors?). May be hard to concisely summarize all this though.}
+
+Figure~\ref{fig:nearbySuggestions} shows examples where a proposed coloring is given, and the artist asks for colorings that are similar; this results in a new factor being added to each input color region. \remark{Discussion on hold since the results will likely change}
+
+\paragraph{Style capture} Stuff.
+
 \begin{figure}[ht]
 \begin{tabular}{ccc} 
 Style&Example&Results\\ %\hline
@@ -51,17 +74,6 @@ Style&Example&Results\\ %\hline
 \label{fig:styleTraining}
 \vspace{-1.0em}
 \end{figure}
-
-\begin{figure*}[ht]
-\begin{tabular}{cc} 
-\includegraphics[width=.475\linewidth]{figs/constrainedSearchUnconstrained}&\includegraphics[width=.475\linewidth]{figs/constrainedSearchConstrained}\\
-Unconstrained sampling&Constrained sampling\\
-\end{tabular}
-
-\caption{An artist coloring a pattern is presented with the results shown on the left, and decides that she only likes results where the stem of the plant is dark green. On the right, we use conditional inference to sample from our model subject to the constraint that the desired palette entry is fixed to a specific color. This is a natural way to incorporate semantic information about region colors which cannot be easily learned by our model.}
-\label{fig:constrainedInference}
-\vspace{-1.0em}
-\end{figure*}
 
 \begin{figure*}[ht]
 \begin{tabular}{cc} 
