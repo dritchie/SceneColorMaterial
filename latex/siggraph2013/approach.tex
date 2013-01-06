@@ -13,15 +13,16 @@ Our approach takes as input a pattern template and any user-provided guidelines 
 
 To generate attractive pattern colorings, a reasonable first step is to enforce that the colors used are `compatible' with one another, for some definition of color compatibility. Figure~\ref{fig:ColorCompatOnly} shows several patterns whose colors receive a high score under the color compatibility model of O'Donovan et al.~\shortcite{ODonovan}.~\remark{Make this figure.} While high-scoring colorings do exhibit a great degree of diversity, scoring a coloring based soley on the compatibility of its colors is not enough as pattern appearance also relies on relative proportion and spatial arrangement of colors. The colorings in the figure exhibit several problems due to arrangement, such foreground regions that blend into the background, and background regions that are too `loud' in color. Furthermore, color compatibility is a universal notion: it is not clear how to adapt it to match the style of a particular artist or the preferences of a particular user.
 
-\begin{figure}
-\centering
-\includegraphics[width=\columnwidth]{figs/colorCompatOnly}
-\caption{Patterns whose colors receive high scores under the color compatibility model of O'Donovan et al.~\shortcite{ODonovan}. Many patterns exhibit problems such as adjacent equi-luminant regions and excessively saturated backgrounds.~\remark{Figure not final.}}
-\label{fig:ColorCompatOnly}
-\end{figure}
-
 %Large, background regions are colored differently than smaller, scattered `accent' regions; a thin, ribbon-like region against an empty field is colored differently than a thin region amidst a mass of similar regions.
 
 %While compatible colors are an important component of attractive pattern colorings, they do not tell the whole story. The notion of color compatibility, whether implemented via the O'Donovan model or any other, considers colors abstractly: it does not take into account how they will be spatially used in the pattern. 
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=\columnwidth]{figs/colorCompatOnly.png}
+\caption{Patterns whose colors receive high scores under the color compatibility model of O'Donovan et al.~\shortcite{ODonovan}. Many patterns exhibit problems such as adjacent equi-luminant regions and excessively saturated backgrounds}
+\label{fig:ColorCompatOnly}
+\end{figure}
+\remark{S:I'm stumped...Not sure why, but my Latex breaks with the caption there..but TexWorks works ok}
 
 Rather than develop a specialized algorithm for this problem, we exploit the insight that both of these concerns---color harmony and spatial consistency---can be encoded in the extremely general framework of probabilistic factor graphs~\cite{FactorGraphs}. The framework allows us to leverage existing models of color compatibility. In the next section, we develop a data-driven factor graph model that can be trained on example colored patterns and sampled to generate new coloring suggestions. The factor graph formalism allows us to leverage existing models of color compatibility, to plug in additional coloring constraints in response to available user input, and to capture and inspect the characteristics of desired styles through established machine learning techniques.
