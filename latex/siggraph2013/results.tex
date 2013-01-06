@@ -23,7 +23,7 @@ The data-driven probabilistic model we have presented produces good-looking patt
 \label{fig:permutation}
 \end{figure*}
 
-\paragraph{Spatial arrangement} In some cases, an artist already knows what colors they want to use in an image. They might have found a palette they are enamored with elsewhere, or they might have a very specific theme in mind. Even with a fixed palette, there are still a range of images that can be created by mapping different colors to different regions, only some of which are desirable. To support this task, we use our model's score to rank all possible permutations of the colors. Figure~\ref{fig:permutation} shows one example of this process. \ref{fig:permutation}b shows the eight highest-rated color assignments which exhibit a variety of color styles, such as using four different background colors. On the other hand, the lowest-rated assignments all use the tangerine background color. Our color model assigns a very low score to using this color for the background region because its color properties are not similar to background colors in the training set. The actual color assignment originally provided by the artist for this color template received the second-highest score, suggesting that our model was able to capture the artist's intent.
+\paragraph{Coloring with fixed palettes} In some cases, an artist already knows what colors they want to use in an image. They might have found a palette they are enamored with elsewhere, or they might have a very specific theme in mind. Even with a fixed palette, there are still a range of images that can be created by mapping different colors to different regions, only some of which are desirable. To support this task, we use our model's score to rank all possible permutations of the colors. Figure~\ref{fig:permutation} shows one example of this process. \ref{fig:permutation}b shows the eight highest-rated color assignments which exhibit a variety of color styles, such as using four different background colors. On the other hand, the lowest-rated assignments all use the tangerine background color. Our color model assigns a very low score to using this color for the background region because its color properties are not similar to background colors in the training set. The actual color assignment originally provided by the artist for this color template received the second-highest score, suggesting that our model was able to capture the artist's intent.
 
 \begin{figure*}[ht]
 \begin{tabular}{cc} 
@@ -38,7 +38,7 @@ Unconstrained sampling&Constrained sampling\\
 
 \remark{I realize that we may not keep in the hard or soft constraint figures and results, in favor of more ``interesting'' constraints; I'm still trying to find better examples of the hard and soft constraints though.}
 
-\paragraph{Adding hard constraints} Often a user has some idea of what types of palettes they are interested in. When this idea takes the form of a hard constraint on a region color, it is straightforward to accommodate this by using constrained inference to sample from the factor graph. Figure~\ref{fig:constrainedInference} shows an example. The model samples from the highest-scoring patterns subject to the constraint that the plant stem must be a specific shade of green.
+\paragraph{Hard color constraints} Often a user has some idea of what types of palettes they are interested in. When this idea takes the form of a hard constraint on a region color, it is straightforward to accommodate this by using constrained inference to sample from the factor graph. Figure~\ref{fig:constrainedInference} shows an example. The model samples from the highest-scoring patterns subject to the constraint that the plant stem must be a specific shade of green.
 
 \begin{figure}[ht]
 \begin{tabular}{cc}
@@ -53,7 +53,7 @@ Suggestion&Results\\
 \vspace{-1.0em}
 \end{figure}
 
-\paragraph{Adding soft constraints} When the user has only a general idea of what kind of palette they want, soft constraints can be incorporated by adding new factors. A simple constraint is that the color assigned to a region should be close to a target color, which we represent using a factor of the form:
+\paragraph{Soft color constraints} When the user has only a general idea of what kind of palette they want, soft constraints can be incorporated by adding new factors. A simple constraint is that the color assigned to a region should be close to a target color, which we represent using a factor of the form:
 
 \remark{Check up on factor notation. Adds two parameters: one sigma (how far out should you search?) and one weight (what is the tradeoff between pattern-goodness and adhering to the provided colors?). May be hard to concisely summarize all this though.}
 
@@ -86,6 +86,12 @@ Artist A&Artist B\\
 \end{figure*}
 
 \paragraph{Style capture} A powerful advantage of a data-driven approach is the ability to modify the underlying training source to achieve specialization of the resulting model. This allows us to capture a specific style and color preferences such as ``high-contrast palettes'' simply by selecting a set of images with the desired property. Figure~\ref{fig:styleTraining} demonstrates this using four style categories: \emph{Light}, \emph{Dark}, \emph{Bold}, and \emph{Mellow}. With only 17 training examples, our model is still able to capture general properties of the images such as the distribution of colors over the background regions and the amount of contrast between adjacent regions. It is also easy to capture the style of a specific artist, as shown in Figure~\ref{fig:artistTraining}. Here, 100 images from each artist were used for training. The sampled images mimic certain properties of the the style of each artist, such as the light backgrounds preferred by artist A and the bold colors and dark backgrounds preferred by artist B.
+
+\subsection{Applications}
+
+\paragraph{Web desigm}
+
+\paragraph{3D scene design}
 
 \subsection{Performance}
 
