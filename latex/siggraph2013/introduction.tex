@@ -2,16 +2,17 @@
 \label{sec:introduction}
 
 %% Hook and motivation
-\remark{S: We could possibly work in the paint-by-numbers thing at the beginning, saying that people find it to be a fun activity. An easy way to create an image that looks really good.}
 From graphic and web design, to fashion and fabrics, to interior design, colored patterns are everywhere. 
 While many people can easily distinguish patterns that they like from those they don't, \emph{creating} attractive patterns from scratch can take much more time and effort. Because perceived color appearance is very dependent on spatial arrangement, it is difficult for both experienced artists and enthusiasts to anticipate how a specific coloring will look. Thus, even coloring in a pattern can often involve much trial-and-error as well as color tweaking. Experienced artists often create quick thumbnail colorings to explore the state space before diving into their final work. Many also use reference images for inspiration when choosing colors~\cite{ColorPaletteTools}.
 
 %Even the more constrained task of coloring an existing pattern template can be challenging, as it still exhbis a daunting array of coloring options. Experienced artists and enthusiasts often seek feedback and inspiration from online communities such as Colourlovers\footnote{http://www.colourlovers.com/}.
 
-%% This problem is not addessed currently...Focus/Goal of the paper and technical/specific pattern definition. 
-\remark{S: This is still a bit choppy. Not sure how to fix it yet. We could take the approach of the ODonovan paper and describe pattern templates in the context of Colourlovers (i.e. there are many examples of appealing images on the web. Can we use these images to learn good styles of coloring, and then use that information to facilitate the pattern coloring process? Colourlovers is one such source of colored pattern templates. Definition of pattern template).}
-
+%% This problem is not addessed currently...Focus of the paper and technical/specific pattern definition. 
 Despite these challenges, few computational tools exist for guiding the pattern coloring process. We define a colored pattern to have two parts: a \emph{pattern template}, which specifies a creative decomposition of space into regions, as well as which regions must map to the same color; and a set of \emph{colors} assigned to those regions. In this paper, we look at the problem of automatically generating good coloring suggestions, given a target pattern template and user input if provided. 
+
+\remark{S: This is still a bit choppy. Not sure how to fix it yet. We could take the approach of the ODonovan paper and describe pattern templates in the context of Colourlovers (i.e. there are many examples of appealing images on the web. Can we use these images as references to learn good styles of coloring, and then use that information to facilitate the pattern coloring process? Colourlovers is one such source of colored images, specifically of colored pattern. In this paper, we focus on colored patterns. Definition of colored pattern.}
+\remark{S: We could possibly make reference to the paint-by-numbers format when decribing pattern templates?}
+
 
 %% Goals, We should make it clear somewhere that we're not trying to replace artists
 To be an effective creative support tool, a coloring suggestion system should be able to adapt its suggestions for different usage scenarios. First, it should be able to output diverse suggestions automatically for uncertain users who want to explore the space of good colorings. Second, the system should be able to accomodate users with different aesthetic preferences by customizing suggestions to evoke a particular desired style. Finally, it should expose controls to let users refine their criteria and guide the process. 
