@@ -21,6 +21,8 @@ The data-driven probabilistic model we have presented produces good-looking patt
 \label{fig:permutation}
 \end{figure*}
 
+\paragraph{Automatic pattern generation} In the most direct application of our framework, we can sample from our model to produce colorings for a pattern template that are similar to the patterns used for training. Figure~\ref{fig:teaser} shows two examples of this. The sampled patterns exhibit a range of colors and styles employed by some of the Colourlover artists. For comparison, the same patterns colored with palettes randomly sampled from RGB-space are shown on the right. These patterns exhibit significant problems, such as low color harmony and adjacent regions with equi-limuinant colors.
+
 \paragraph{Spatial arrangement} In some cases, an artist already knows what colors they want to use in an image. They might have found a palette they are enamored with elsewhere, or they might have a very specific theme in mind. Even with a fixed palette, there are still a range of images that can be created by mapping different colors to different regions, only some of which are desirable to the artist. To support this task, we use our model's score to rank all possible permutations of the colors. Figure~\ref{fig:permutation} shows one example of this process. \ref{fig:permutation}b shows the eight highest-rated color assignments which exhibits a variety of color styles, such as using four different background colors. On the other hand, the lowest-rated assignments all use the tangerine background color. Our color model assignment a very low score to assigning this color to the background region because its color properties were not similar to background colors in the model's training set. The actual color assignment originally provided by the artist for this color template received the second-highest score, suggesting that our model was able to capture the artist's intent.
 
 \begin{figure}[ht]
@@ -68,7 +70,7 @@ Unconstrained sampling&Constrained sampling\\
 Artist A&Artist B\\
 \end{tabular}
 
-\caption{Our data-driven approach makes it easy to capture the styles of different artists. Top: representative images from two different artists. Bottom: results sampled from two different models, each trained on 100 images from the artist.}
+\caption{Our data-driven approach makes it easy to capture the styles of different artists. Top: representative images from two different artists. Bottom: results sampled from a model trained on 100 images from the artist.}
 \vspace{-1.0em}
 \end{figure*}
 
