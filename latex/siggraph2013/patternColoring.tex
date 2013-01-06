@@ -88,7 +88,7 @@
 
 %% For auto-inserting line breaks in extra long equations
 \usepackage{etoolbox}
-\usepackage{breqn}
+%\usepackage{breqn}
 
 %% Because dmath and line numbering don't play well together
 % See http://tex.stackexchange.com/questions/86529/breqn-and-lineno-incompatibility
@@ -124,7 +124,7 @@
         Input pattern                   & Sampled colorings               & Random colorings                \\
     \end{tabular}
 %\end{table}
-\caption{Given the uncolored pattern templates shown on the left, we use our probabilistic factor graph model to generate the pattern colorings shown in the middle. Our factor graph is trained on example patterns created by artists. For comparison, on the right we show randomized colorings of each template.\remark{Other ideas: show no comparison, show O'Donovan comparison} \remark{Visio PDF export for these images is pretty low quality, so I'd vote for keeping everything in TeX and using PNGs/tables.}}
+\caption{Given the uncolored pattern templates shown on the left, we use our probabilistic factor graph model to generate the pattern colorings shown in the middle. Our factor graph is trained on example patterns created by artists. For comparison, on the right we show randomized colorings of each template.\remark{Other ideas: show no comparison, show O'Donovan comparison}}
 \label{fig:teaser}
 \vspace{-1.0em}
 
@@ -152,6 +152,7 @@
 \input{introduction.tex}
 \input{background.tex}
 \input{approach.tex}
+\input{dataset.tex}
 \input{model.tex}
 \input{results.tex}
 \input{evaluation.tex}
