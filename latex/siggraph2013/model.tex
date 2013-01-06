@@ -53,7 +53,7 @@ Convex log-likelihoods such as this one are typically maximized via gradient asc
 \frac{\partial}{\partial \weights_\term} \ell(\weights : \dataset) = 
 	\sum_{(\pattern, \colors) \in \dataset}
 			\termStats(\colors, \pattern)
-		- \expectation_\weights[\termStats(\colorVars_\pattern, \pattern)]
+		- \expectation_\weights[\termStats(\colorVars, \pattern)]
 \end{equation*}
 %%
 where $\expectation_\weights$ denotes an expectation under the model with weights $\weights$. Unfortunately, these quantities are extremely expensive to compute. The expectation term requires probabilistic inference---an NP-complete problem---for every training pattern, for every iteration of gradient ascent.
