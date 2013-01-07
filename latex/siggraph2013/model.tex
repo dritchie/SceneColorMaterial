@@ -25,7 +25,7 @@ To accelerate sampling, we use parallel tempering, a technique that runs multipl
 Finally, we use maximimum marginal relevance (MMR) to enforce diversity in the set of suggestions returned by the sampler~\cite{MMR}. MMR is a technique from information retrieval that re-ranks every item in a list according to a linear combination of relevance (model score, in our case) and similarity to the items preceding it. The similarity metric we use for two colorings of a pattern $\mathcal{P}$ is
 %% Pattern similarity metric
 \begin{equation*}
-\text{sim}(\colors_1, \colors_2, \pattern) = - \sum_{\group \in \groups_\pattern} {\size_\group \cdot ||\colors_1(\group) - \colors_2(\group)||}
+\text{sim}(\colors, \tilde{\colors}, \pattern) = - \sum_{\group \in \groups} {\size_\group \cdot ||\colors_\group - \tilde{\colors}_\group||}
 \end{equation*}
 %%
 which is the area-weighted sum of \lab distances between the corresponding colors in each coloring.
