@@ -1,23 +1,19 @@
 \section{Introduction}
 \label{sec:introduction}
 
-%% Hook and motivation
-From graphic and web design, to fashion and fabrics, to interior design, colored patterns are everywhere. 
-While many people can easily distinguish patterns that they like from those they don't, \emph{creating} attractive patterns from scratch can take much more time and effort. Because perceived color appearance is very dependent on spatial arrangement, it is difficult for both experienced artists and enthusiasts to anticipate how a specific coloring will look. Thus, even coloring in a pattern can often involve much trial-and-error as well as color tweaking. Experienced artists often create quick thumbnail colorings to explore the state space before diving into their final work. Many also use reference images for inspiration when choosing colors~\cite{ColorPaletteTools}.
+%% Hook
+From graphic and web design, to fashion and fabrics, to interior design, colored patterns are everywhere. Web designers use them as main images, backgrounds, or repeating page elements, fashion designers print them on clothing and accesories, and interior designers employ them on upholstery, wallpaper, drapes, and more.
 
-%Even the more constrained task of coloring an existing pattern template can be challenging, as it still exhbis a daunting array of coloring options. Experienced artists and enthusiasts often seek feedback and inspiration from online communities such as Colourlovers\footnote{http://www.colourlovers.com/}.
+%% Define our problem domain
+A colored pattern has two parts: a \emph{pattern template}, which is a creative decomposition of space into regions, and a set of \emph{colors} assigned to those regions.
+Additionally, pattern templates often define constraints on which regions must be assigned the same color: childrens' color-by-numbers exercises and the patterns shared on the popular Colourlovers\footnote{http://www.colourlovers.com/} website are two such examples. It is this color-by-numbers pattern format that we explore in this paper.
 
-%% This problem is not addessed currently...Focus of the paper and technical/specific pattern definition. 
-Despite these challenges, few computational tools exist for guiding the pattern coloring process. We define a colored pattern to have two parts: a \emph{pattern template}, which specifies a creative decomposition of space into regions, as well as which regions must map to the same color; and a set of \emph{colors} assigned to those regions. In this paper, we look at the problem of automatically generating good coloring suggestions, given a target pattern template and user input if provided. 
+%% Motivation
+While many people can easily distinguish patterns that they like from those they don't, \emph{creating} attractive pattern colorings takes much more time and effort. Because perceived color appearance depends strongly on spatial arrangement, it is difficult for both experienced artists and enthusiasts to anticipate how a specific coloring will look. Thus, the coloring process involves much trial-and-error and color tweaking. Experienced artists often create quick thumbnail colorings to explore the state space before diving into their final work, or use reference images for inspiration~\cite{ColorPaletteTools}.
 
-\remark{S: This is still a bit choppy. Not sure how to fix it yet. We could take the approach of the ODonovan paper and describe pattern templates in the context of Colourlovers (i.e. there are many examples of appealing images on the web. Can we use these images as references to learn good styles of coloring, and then use that information to facilitate the pattern coloring process? Colourlovers is one such source of colored images, specifically of colored pattern. In this paper, we focus on colored patterns. Definition of colored pattern.}
-\remark{S: We could possibly make reference to the paint-by-numbers format when decribing pattern templates?}
-
-
-%% Goals, We should make it clear somewhere that we're not trying to replace artists
-To be an effective creative support tool, a coloring suggestion system should be able to adapt its suggestions for different usage scenarios. First, it should be able to output diverse suggestions automatically for uncertain users who want to explore the space of good colorings. Second, the system should be able to accomodate users with different aesthetic preferences by customizing suggestions to evoke a particular desired style. Finally, it should expose controls to let users refine their criteria and guide the process. 
-
-%Can computation make the pattern coloring process easier for artists of all levels by automatically suggesting colorings? If a computational colorization tool existed, what criteria should it meet? Such a tool should be able generate pattern colorings that evoke a particular desired style, to accomodate different user preferences. It should generate a variety of different suggestions, so that an uncertain or inexperienced user can explore the space of possibilities. It should be able to generate suggestions automatically, but it should also expose controls for users to refine their criteria.
+%% Goals - criteria for a computational tool
+% Should fit into existing practices (allow them to EXPLORE, and allow them to use examples as inspiration)
+Despite these challenges, few computational tools exist for assisting with the pattern coloring process. Can computation make this process easier for artists of all levels by automatically suggesting colorings? To be an effective creative support tool, a coloring suggestion system should adapt its suggestions for different usage scenarios. First, it should output diverse suggestions automatically for uncertain users who want to explore the space of good colorings. Second, the system should accomodate users with different aesthetic preferences by customizing suggestions to evoke a particular desired style. Finally, it should expose controls to let users refine their criteria and guide the suggestion process. 
 
 %% Challenges
 Building such a system is difficult, as it requires a computational encoding of the properties that make a coloring desirable. There are many principles of aesthetics that might be relevant, such as any of the myriad of different color harmony rules~\cite{ColorHarmonyBook} or principles of art such as contrast and dominance~\cite{ArtPrinciples}. But which of these principles apply to which patterns and which coloring styles? For those that do apply, which are the most important? Even assuming an answer to these questions, there is still the problem of how to actually \emph{generate} many, diverse new colorings that satisfy the desired properties.
@@ -28,5 +24,5 @@ In this paper, we present a probabilistic approach to automatic pattern coloriza
 %% Summary of results
 We demonstrate the effectiveness of our model for a variety of constrained and unconstrained coloring suggestion tasks. We also show real-world applications of our automatic coloring system to 3D scene design and web design. Finally, we evaluate the quality of colorings generated by our model through a judgment study with people recruited online. Automatically-colored patterns were significantly preferred to random colorings and comparable to colorings made by an artist.
 
-\remark{S:Possibly change to make consistent with results once we have them.}
-\remark{S:It would be really cool if the suggested colorings are rated comparably to artist colorings. Though, the conservative part of me thinks its more likely that the suggestions will be somewhere between random and artist...particularly since if we use artists from the dataset, their patterns are already quite popular!}
+%\remark{S:Possibly change to make consistent with results once we have them.}
+%\remark{S:It would be really cool if the suggested colorings are rated comparably to artist colorings. Though, the conservative part of me thinks its more likely that the suggestions will be somewhere between random and artist...particularly since if we use artists from the dataset, their patterns are already quite popular!}
