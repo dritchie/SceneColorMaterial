@@ -13,16 +13,15 @@ The model can also be interpreted graphically as a factor graph, where the varia
 
 Figure~\ref{fig:FactorGraph} shows an example of a factor graph for a given pattern template. Circles denote the color variables, while squares denote the different factors $\factor$, and edges connect each factor to variables within their scope. 
 
-\begin{figure}[htb]
-\centering
-%\includegraphics[width=\columnwidth]{}
-TODO. 
-%Idea: Factor graph for pattern 499194 from sugar (or another simple pattern), and possibly also show the pattern itself to illustrate what the structure means).  
-\caption{A factor graph from our model.\remark{S: TODO: Make figure. I can take a shot at a rough version a little later}}
+
+\begin{figure}[ht]
+\begin{tabular}{cc}
+\includegraphics[width=.7\columnwidth]{figs/factorGraph} & \includegraphics[width=.2\columnwidth]{figs/factorGraphPattern}\\
+\end{tabular} 
+\caption{A factor graph for an example pattern template. Factors correspond with the color compatibility and spatial terms from our model. In the figure, nodes are colored according to their corresponding color group in the pattern\remark{Rough figure.}}
 \label{fig:FactorGraph}
 \end{figure}
 
-In the rest of this section, we will first detail the individual terms in the model-- the color compatibility term (Section~\ref{sec:colorCompat}) and the spatial terms (Section~\ref{sec:spatialCompat})-- and describe how they generate factors. We discuss how to sample from the model (Section~\ref{sec:sampling}) and how to automatically tune its weights (Section~\ref{sec:weights}). Finally, we provide details on our prototype implementation (Section~\ref{sec:implementation}).
 
 
 \subsection{Color Compatibility}
