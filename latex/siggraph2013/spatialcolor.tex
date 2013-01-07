@@ -109,7 +109,17 @@ We generate factors over each color variable by grouping together all term objec
 
 While group and segment terms model the dependency of color assignments on features of same-color regions, they do not capture relationships between different-color regions. In particular, adjacent color regions can have strong effects on their neighbor's perceived color, making colors seem more or less saturated or causing vibrating boundaries if adjacent lightness and colorfulness are too similar~\cite{AlbersInteractionOfColor}. Thus, we also add segment adjacency terms to the model.
 
-Good color assignments to adjacent segments may depend on the nature of their adjacency. For example, a square enclosed by a thin border appears different from a square enclosed by a larger square, and different again from a square side-by-side with another square. Thus, when computing features of an adjacency we include the features of the segments involved as well as how much one neighbor encloses another.~\remark{D: These examples might work better with pictures...} 
+Good color assignments to adjacent segments may depend on the nature of their adjacency. For example, a square enclosed by a thin border appears different from a square enclosed by a larger square, and different again from a square side-by-side with another square (Figure~\ref{fig:surround}). Thus, when computing features of an adjacency we include the features of the segments involved as well as how much one neighbor encloses another.
+\begin{figure}[ht]
+\centering
+\includegraphics[width=.7\columnwidth]{figs/surround}
+\caption{Color appearance depends on their relationships with surrounding regions\remark{Rough figure.}}
+\label{fig:surround}
+\end{figure}
+
+
+
+%~\remark{D: These examples might work better with pictures...} 
 
 Our model has one adjacency term for each of the color properties $ \prop \in \binaryProps$, which is defined as
 %%
