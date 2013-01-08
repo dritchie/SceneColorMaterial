@@ -69,7 +69,7 @@ CD(\weights : \dataset) =
 %%
 where $\hat{\colors}$ is the coloring state obtained by running an MCMC chain for one step from the initial state $\colors$. CD essentially forms a local approximation to the likelihood gradient around the neighborhood of state $\colors$. Since all terms in our model are conditional log-probabilities, we enforce the additional constraint during optimization that all weights be positive.~\remark{Happy to take this out if we can find a way around it}
 
-While the exact weights learned depend on the training dataset, there are several strong general trends.~\remark{Discuss trends here: Color compat, perceptual difference strong. Name stuff is not strong. Etc.} The colorings shown in Figure~\ref{fig:teaser} were sampled from a model with automatically-tuned weights.
+While the exact weights learned depend on the training dataset, there are several strong general trends. TODO: Discuss trends.~\remark{Color compat, perceptual difference strong. Name stuff is not strong. Etc.}
 
 \subsection{Implementation}
 \label{sec:implementation}
