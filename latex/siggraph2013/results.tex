@@ -55,9 +55,19 @@ Suggestion&Results\\
 
 \paragraph{Soft color constraints} When the user has only a general idea of what kind of palette they want, soft constraints can be incorporated by adding new factors. A simple constraint is that the color assigned to a region should be close to a target color, which we represent using a factor of the form:
 
-\remark{Check up on factor notation. Adds two parameters: one sigma (how far out should you search?) and one weight (what is the tradeoff between pattern-goodness and adhering to the provided colors?). May be hard to concisely summarize all this though.}
+\begin{equation*}
+\factor(\colorVars(\group) | \pattern) = \mathcal{N}(||\colorVars(\group) - \textrm{targetColor}(\group)||, \sigma_\textrm{user})
+\end{equation*}
 
-Figure~\ref{fig:nearbySuggestions} shows examples where a proposed coloring is given, and the artist asks for colorings that are similar; this results in a new factor being added to each input color region. \remark{Discussion on hold since the results will likely change}
+Here, $\textrm{targetColor}(\group)$ is the desired color of group $\group$ and $\sigma_\textrm{user}$ controls the extent to which the group is allowed to deviate from the desired color. We assign this factor a weight $w_\textrm{user} * w_\textrm{model}$, where $w_\textrm{model}$ is the sum of the weights of all other factors in the model. $w_\textrm{user}$ controls the tradeoff between satisfying the user-specified target colors for a region versus satisfying the color distribution encoded by the trained model.
+
+This factor corresponds to adding a new term in our log-linear model with this statistics function:
+
+\begin{equation*}
+\termStats(\colors | \pattern) = \sum_{\group \in \groups}{\ln \mathcal{N}(||\colors(\group) - \textrm{targetColor}(\group)||, \sigma_\textrm{user})}
+\end{equation*}
+
+Figure~\ref{fig:nearbySuggestions} shows examples where a proposed coloring is given, and the artist asks for colorings that are similar; this results in a new factor being added to each input color region. %\remark{Discussion on hold since the results will likely change}
 
 \begin{figure}[ht]
 \begin{tabular}{ccc} 
