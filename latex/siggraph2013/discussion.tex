@@ -2,10 +2,17 @@
 \label{sec:discussion}
 
 % Summarize, restate contributions.
-In this paper, we present a probabilistic approach to automatically coloring 2D patterns. We develop a factor graph model that is trained on example pattern colorings to statistically capture their coloring style and sampled using MCMC to generate a variety of pattern coloring suggestions. We demonstrated the utility of the model on a range of coloring tasks, and a perceptual study showed that the colorings it generates compare favorably to artist-created colorings.
+In this paper, we present a probabilistic approach to automatically coloring 2D patterns. We develop a factor graph model that is trained on example pattern colorings to statistically capture their coloring style and sampled using MCMC to generate a variety of pattern coloring suggestions. We demonstrate the utility of the model on a range of coloring tasks, and a perceptual study showed that the colorings it generates compare favorably to artist-created colorings.
 
 % Discuss limitations, etc.
-The model as presented has some limitations. In particular, the current model does not capture any semantic constraints on pattern regions, such as skies being blue or plants being green. This is not always a problem, as even human artists do not always respect these semantics (see the red clouds in Figure~\ref{fig:permutation}b), and patterns often admit many attractive, non-semantic colorings (Figure~\ref{fig:constrainedInference}). However, some patterns appear ugly or confusing when their colorings do not respect semantics, as shown in Figure ?~\remark{Make this figure using e.g. pattern 508162}. Labeling regions with semantic tags could address this problem, as the system could search for images on the web using these tags and build up a distribution of expected colors. It might even be possible to predict such labels automatically using sketch classification techniques~\cite{SketchClassification}.~\remark{Also discuss limitations implied by the results of our Turk study?} 
+The model as presented has some limitations. In particular, the current model does not capture any semantic constraints on pattern regions, such as skies being blue or plants being green. This is not always a problem, as even human artists do not always respect these semantics (see the red clouds in Figure~\ref{fig:permutation}b), and patterns often admit many attractive, non-semantic colorings (Figure~\ref{fig:constrainedInference}). However, some patterns appear ugly or confusing when their colorings do not respect semantics, as shown in Figure~\ref{fig:badFlowers}. Labeling regions with semantic tags could address this problem, as the system could search for images on the web using these tags and build up a distribution of expected colors. It might even be possible to predict such labels automatically using sketch classification techniques~\cite{SketchClassification}.~\remark{Also discuss limitations implied by the results of our Turk study?} 
+
+\begin{figure}
+\centering
+\includegraphics[width=0.7\columnwidth]{figs/badFlowers}
+\caption{(Left) An artist's coloring of a pattern. (Right) High-scoring colorings of the same pattern sampled from our model. When the colorings do not respect the semantics of the flower stems by making them biologically impossible colors, it becomes difficult to parse the resulting image as one depicting a cluster of flowers.}
+\label{fig:badFlowers}
+\end{figure}
 
 % Future work: Templatizing images
 This research opens up several interesting avenues for future work.

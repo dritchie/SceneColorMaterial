@@ -78,15 +78,15 @@ abstract class ModelTrainingParams
     var minSwapProb:Double = 0.05
     var maxSwapProb:Double = 0.5
 
-    // Which variable type are we using?
-    type VariableType <: ColorVariable
-    def colorVarParams:ColorVariableParams[VariableType]
-
     var includeColorChoiceTerms = false
     var colorChoiceType = ModelTraining.ColorChoiceType.LABConditional
 
     //weigh the groups or not?
     var weightGroups = false
+
+    // Which variable type are we using?
+    type VariableType <: ColorVariable
+    def colorVarParams:ColorVariableParams[VariableType]
 }
 
 /* Different variable types require different model building/training operations */
