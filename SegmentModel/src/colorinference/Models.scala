@@ -18,6 +18,7 @@ import matlabcontrol._
 import collection.mutable
 import java.io.{File, FileNotFoundException, FileWriter}
 import io.Source
+import java.awt.image.BufferedImage
 
 object ColorInferenceModel
 {
@@ -725,6 +726,52 @@ class ColorCompatibilityTemplate extends DotTemplateN[ContinuousColorVariable] w
             new Factor(orderedVars:_*)
         else
             Nil
+    }
+}
+
+
+
+class TargetImageTemplate(private val img:BufferedImage, private val quantization:Int, private val removeBackground:Boolean = false,
+                          private val bgColor:Color = Color.RGBColor(0.0, 0.0, 0.0))
+    extends DotTemplate1[ContinuousColorVariable] with ColorInferenceModel.Trainable
+{
+    def name = "TargetImage"
+    private val hist = buildHistogram()
+
+    private def buildHistogram() : VectorHistogram =
+    {
+        // Extract all the pixels in Lab space
+        println("TargetImageTemplate - extracting all pixels in LAB space...")
+        var pixels = for (y <- 0 until img.getHeight; x <- 0 until img.getWidth) yield
+        {
+            val rgb = img.getRGB(x, y)
+            val c = new java.awt.Color(rgb)
+            val labc = Color.RGBColor(c.getRed/255.0, c.getGreen/255.0, c.getBlue/255.0).copyTo(LABColorSpace)
+            labc
+        }
+
+        // Filter out the background, if requested
+        if (removeBackground)
+        {
+            println("TargetImageTemplate - filtering out background pixels...")
+            val bgc = bgColor.copyIfNeededTo(LABColorSpace)
+            pixels = pixels.filterNot(_.approxEquals(bgc, 1e-4))
+        }
+
+        // Build histogram
+        println("TargetImageTemplate = building histogram...")
+        MassiveVectorHistogram(pixels, MathUtils.euclideanDistance, 0.5, new KMeansVectorQuantizer(quantization))
+    }
+
+    override def statistics(v1:Color) : Tensor =
+    {
+        Tensor1(MathUtils.safeLog(hist.evaluateAt(v1.copyIfNeededTo(LABColorSpace))))
+    }
+
+    override def unroll1(v1:ContinuousColorVariable) : Iterable[Factor] =
+    {
+        // This factor applies to every color variable
+        Factor(v1)
     }
 }
 

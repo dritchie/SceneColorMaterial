@@ -34,7 +34,7 @@ namespace PatternColorizer
         String outdir;
         String json;
         String weightsDir;
-        bool outputDebugImages = false; //outputting quantization results and connected components
+        bool outputDebugImages = true; //outputting quantization results and connected components
         bool renderFinal = true; //render the final images using Colourlovers site
 
         Dictionary<String, PaletteData> palettes;
@@ -718,7 +718,11 @@ namespace PatternColorizer
         private Bitmap GetFinalRendering(String patternId, PaletteData palette)
         {
             String url = "http://www.colourlovers.com/patternPreview/";//41/CCCCCC/999999/666666/333333/000000.png
-            String[] colorHexes = new String[] { "CCCCCC", "999999", "666666", "333333", "000000" };
+            String[] colorHexes;
+            if (palette.colors.Count <= 5)
+                colorHexes = new String[] { "CCCCCC", "999999", "666666", "333333", "000000" };
+            else
+                colorHexes = new String[palette.colors.Count];
             for (int i = 0; i < palette.colors.Count(); i++)
             {
                 int slotIdx = i;

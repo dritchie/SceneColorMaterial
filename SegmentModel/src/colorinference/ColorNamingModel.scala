@@ -186,7 +186,7 @@ class ColorNamingModel(c3JsonFile:String)
     def getTermCountsVector(color:Color):Tensor1 =
     {
       val c = bin(color.copyIfNeededTo(LABColorSpace))
-      val vec = new DenseTensor1(terms.indices.map(w => counts(c,w).toDouble ).toArray)
+      val vec = new DenseTensor1(terms.indices.map(w => counts(c,w)).toArray)
       vec
     }
 

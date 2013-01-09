@@ -11,13 +11,15 @@ package colorinference
 import cc.factorie.la.Tensor1
 import collection.mutable.ArrayBuffer
 import util.Random
+import weka.core.neighboursearch.KDTree
+import weka.core.{Instance, Instances, Attribute, FastVector}
 
 
 class VectorHistogram(private val metric:MathUtils.DistanceMetric, private val bandwidthScale:Double)
 {
-    private var centroids:IndexedSeq[Tensor1] = new Array[Tensor1](0)
-    private var bins:IndexedSeq[Double] = new Array[Double](0)
-    private var bandwidths:IndexedSeq[Double] = new Array[Double](0)
+    protected var centroids:IndexedSeq[Tensor1] = new Array[Tensor1](0)
+    protected var bins:IndexedSeq[Double] = new Array[Double](0)
+    protected var bandwidths:IndexedSeq[Double] = new Array[Double](0)
 
     def train(data:Seq[Tensor1], quantizer:VectorQuantizer)
     {
@@ -68,15 +70,11 @@ class VectorHistogram(private val metric:MathUtils.DistanceMetric, private val b
         var sum = 0.0
         for (i <- 0 until bins.length)
         {
-            val centroid = centroids(i)
+            val gauss = evaluateBinAt(i, point)
             val freq = bins(i)
-            val d = metric(point, centroid)
-            val sigma = bandwidths(i)
-            val gauss = MathUtils.gaussianDistribution(d, sigma)
             val totalterm = freq * gauss
             sum += totalterm
         }
-        //sum / bins.length     // This is a linear superposition of PDFs, so it is already a normalized PDF
         sum
     }
 
@@ -131,6 +129,74 @@ trait VectorQuantizer
         // Make sure there are no co-located centroids
         for (i <- 0 until centroids.length-1; j <- i+1 until centroids.length)
             assert((centroids(i) - centroids(j)).twoNormSquared != 0.0, {println("VectorQuantizer: Detected co-located final quantization vectors")})
+    }
+}
+
+/*
+ * This subclass uses a kdtree to accelerate evaluation when the histogram has a massive number of bins
+ * Doing the nearest-neighbor lookup requires synchronization, though, so this is not very multi-thread performant.
+ */
+class MassiveVectorHistogram(metric:MathUtils.DistanceMetric, bandwidthScale:Double) extends VectorHistogram(metric, bandwidthScale)
+{
+    var kdtree:KDTree = null
+    override def setData(centroids:IndexedSeq[Tensor1], bins:IndexedSeq[Double])
+    {
+        super.setData(centroids, bins)
+
+        // Set up kd tree
+        println("MassiveVectorHistogram - Building kd tree...")
+        val prototype = centroids(0)
+        val attribs = new FastVector(prototype.length)
+        for (i <- 0 until prototype.length)
+        {
+            attribs.addElement(new Attribute("dim"+i))
+        }
+        attribs.addElement(new Attribute("index"))
+        val insts = new Instances("centroids", attribs, centroids.length)
+        insts.setClassIndex(attribs.size-1)
+        for (i <- 0 until centroids.length)
+        {
+            val c = centroids(i)
+            insts.add(new Instance(1.0, Array(c(0), c(1), c(2), i)))
+        }
+        kdtree = new KDTree
+        kdtree.setInstances(insts)
+    }
+
+    override def evaluateAt(point:Tensor1) : Double =
+    {
+        // Behaves like the superclass method, but only sums up the contributions of the n
+        // nearest bins
+        val inst = new Instance(1.0, point.toArray ++ Array(-1.0))
+        inst.setDataset(kdtree.getInstances)
+        val neighbors = kdtree.synchronized(kdtree.kNearestNeighbours(inst, MassiveVectorHistogram.numNearestNeighbors))
+
+        var sum = 0.0
+        for (j <- 0 until neighbors.numInstances)
+        {
+            val inst = neighbors.instance(j)
+            val i = inst.classValue.toInt
+            val gauss = evaluateBinAt(i, point)
+            val freq = bins(i)
+            val totalterm = freq * gauss
+            sum += totalterm
+        }
+        sum
+    }
+}
+
+object MassiveVectorHistogram
+{
+    val numNearestNeighbors = 10
+
+    def apply(data:Seq[Tensor1], metric:MathUtils.DistanceMetric, bandwidthScale:Double, quantizer:VectorQuantizer) : MassiveVectorHistogram =
+    {
+        assert(data.length > 0, {println("VectorHistogram: cannot construct from 0 data points")})
+
+        val hist = new MassiveVectorHistogram(metric, bandwidthScale)
+        println("MassiveVectorHistogram - Training (Quantizing)...")
+        hist.train(data, quantizer)
+        hist
     }
 }
 
