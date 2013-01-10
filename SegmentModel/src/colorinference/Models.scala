@@ -725,7 +725,7 @@ class ColorCompatibilityTemplate extends DotTemplateN[ContinuousColorVariable] w
         Tensor1(MathUtils.safeLog(normalizedRating))
     }
 
-    def sizedOrderedVars(mesh:SegmentMesh) =
+    private def sizedOrderedVars(mesh:SegmentMesh) =
     {
         // (At most) the top five biggest groups in the mesh
         mesh.groups.sortWith(_.size > _.size).map(_.color.asInstanceOf[ContinuousColorVariable]).slice(0,5)
@@ -743,8 +743,7 @@ class ColorCompatibilityTemplate extends DotTemplateN[ContinuousColorVariable] w
 
 
 
-class TargetImageTemplate(private val img:BufferedImage, private val quantization:Int, private val removeBackground:Boolean = false,
-                          private val bgColor:Color = Color.RGBColor(0.0, 0.0, 0.0))
+class TargetImageTemplate(private val img:BufferedImage, private val quantization:Int, areaWeighted:Boolean = true)
     extends DotTemplate1[ContinuousColorVariable] with ColorInferenceModel.Trainable
 {
     def name = "TargetImage"
@@ -752,32 +751,180 @@ class TargetImageTemplate(private val img:BufferedImage, private val quantizatio
 
     private def buildHistogram() : VectorHistogram =
     {
-        // Extract all the pixels in Lab space
+        // Extract all the pixels
         println("TargetImageTemplate - extracting all pixels in LAB space...")
-        var pixels = for (y <- 0 until img.getHeight; x <- 0 until img.getWidth) yield
+        val pixels = for (y <- 0 until img.getHeight; x <- 0 until img.getWidth) yield img.getRGB(x, y)
+
+        // Keep track of counts for unique pixels
+        val pixelCounts = new mutable.HashMap[Int, Int]
+        for (rgb <- pixels)
         {
-            val rgb = img.getRGB(x, y)
+            pixelCounts.get(rgb) match
+            {
+                case Some(count) => pixelCounts.update(rgb, count+1)
+                case None => pixelCounts.put(rgb, 1)
+            }
+        }
+        // Sum up the total counts
+        val totalCount = pixelCounts.values.reduce(_+_)
+
+        // Convert unique pixels into LAB colors, and turn the counts into weights
+        val colors = new ArrayBuffer[Color]
+        val weights = new ArrayBuffer[Double]
+        for ((rgb,count) <- pixelCounts)
+        {
             val c = new java.awt.Color(rgb)
             val labc = Color.RGBColor(c.getRed/255.0, c.getGreen/255.0, c.getBlue/255.0).copyTo(LABColorSpace)
-            labc
+            colors += labc
+            weights += count.toDouble / totalCount
         }
 
-        // Filter out the background, if requested
-        if (removeBackground)
+        // Quantize the weighted colors
+        val quantizer = new KMeansVectorQuantizer(quantization)
+        val (centroids, assignments) = quantizer.apply(colors, MathUtils.euclideanDistance, weights)
+        val bins = Array.fill(centroids.length)(0.0)
+        if (areaWeighted)
         {
-            println("TargetImageTemplate - filtering out background pixels...")
-            val bgc = bgColor.copyIfNeededTo(LABColorSpace)
-            pixels = pixels.filterNot(_.approxEquals(bgc, 1e-4))
+            for (i <- 0 until colors.length) bins(assignments(i)) += weights(i)
+        }
+        else
+        {
+            for (i <- 0 until colors.length) bins(assignments(i)) += (1.0/centroids.length)
         }
 
-        // Build histogram
-        println("TargetImageTemplate = building histogram...")
-        MassiveVectorHistogram(pixels, MathUtils.euclideanDistance, 0.5, new KMeansVectorQuantizer(quantization))
+        // Set up the histogram
+        val hist = new VectorHistogram(MathUtils.euclideanDistance, 1.0)
+        //val hist = new MassiveVectorHistogram(MathUtils.euclideanDistance, 1.0)
+        hist.setData(centroids, bins)
+        hist
     }
 
     override def statistics(v1:Color) : Tensor =
     {
         Tensor1(MathUtils.safeLog(hist.evaluateAt(v1.copyIfNeededTo(LABColorSpace))))
+    }
+
+    override def unroll1(v1:ContinuousColorVariable) : Iterable[Factor] =
+    {
+        // This factor applies to every color variable
+        Factor(v1)
+    }
+}
+
+
+class BackgroundDissimilarityTemplate(private val beFarFrom:Color) extends DotTemplate1[ContinuousColorVariable]
+    with ColorInferenceModel.Trainable
+{
+    def name = "BackgroundDissimilarity"
+
+    override def statistics(v1:Color) : Tensor =
+    {
+        // Stay away from that color!
+        val dist = Color.perceptualDifference(v1, beFarFrom)
+        Tensor1(dist)
+    }
+
+    override def unroll1(v1:ContinuousColorVariable) : Iterable[Factor] =
+    {
+        // We assume the biggest color group is the background
+        val sortedVars = v1.group.owner.groups.sortWith(_.size > _.size).map(_.color)
+        if (sortedVars(0) == v1)
+            Factor(v1)
+        else
+            Nil
+    }
+}
+
+
+// Assumes that all meshes this will ever be used on have at least as many color groups as the number
+// of required colors
+class RequiredColorsTemplate(private val colors:Seq[Color]) extends DotTemplateN[ContinuousColorVariable]
+    with ColorInferenceModel.Trainable
+{
+    def name = "RequiredColors"
+
+    override def statistics(values:Seq[Color]): Tensor =
+    {
+        // Do a greedy bipartite matching: Find the closest variable value to each required color,
+        // sum up the distances
+        var distsum = 0.0
+        val colorIsAlreadyUsed = Array.fill(values.length)(false)
+        for (reqColor <- colors)
+        {
+            var bestIndex = -1
+            var bestDist = Double.PositiveInfinity
+            for (i <- values.indices)
+            {
+                if (!colorIsAlreadyUsed(i))
+                {
+                    val dist = Color.perceptualDifference(values(i), reqColor)
+                    if (dist < bestDist)
+                    {
+                        bestDist = dist
+                        bestIndex = i
+                    }
+                }
+            }
+            distsum += bestDist
+        }
+
+        // Return the negative distance as the score
+        // TODO: Make this into a log-Gaussian instead?
+        Tensor1(-distsum)
+    }
+
+    private def sizedOrderedVars(mesh:SegmentMesh) =
+    {
+        // Get all color variables, sorted by size
+        mesh.groups.sortWith(_.size > _.size).map(_.color.asInstanceOf[ContinuousColorVariable])
+    }
+
+    def unroll(v:ContinuousColorVariable) : Iterable[Factor] =
+    {
+        val orderedVars = sizedOrderedVars(v.group.owner)
+
+        // This term applies to every variable
+        new Factor(orderedVars:_*)
+    }
+}
+
+
+// I'm assuming the image doesn't have too many colors (i.e. it came from a minimal web page), so this
+/// template doesn't use a Kd tree to find the closest color.
+class ImagePaletteTemplate(img:BufferedImage) extends DotTemplate1[ContinuousColorVariable]
+    with ColorInferenceModel.Trainable
+{
+    def name = "UnorderedPalette"
+
+    private val colors = extractColorsFromImage(img)
+
+    private def extractColorsFromImage(img:BufferedImage) : Seq[Color] =
+    {
+        val colors = (for (y <- 0 until img.getHeight; x <- 0 until img.getWidth) yield img.getRGB(x, y)).distinct
+        val mycolors = colors.map(rgb =>
+        {
+            val c = new java.awt.Color(rgb)
+            Color.RGBColor(c.getRed/255.0, c.getGreen/255.0, c.getBlue/255.0)
+        })
+        mycolors
+    }
+
+    override def statistics(v1:Color) : Tensor =
+    {
+        // Find the closest palette color, and penalize by distance to that color
+        var closestColor:Color = null
+        var closestDist = Double.PositiveInfinity
+        for (c <- colors)
+        {
+            val dist = Color.perceptualDifference(c, v1)
+            if (dist < closestDist)
+            {
+                closestColor = c
+                closestDist = dist
+            }
+        }
+
+        Tensor1(-closestDist)
     }
 
     override def unroll1(v1:ContinuousColorVariable) : Iterable[Factor] =
