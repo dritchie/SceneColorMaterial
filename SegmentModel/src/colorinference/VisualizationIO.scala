@@ -33,15 +33,25 @@ object VisualizationIO {
        val bins = hist.getBins
        val origBin = hist.getBin(s.origValue)
        var idx = 0
+
+       var numDim = centroids(0).dim1
+       //var quantizer = new UniformVectorQuantizer(for (i<-0 until numDim) yield 50)
+       //var (smoothedCentroids, assign) = quantizer.apply(centroids, MathUtils.euclideanDistance)
+
        for (c <- centroids)
        {
          val isOrigBin = (centroids(origBin) == c)
-
          out.write("\""+patternId+"\",\""+name +"\",\""+prop+"\",\""+ ids.mkString("-")+"\",\""+c.mkString("-")+"\","+hist.evaluateAt(c)+",\"true\",\""+isOrigBin +"\"\n")
-
          out.write("\""+patternId+"\",\""+name +"\",\""+prop+"\",\""+ ids.mkString("-")+"\",\""+c.mkString("-")+"\","+bins(idx)++",\"false\",\""+isOrigBin +"\"\n")
          idx += 1
        }
+
+       /*for (c<- smoothedCentroids)
+       {
+         val isOrigBin = (centroids(origBin) == c)       //TODO: this doesn't work for smoothed histograms anymore, unless the quantizer exactly hits an original bin
+         out.write("\""+patternId+"\",\""+name +"\",\""+prop+"\",\""+ ids.mkString("-")+"\",\""+c.mkString("-")+"\","+hist.evaluateAt(c)+",\"true\",\""+isOrigBin +"\"\n")
+       }*/
+
      }
      out.close()
 
@@ -139,7 +149,7 @@ object VisualizationIO {
           val fn = {if (s.featureNames != null && f<s.featureNames.length) s.featureNames(f) else "noname"}
           val bn = s.classes(b)
 
-          out.write("\"%s\",\"%s\",\"%s\",\"%s\",%f".format(s.ttype, s.propname, bn.mkString("-"),fn,coeff(f)(b)))
+          out.write("\"%s\",\"%s\",\"%s\",\"%s\",%f\n".format(s.ttype, s.propname, bn.mkString("-"),fn,coeff(f)(b)))
         }
       }
     }
