@@ -137,7 +137,7 @@ The sufficient statistics function for each binary property is:
 \end{align*}
 where $\adjStrength(\segment,\segprime)$ is the strength of the adjacency $(\segment,\segprime)$. We define adjacency strength as the number of pixels from segments $\segment$ or $\segprime$ that are within a 2-pixel distance from their perimeters. All adjacency strengths are normalized to sum to 1.  
 
-These terms onctribute binary factors over each adjacent pair of color variables:
+These terms contribute binary factors over each adjacent pair of color variables:
 \begin{equation*}
  %\factor(\colorVars(\group), \colorVars(\groupprime)) = \prod_{\prop \in \binaryProps} \exp\left(\frac{\adjTermWeight \cdot \sum_{(\segment, \segprime) \in \adj(\group, \groupprime)} \adjInstStats(\segment, \segprime)}{t}\right) 
  \factor(\colorVars_\group, \colorVars_\groupprime | \pattern) = \prod_{\prop \in \binaryProps} \exp( (\adjTermWeight \cdot \sum_{(\segment, \segprime) \in \adj(\group, \groupprime)} \adjInstStats( \colorVars_\group, \colorVars_\groupprime | \pattern, \segment, \segprime)) / t) 
