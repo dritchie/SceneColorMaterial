@@ -15,14 +15,29 @@ object WebpageRecoloringMain
 {
     var params:ModelTrainingParams = null
 
-    val inputDir = "../webpage_recoloring/shannon/out/mesh"
-    val visDir = "../webpage_recoloring/shannon/out/vis_mmr"
+//    val inputDir = "../webpage_recoloring/shannon/out/mesh"
+//    val visDir = "../webpage_recoloring/shannon/out/vis_mmr"
+
+    val inputDir = "../PatternColorizer/out/mesh"
+    val visDir = "../PatternColorizer/out/vis_mmr"
 
     // Target image
-    val targetImg = "../webpage_recoloring/shannon/out/target.png"
-    val quantization = 100
-    val bgColor:Color = Color.RGBColor(229.0/255, 236.0/255, 249.0/255)
-    val simFactorWeight = 0.1
+    //val targetImg = "../webpage_recoloring/brianhoff/target_winter.png"
+    //val targetImg = "../webpage_recoloring/brianhoff/target_spring.png"
+    val targetImg = "../webpage_recoloring/brianhoff/target_summer.png"
+    val doAreaWeighting = false
+    val quantization = 20
+    val imgFactorWeight = 1.0
+    //val keepBackgroundAwayFrom = Color.RGBColor(229.0/255, 229.0/255, 217.0/255)  // winter
+    //val keepBackgroundAwayFrom = Color.RGBColor(213.0/255, 225.0/255, 207.0/255)  // spring
+    val keepBackgroundAwayFrom = Color.RGBColor(232.0/255, 218.0/255, 174.0/255)    // summer
+    val simFactorWeight = 0.05
+
+//    // Web page stuff
+//    val factorWeight = 1.0
+//    val targetImg = "../webpage_recoloring/brianhoff/target_winter.png"
+//    val requiredColors:Array[Color] = Array(Color.RGBColor(139.0/255, 166.0/255, 172.0/255),
+//                                            Color.RGBColor(248.0/255, 248.0/255, 236.0/255))
 
     // MMR
     val lambdas = Array(0.25, 0.5, 0.75)
@@ -39,7 +54,9 @@ object WebpageRecoloringMain
         if (!visDirTestFile.exists)
             visDirTestFile.mkdir
 
-        val allArtists = Set("sugar!", "shannon")
+//        val allArtists = Set("sugar!", "shannon")
+//        val trainingArtists = Set("sugar!")
+        val allArtists = Set("sugar!", "Capricciosa", /*"desvil",*/ "earlgrey", "faith4faith", "ifollowtherabbit")
         val trainingArtists = Set("sugar!")
         val patterns = PatternIO.getPatterns(inputDir).filter(p=>(allArtists.contains(p.directory))).toArray
 
@@ -79,7 +96,13 @@ object WebpageRecoloringMain
 
         // These are the ids of the patterns we will test on
         val pids = Array(
-            1234567)
+//            1004119,    // Capricciosa
+////            2388327,    // desvil
+//            1336445,    // earlgrey
+//            1532589,    // faith4faith
+//            1832338,    // faith4faith
+//            1313556)    // ifollowtherabbit
+            1832338)
 
 
         val testingMeshes = {for (idx<-meshes.indices if (pids.contains(patterns(idx).name.replace(".txt","").toInt))) yield meshes(idx)}
@@ -89,11 +112,27 @@ object WebpageRecoloringMain
         println("Training on " + trainingMeshes.length + " meshes")
         val model = ModelTraining(trainingMeshes, params)
 
-        // Add the factor to enforce colors similar to what's in the HTML DOM
+        // Add the factor to enforce colors similar to what's in the image
         val img = ImageIO.read(new File(targetImg))
-        val simfactor = new TargetImageTemplate(img, quantization, true, bgColor)
+        val imgfactor = new TargetImageTemplate(img, quantization, doAreaWeighting)
+        imgfactor.setWeight(imgFactorWeight)
+        model += imgfactor
+
+        // Add the factor to keep the pattern background away from the main image background
+        val simfactor = new BackgroundDissimilarityTemplate(keepBackgroundAwayFrom)
         simfactor.setWeight(simFactorWeight)
         model += simfactor
+
+//        // Add the factor to enforce that the resulting pattern uses some required colors
+//        val reqfactor = new RequiredColorsTemplate(requiredColors)
+//        reqfactor.setWeight(factorWeight)
+//        model += reqfactor
+
+//        // Add the factor to enforce that the pattern uses colors from the web page
+//        val img = ImageIO.read(new File(targetImg))
+//        val palettefactor = new ImagePaletteTemplate(img)
+//        palettefactor.setWeight(factorWeight)
+//        model += palettefactor
 
         for (i <- meshes.indices if (pids.contains(patterns(i).name.replace(".txt","").toInt)))
         {
@@ -107,10 +146,6 @@ object WebpageRecoloringMain
     def outputOptimizedPatterns(mesh:SegmentMesh, pattern:PatternItem, model:ColorInferenceModel)
     {
         println("Generating MMR-optimized patterns...")
-
-        // Fix the background color
-        mesh.groups(0).color.setColor(bgColor)
-        mesh.groups(0).color.fixed = true
 
         model.conditionOn(mesh)
         val samplerGenerator = () => { new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable] }
