@@ -280,9 +280,13 @@ namespace PatternColorizer
             f.values.Add(s.points.Count() / (double)(imageWidth * imageHeight));
             s.features.Add(f);
 
+            // Relative centroid
             PointF c = NormalizedCentroid(s);
             s.features.Add(new NamedFeature("RelativeCentroid", new List<double>{c.X, c.Y}));
 
+            // One interior point
+            PointF np = RandomNormalizedInteriorPoint(s);
+            s.features.Add(new NamedFeature("OneInteriorPoint", new List<double> { np.X, np.Y }));
 
             //Radial distance
             s.features.Add(new NamedFeature("RadialDistance", new List<double>{Math.Sqrt(c.X*c.X+c.Y*c.Y)}));
@@ -361,6 +365,14 @@ namespace PatternColorizer
             cX /= normalizedPoints.Count();
             cY /= normalizedPoints.Count();
             return new PointF(cX, cY);
+        }
+
+        public PointF RandomNormalizedInteriorPoint(Segment s)
+        {
+            PointF[] normalizedPoints = s.points.Select<Point, PointF>(p => new PointF(-0.5f + (float)p.X / imageWidth, -0.5f + (float)p.Y / imageHeight)).ToArray<PointF>();
+            Random r = new Random();
+            int randIndex = r.Next(normalizedPoints.Length);
+            return normalizedPoints[randIndex];
         }
 
         public void ComputeFeatures(SegmentGroup g)

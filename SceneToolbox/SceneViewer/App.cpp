@@ -121,6 +121,31 @@ void App::GenerateSegmentationCallback(Fl_Widget* w, void* v)
 	delete segmesh;
 }
 
+void App::SaveCameraCallback(Fl_Widget* w, void* v)
+{
+	App* app = (App*)v;
+
+	ofstream camout("../Output/camera.txt");
+	if (!camout.is_open())
+		FatalError(string("App::SaveCameraCallback - Could not open Output/camera.txt"));
+
+	app->camera->Serialize(camout);
+	camout.close();
+}
+
+void App::RestoreCameraCallback(Fl_Widget* w, void* v)
+{
+	App* app = (App*)v;
+	string camerafile = app->params.StringParam("savedCamera");
+	ifstream camin(camerafile.c_str());
+	if (camin.is_open())
+	{
+		app->camera->Deserialize(camin);
+		camin.close();
+		app->context->Redraw();
+	}
+}
+
 GraphicsContext* App::InitAndShowUI(int argc, char** argv)
 {
 	Fl_Window* window = new Fl_Window(params.IntParam("windowWidth"), params.IntParam("windowHeight"), params.StringParam("appName").c_str());
@@ -136,6 +161,8 @@ GraphicsContext* App::InitAndShowUI(int argc, char** argv)
 		{ "&Tools", 0, 0, 0, FL_SUBMENU },
 			{ "Save Frame",  0, SaveFrameCallback, this },
 			{ "Generate Segmentation",  0, GenerateSegmentationCallback, this },
+			{ "Save Camera",  0, SaveCameraCallback, this },
+			{ "Restore Saved Camera",  0, RestoreCameraCallback, this },
 		{ 0 },
 	{ 0 }
 	};
@@ -213,6 +240,15 @@ void App::InitCamera()
 	tinkerCam->ScrollZoomSpeed() = (float)params.FloatParam("zoomSpeed");
 	tinkerCam->DollySpeed() = (float)params.FloatParam("dollySpeed");
 	camera = tinkerCam;
+
+	// If the params specify a camera file, load up the configuration from this file
+	string camerafile = params.StringParam("savedCamera");
+	ifstream camin(camerafile.c_str());
+	if (camin.is_open())
+	{
+		camera->Deserialize(camin);
+		camin.close();
+	}
 }
 
 void App::Render()

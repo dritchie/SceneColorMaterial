@@ -114,7 +114,7 @@ object WebpageRecoloringMain
 
         // Add the factor to enforce colors similar to what's in the image
         val img = ImageIO.read(new File(targetImg))
-        val imgfactor = new TargetImageTemplate(img, quantization, doAreaWeighting)
+        val imgfactor = new ImageHistogramTemplate(img, quantization, doAreaWeighting)
         imgfactor.setWeight(imgFactorWeight)
         model += imgfactor
 

@@ -31,6 +31,7 @@ appName			SceneViewer
 ### Other application-specific parameters go here! ###
 
 sceneToLoad					../Scenes/LivingRoom1.json
+savedCamera					../Output/camera.txt
 dataRoot					C:/Git/WebSceneStudio/public/data
 
 orbitSpeed					0.005
