@@ -94,8 +94,12 @@ object ColorInferenceModel
 
                     // Find the number of bins that gives the best likelihood after averaging
                     // over 'all possible' (read: many) bandwidth scales
+
+                    //Find the number of bins and the bandwidth scale that gives the best likelihood
+                    //on cross validation
                     var bestLL = Double.NegativeInfinity
                     var bestNumBins = -1
+                    var bestBandScale = bandScale
                     for (bins <- cvRanges.numBins)
                     {
                         println("Trying numBins = %d".format(bins))
@@ -113,19 +117,27 @@ object ColorInferenceModel
                                 log.write("%d,%g,%g,%g,%g\n".format(bins, scale, ll, acc, err))
                                 log.flush()
                             }
+                            if (ll>bestLL)
+                            {
+                              bestLL = ll
+                              bestNumBins = bins
+                              bestBandScale = scale
+                            }
+
                         }
                         avgLL /= cvRanges.bandScale.length
-                        if (avgLL > bestLL)
+                       /* if (avgLL > bestLL)
                         {
                             bestLL = avgLL
                             bestNumBins = bins
-                        }
+                        } */
                     }
 
                     println("Best numBins = %d".format(bestNumBins))
                     bins = bestNumBins
                     // Reset bandwidth scale to original value
-                    regressor.bandwithScale = bandScale
+                    //regressor.bandwithScale = bandScale
+                    regressor.bandwithScale = bestBandScale
 
                     if (saveValidationLog)
                         log.close()
