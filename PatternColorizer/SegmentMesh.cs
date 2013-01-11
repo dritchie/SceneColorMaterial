@@ -305,6 +305,8 @@ namespace PatternColorizer
                             continue;
                         if (Util.InBounds(p.X + i, p.Y + j, imageWidth, imageHeight) && assignments[p.X + i, p.Y + j] != sidx)
                             perimeter++;
+                        else if (!Util.InBounds(p.X + i, p.Y + j, imageWidth, imageHeight)) //edge pixels should be considered perimeter too
+                            perimeter++;
                     }
                 }
             }
