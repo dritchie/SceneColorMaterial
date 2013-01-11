@@ -146,6 +146,35 @@ void App::RestoreCameraCallback(Fl_Widget* w, void* v)
 	}
 }
 
+void App::SaveColorAssignmentsCallback(Fl_Widget* w, void* v)
+{
+	App* app = (App*)v;
+
+	ofstream assfile("../Output/assignments.txt");
+	if (!assfile.is_open())
+		FatalError(string("App::SaveColorAssignmentsCallback - Could not open Output/assignments.txt"));
+
+	// Save colors
+	for (auto it = app->scene.colorGroups.begin(); it != app->scene.colorGroups.end(); it++)
+	{
+		string name = it->first;
+		ColorGroup* cg = it->second;
+		assfile << "Color " << name << " " << cg->color[0] << " " << cg->color[1] << " " << cg->color[2] << endl;
+	}
+
+	// Save assignments
+	for (UINT i = 0; i < app->scene.models.size(); i++)
+	{
+		Model* m = app->scene.models[i];
+		for (UINT j = 0; j < m->components.size(); j++)
+		{
+			ModelComponent* mc = m->components[j];
+			assfile << "Assignment " << i << " " << j << " " << mc->colorGroup->name << endl;
+		}
+	}
+	assfile.close();
+}
+
 GraphicsContext* App::InitAndShowUI(int argc, char** argv)
 {
 	Fl_Window* window = new Fl_Window(params.IntParam("windowWidth"), params.IntParam("windowHeight"), params.StringParam("appName").c_str());
@@ -163,6 +192,7 @@ GraphicsContext* App::InitAndShowUI(int argc, char** argv)
 			{ "Generate Segmentation",  0, GenerateSegmentationCallback, this },
 			{ "Save Camera",  0, SaveCameraCallback, this },
 			{ "Restore Saved Camera",  0, RestoreCameraCallback, this },
+			{ "Save Color Assignments",  0, SaveColorAssignmentsCallback, this },
 		{ 0 },
 	{ 0 }
 	};
@@ -231,6 +261,44 @@ void App::InitGraphics(GraphicsContext* ctx)
 	// Now that the scene is loaded, tell the UI panels to update their lists of available color groups
 	colorPanel->RefreshColorGroupList();
 	compPanel->RefreshColorGroupList();
+
+	// If there's an available color assignments file, read that and modify the scene accordingly
+	LoadColorAssignments();
+}
+
+void App::LoadColorAssignments()
+{
+	ifstream assfile(params.StringParam("savedColorAssignments"));
+	if (assfile.is_open())
+	{
+		char line[1024];
+		while (!assfile.eof())
+		{
+			assfile.getline(line, 1023);
+			stringstream ss;
+			ss.str(line);
+			string command;
+			ss >> command;
+			if (command == "Assignment")
+			{
+				int modelindex, compindex;
+				string colorname;
+				ss >> modelindex >> compindex >> colorname;
+				ColorGroup* cg = scene.colorGroups[colorname];
+				scene.models[modelindex]->components[compindex]->SetColorGroup(cg);
+			}
+			else if (command == "Color")
+			{
+				string colorname;
+				float r, g, b;
+				ss >> colorname >> r >> g >> b;
+				ColorGroup* cg = scene.colorGroups[colorname];
+				cg->color[0] = r; cg->color[1] = g; cg->color[2] = b;
+			}
+		}
+		assfile.close();
+		context->Redraw();
+	}
 }
 
 void App::InitCamera()
