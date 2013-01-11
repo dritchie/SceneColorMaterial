@@ -35,6 +35,10 @@ savedCamera					../Output/camera.txt
 savedColorAssignments		../Output/assignments.txt
 dataRoot					C:/Git/WebSceneStudio/public/data
 
+pbrtNumSamples				32
+pbrtNumThreads				6
+pbrtFrameHeight				800
+
 orbitSpeed					0.005
 dollySpeed					0.15
 zoomSpeed					4.0

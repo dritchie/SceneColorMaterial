@@ -62,6 +62,7 @@ private:
 	static Fl_Callback SaveCameraCallback;
 	static Fl_Callback RestoreCameraCallback;
 	static Fl_Callback SaveColorAssignmentsCallback;
+	static Fl_Callback RenderPBRTCallback;
 
 
 	/** Various state (May split this out at some point) **/
