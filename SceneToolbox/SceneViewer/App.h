@@ -47,6 +47,8 @@ private:
 
 	void InitCamera();
 
+	void LoadColorAssignments();
+
 	// Render passes
 	void DrawingRenderPass();
 	void PickingRenderPass();
@@ -57,6 +59,9 @@ private:
 	static Fl_Callback DisplayFixedCallback;
 	static Fl_Callback SaveFrameCallback;
 	static Fl_Callback GenerateSegmentationCallback;
+	static Fl_Callback SaveCameraCallback;
+	static Fl_Callback RestoreCameraCallback;
+	static Fl_Callback SaveColorAssignmentsCallback;
 
 
 	/** Various state (May split this out at some point) **/

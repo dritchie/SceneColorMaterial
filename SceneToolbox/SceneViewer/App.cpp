@@ -121,6 +121,60 @@ void App::GenerateSegmentationCallback(Fl_Widget* w, void* v)
 	delete segmesh;
 }
 
+void App::SaveCameraCallback(Fl_Widget* w, void* v)
+{
+	App* app = (App*)v;
+
+	ofstream camout("../Output/camera.txt");
+	if (!camout.is_open())
+		FatalError(string("App::SaveCameraCallback - Could not open Output/camera.txt"));
+
+	app->camera->Serialize(camout);
+	camout.close();
+}
+
+void App::RestoreCameraCallback(Fl_Widget* w, void* v)
+{
+	App* app = (App*)v;
+	string camerafile = app->params.StringParam("savedCamera");
+	ifstream camin(camerafile.c_str());
+	if (camin.is_open())
+	{
+		app->camera->Deserialize(camin);
+		camin.close();
+		app->context->Redraw();
+	}
+}
+
+void App::SaveColorAssignmentsCallback(Fl_Widget* w, void* v)
+{
+	App* app = (App*)v;
+
+	ofstream assfile("../Output/assignments.txt");
+	if (!assfile.is_open())
+		FatalError(string("App::SaveColorAssignmentsCallback - Could not open Output/assignments.txt"));
+
+	// Save colors
+	for (auto it = app->scene.colorGroups.begin(); it != app->scene.colorGroups.end(); it++)
+	{
+		string name = it->first;
+		ColorGroup* cg = it->second;
+		assfile << "Color " << name << " " << cg->color[0] << " " << cg->color[1] << " " << cg->color[2] << endl;
+	}
+
+	// Save assignments
+	for (UINT i = 0; i < app->scene.models.size(); i++)
+	{
+		Model* m = app->scene.models[i];
+		for (UINT j = 0; j < m->components.size(); j++)
+		{
+			ModelComponent* mc = m->components[j];
+			assfile << "Assignment " << i << " " << j << " " << mc->colorGroup->name << endl;
+		}
+	}
+	assfile.close();
+}
+
 GraphicsContext* App::InitAndShowUI(int argc, char** argv)
 {
 	Fl_Window* window = new Fl_Window(params.IntParam("windowWidth"), params.IntParam("windowHeight"), params.StringParam("appName").c_str());
@@ -136,6 +190,9 @@ GraphicsContext* App::InitAndShowUI(int argc, char** argv)
 		{ "&Tools", 0, 0, 0, FL_SUBMENU },
 			{ "Save Frame",  0, SaveFrameCallback, this },
 			{ "Generate Segmentation",  0, GenerateSegmentationCallback, this },
+			{ "Save Camera",  0, SaveCameraCallback, this },
+			{ "Restore Saved Camera",  0, RestoreCameraCallback, this },
+			{ "Save Color Assignments",  0, SaveColorAssignmentsCallback, this },
 		{ 0 },
 	{ 0 }
 	};
@@ -204,6 +261,44 @@ void App::InitGraphics(GraphicsContext* ctx)
 	// Now that the scene is loaded, tell the UI panels to update their lists of available color groups
 	colorPanel->RefreshColorGroupList();
 	compPanel->RefreshColorGroupList();
+
+	// If there's an available color assignments file, read that and modify the scene accordingly
+	LoadColorAssignments();
+}
+
+void App::LoadColorAssignments()
+{
+	ifstream assfile(params.StringParam("savedColorAssignments"));
+	if (assfile.is_open())
+	{
+		char line[1024];
+		while (!assfile.eof())
+		{
+			assfile.getline(line, 1023);
+			stringstream ss;
+			ss.str(line);
+			string command;
+			ss >> command;
+			if (command == "Assignment")
+			{
+				int modelindex, compindex;
+				string colorname;
+				ss >> modelindex >> compindex >> colorname;
+				ColorGroup* cg = scene.colorGroups[colorname];
+				scene.models[modelindex]->components[compindex]->SetColorGroup(cg);
+			}
+			else if (command == "Color")
+			{
+				string colorname;
+				float r, g, b;
+				ss >> colorname >> r >> g >> b;
+				ColorGroup* cg = scene.colorGroups[colorname];
+				cg->color[0] = r; cg->color[1] = g; cg->color[2] = b;
+			}
+		}
+		assfile.close();
+		context->Redraw();
+	}
 }
 
 void App::InitCamera()
@@ -213,6 +308,15 @@ void App::InitCamera()
 	tinkerCam->ScrollZoomSpeed() = (float)params.FloatParam("zoomSpeed");
 	tinkerCam->DollySpeed() = (float)params.FloatParam("dollySpeed");
 	camera = tinkerCam;
+
+	// If the params specify a camera file, load up the configuration from this file
+	string camerafile = params.StringParam("savedCamera");
+	ifstream camin(camerafile.c_str());
+	if (camin.is_open())
+	{
+		camera->Deserialize(camin);
+		camin.close();
+	}
 }
 
 void App::Render()

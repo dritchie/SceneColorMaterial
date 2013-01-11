@@ -45,7 +45,7 @@ void Scene::LoadFromWSS(WSSScene* wss)
 	char newname[1024];
 	for (auto it = tempGroups.begin(); it != tempGroups.end(); it++)
 	{
-		SafePrintf(newname, "Color %u", counter);
+		SafePrintf(newname, "Color_%u", counter);
 		it->second->name = newname;
 		colorGroups[newname] = it->second;
 		counter++;

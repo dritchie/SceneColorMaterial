@@ -43,7 +43,7 @@ object Segment
 
     def getUnaryRegressionFeatures(seg:Segment) : (Tensor1, Array[String]) =
     {
-        val blockList = Set("HuMoments","RelativeCentroid")
+        val blockList = Set("HuMoments","RelativeCentroid","OneInteriorPoint")
         val featureList = seg.features.filterKeys(name => !blockList.contains(name)).values
         val featureNames = seg.features.filterKeys(name=> !blockList.contains(name)).keys
 

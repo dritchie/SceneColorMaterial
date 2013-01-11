@@ -19,6 +19,7 @@ import collection.mutable
 import java.io.{File, FileNotFoundException, FileWriter}
 import io.Source
 import java.awt.image.BufferedImage
+import java.awt
 
 object ColorInferenceModel
 {
@@ -743,7 +744,7 @@ class ColorCompatibilityTemplate extends DotTemplateN[ContinuousColorVariable] w
 
 
 
-class TargetImageTemplate(private val img:BufferedImage, private val quantization:Int, areaWeighted:Boolean = true)
+class ImageHistogramTemplate(private val img:BufferedImage, private val quantization:Int, areaWeighted:Boolean = true)
     extends DotTemplate1[ContinuousColorVariable] with ColorInferenceModel.Trainable
 {
     def name = "TargetImage"
@@ -931,6 +932,55 @@ class ImagePaletteTemplate(img:BufferedImage) extends DotTemplate1[ContinuousCol
     {
         // This factor applies to every color variable
         Factor(v1)
+    }
+}
+
+
+
+object TargetImageTemplate
+{
+    type DatumVariable = RefVariable[Color]
+}
+class TargetImageTemplate(img:BufferedImage, mesh:SegmentMesh, private val bandwidth:Double) extends DotTemplate2[ContinuousColorVariable, TargetImageTemplate.DatumVariable]
+    with ColorInferenceModel.Trainable
+{
+    import TargetImageTemplate._
+
+    def name = "TargetImage"
+
+    private val data = buildData(img, mesh)
+
+    private def buildData(img:BufferedImage, mesh:SegmentMesh) : mutable.Map[Int, DatumVariable] =
+    {
+        // Build up map of segment index -> target color based on the image
+        val thedata = new mutable.HashMap[Int, DatumVariable]
+        val w = img.getWidth
+        val h = img.getHeight
+        for (seg <- mesh.segments)
+        {
+            val relp = seg.features("OneInteriorPoint")
+            val p = Tensor1(w*(0.5 + relp(0)), h*(0.5 + relp(1)))
+            val rgb = img.getRGB(p(0).toInt, p(1).toInt)
+            val c = new awt.Color(rgb)
+            val myc = Color.RGBColor(c.getRed/255.0, c.getGreen/255.0, c.getBlue/255.0)
+            thedata.put(seg.index, new DatumVariable(myc.copyTo(LABColorSpace)))
+        }
+        thedata
+    }
+
+    override def statistics(variableColor:Color, targetColor:Color) : Tensor =
+    {
+        Tensor1(MathUtils.logGaussianKernel(Color.perceptualDifference(variableColor, targetColor), bandwidth))
+    }
+
+    def unroll1(v1:ContinuousColorVariable) : Iterable[Factor] =
+    {
+        for (seg <- v1.group.members) yield Factor(v1, data(seg.index))
+    }
+
+    def unroll2(v2:DatumVariable) : Iterable[Factor] =
+    {
+        Nil
     }
 }
 
