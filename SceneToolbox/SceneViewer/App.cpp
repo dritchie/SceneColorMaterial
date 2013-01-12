@@ -207,32 +207,37 @@ void App::RenderPBRTCallback(Fl_Widget* w, void* v)
     // nsamples for an infinite light source does nothing. Light sampling is deterministic given the u-v sample values provided by the Sampler.
     //
 
-    file << "LightSource \"infinite\" \"string mapname\" [\"lightMaps/pisa_latlong.exr\"]" << endl;
-    file << "  \"integer nsamples\" [1]" << endl;
-
-    file << "AttributeBegin" << endl;
-    file << "Rotate 110 0 0 1" << endl;
-    file << "LightSource \"infinite\" \"string mapname\" [\"lightMaps/skylight-surreal.exr\"]" << endl;
+	file << "AttributeBegin" << endl;
+    file << "LightSource \"infinite\" \"string mapname\" [\"lightMaps/white.exr\"]" << endl;
     file << "  \"integer nsamples\" [1]" << endl;
     file << "AttributeEnd" << endl;
 
-    file << "AttributeBegin" << endl;
-    file << "Rotate 110 0 0 1" << endl;
-    file << "LightSource \"infinite\" \"string mapname\" [\"lightMaps/skylight-surreal.exr\"]" << endl;
-    file << "  \"integer nsamples\" [1]" << endl;
-    file << "AttributeEnd" << endl;
+	//file << "LightSource \"infinite\" \"string mapname\" [\"lightMaps/pisa_latlong.exr\"]" << endl;
+ //   file << "  \"integer nsamples\" [1]" << endl;
 
-    file << "AttributeBegin" << endl;
-    file << "Rotate 180 1 0 0" << endl;
-    file << "LightSource \"infinite\" \"string mapname\" [\"lightMaps/skylight-blue.exr\"]" << endl;
-    file << "  \"integer nsamples\" [1]" << endl;
-    file << "AttributeEnd" << endl;
+    //file << "AttributeBegin" << endl;
+    //file << "Rotate 110 0 0 1" << endl;
+    //file << "LightSource \"infinite\" \"string mapname\" [\"lightMaps/skylight-surreal.exr\"]" << endl;
+    //file << "  \"integer nsamples\" [1]" << endl;
+    //file << "AttributeEnd" << endl;
 
-    file << "AttributeBegin" << endl;
-    file << "Rotate 190 0 0 1" << endl;
-    file << "LightSource \"infinite\" \"string mapname\" [\"lightMaps/skylight-pollution.exr\"]" << endl;
-    file << "  \"integer nsamples\" [1]" << endl;
-    file << "AttributeEnd" << endl;
+    //file << "AttributeBegin" << endl;
+    //file << "Rotate 110 0 0 1" << endl;
+    //file << "LightSource \"infinite\" \"string mapname\" [\"lightMaps/skylight-surreal.exr\"]" << endl;
+    //file << "  \"integer nsamples\" [1]" << endl;
+    //file << "AttributeEnd" << endl;
+
+    //file << "AttributeBegin" << endl;
+    //file << "Rotate 180 1 0 0" << endl;
+    //file << "LightSource \"infinite\" \"string mapname\" [\"lightMaps/skylight-blue.exr\"]" << endl;
+    //file << "  \"integer nsamples\" [1]" << endl;
+    //file << "AttributeEnd" << endl;
+
+    //file << "AttributeBegin" << endl;
+    //file << "Rotate 190 0 0 1" << endl;
+    //file << "LightSource \"infinite\" \"string mapname\" [\"lightMaps/skylight-pollution.exr\"]" << endl;
+    //file << "  \"integer nsamples\" [1]" << endl;
+    //file << "AttributeEnd" << endl;
 
 	for (UINT i = 0; i < app->scene.models.size(); i++)
 	{

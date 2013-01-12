@@ -32,10 +32,10 @@ appName			SceneViewer
 
 sceneToLoad					../Scenes/LivingRoom1.json
 savedCamera					../Output/camera.txt
-savedColorAssignments		../Output/assignments.txt
+savedColorAssignments		../Output/assignments_orig.txt
 dataRoot					C:/Git/WebSceneStudio/public/data
 
-pbrtNumSamples				32
+pbrtNumSamples				384
 pbrtNumThreads				6
 pbrtFrameHeight				800
 
