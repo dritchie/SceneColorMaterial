@@ -175,6 +175,90 @@ void App::SaveColorAssignmentsCallback(Fl_Widget* w, void* v)
 	assfile.close();
 }
 
+void App::RenderPBRTCallback(Fl_Widget* w, void* v)
+{
+	App* app = (App*)v;
+
+	ofstream file("PBRT/scene.pbrt");
+
+	int width = ((FLTKGraphicsWindow*)(app->context))->w();
+	int height = ((FLTKGraphicsWindow*)(app->context))->h();
+	float aspect = ((float)width)/height;
+	int yres = app->params.IntParam("pbrtFrameHeight");
+	int xres = aspect*yres;
+
+    //http://www-users.cselabs.umn.edu/classes/Spring-2012/csci5108/fileformat.pdf
+
+    file << "Film \"image\"" << endl;
+    file << "  \"integer xresolution\" [" << xres << "] \"integer yresolution\" [" << yres << "]" << endl;
+    file << "  \"string filename\" [\"PBRT/s.exr\"]" << endl;
+    file << "Scale -1 1 1" << endl;
+	
+	file << "LookAt " << app->camera->EyePos() << " " << app->camera->LookAtPoint() << " " << app->camera->UpVec() << endl;
+    file << "Camera \"perspective\" \"float fov\" [60]" << endl;
+
+    file << "SurfaceIntegrator \"whitted\"" << endl;
+    
+	file << " Sampler \"lowdiscrepancy\" \"integer pixelsamples\" [" << app->params.IntParam("pbrtNumSamples") << "]" << endl;
+    
+    file << "WorldBegin" << endl;
+
+    //
+    // nsamples for an infinite light source does nothing. Light sampling is deterministic given the u-v sample values provided by the Sampler.
+    //
+
+	file << "AttributeBegin" << endl;
+    file << "LightSource \"infinite\" \"string mapname\" [\"lightMaps/white.exr\"]" << endl;
+    file << "  \"integer nsamples\" [1]" << endl;
+    file << "AttributeEnd" << endl;
+
+	//file << "LightSource \"infinite\" \"string mapname\" [\"lightMaps/pisa_latlong.exr\"]" << endl;
+ //   file << "  \"integer nsamples\" [1]" << endl;
+
+    //file << "AttributeBegin" << endl;
+    //file << "Rotate 110 0 0 1" << endl;
+    //file << "LightSource \"infinite\" \"string mapname\" [\"lightMaps/skylight-surreal.exr\"]" << endl;
+    //file << "  \"integer nsamples\" [1]" << endl;
+    //file << "AttributeEnd" << endl;
+
+    //file << "AttributeBegin" << endl;
+    //file << "Rotate 110 0 0 1" << endl;
+    //file << "LightSource \"infinite\" \"string mapname\" [\"lightMaps/skylight-surreal.exr\"]" << endl;
+    //file << "  \"integer nsamples\" [1]" << endl;
+    //file << "AttributeEnd" << endl;
+
+    //file << "AttributeBegin" << endl;
+    //file << "Rotate 180 1 0 0" << endl;
+    //file << "LightSource \"infinite\" \"string mapname\" [\"lightMaps/skylight-blue.exr\"]" << endl;
+    //file << "  \"integer nsamples\" [1]" << endl;
+    //file << "AttributeEnd" << endl;
+
+    //file << "AttributeBegin" << endl;
+    //file << "Rotate 190 0 0 1" << endl;
+    //file << "LightSource \"infinite\" \"string mapname\" [\"lightMaps/skylight-pollution.exr\"]" << endl;
+    //file << "  \"integer nsamples\" [1]" << endl;
+    //file << "AttributeEnd" << endl;
+
+	for (UINT i = 0; i < app->scene.models.size(); i++)
+	{
+		Model* m = app->scene.models[i];
+		char modelfilename[64];
+		SafePrintf(modelfilename, "models/model_%03u", i);
+		file << "Include \"" << modelfilename << "\"" << endl;
+		m->SavePBRT("PBRT/"+ string(modelfilename), app->camera->GetLookAtTransform());
+	}
+
+    file << "WorldEnd" << endl;
+	file.close();
+
+	// Now actually launch PBRT to do the rendering
+	char pbrtCommand[128];
+	SafePrintf(pbrtCommand, "PBRT\\bin\\pbrt \"PBRT\\scene.pbrt\" --ncores %d", app->params.IntParam("pbrtNumThreads"));
+	system(pbrtCommand);
+    system("PBRT\\bin\\exrtotiff \"PBRT\\s.exr\" \"PBRT\\s.tiff\"");
+    system("PBRT\\s.tiff");
+}
+
 GraphicsContext* App::InitAndShowUI(int argc, char** argv)
 {
 	Fl_Window* window = new Fl_Window(params.IntParam("windowWidth"), params.IntParam("windowHeight"), params.StringParam("appName").c_str());
@@ -193,6 +277,7 @@ GraphicsContext* App::InitAndShowUI(int argc, char** argv)
 			{ "Save Camera",  0, SaveCameraCallback, this },
 			{ "Restore Saved Camera",  0, RestoreCameraCallback, this },
 			{ "Save Color Assignments",  0, SaveColorAssignmentsCallback, this },
+			{ "Render with PRBT",  0, RenderPBRTCallback, this },
 		{ 0 },
 	{ 0 }
 	};

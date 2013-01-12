@@ -1,6 +1,8 @@
 #include "Scene.h"
+#include <fstream>
 
 using namespace std;
+using namespace GraphicsEngine;
 
 void Scene::LoadFromWSS(WSSScene* wss)
 {

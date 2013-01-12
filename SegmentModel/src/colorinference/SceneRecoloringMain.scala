@@ -20,7 +20,7 @@ object SceneRecoloringMain
     val visDir = "../scene_recoloring/out/vis_mmr"
 
     // Target image
-    val targetImg = "../scene_recoloring/originalColors_awful.png"
+    val targetImg = "../scene_recoloring/originalColors_awful2.png"
     val imgFactorWeight = 2.5
     val imgFactorBandwidth = 30.0
 

@@ -152,3 +152,62 @@ void Model::Pick(const RenderOptions& opts)
 
 	TransformStack::Modelview().Pop();
 }
+
+
+void Model::SavePBRT(const std::string& filename, const GraphicsEngine::Transform& cameraTransform)
+{
+	ofstream file(filename.c_str());
+	for (UINT i = 0; i < components.size(); i++)
+	{
+		ModelComponent* mc = components[i];
+		ColorGroup* cg = mc->colorGroup;
+
+		// Find all front-facing faces
+		GraphicsEngine::Transform normalTransform = (cameraTransform * transform).Inverse().Transpose();
+		vector<UINT> frontFacingFaces;
+		for (UINT i = 0; i < mc->mesh->NumFaces(); i++)
+		{
+			const MeshFace& f = mc->mesh->Faces()[i];
+			Eigen::Vector3f normal = normalTransform.TransformVector(mc->mesh->Normal(f));
+			bool isFrontFacing = (normal.z() > 0.0f);
+
+			// Sepcial case: We use all triangles of the room geometry (it ends up having some holes
+			// if we apply the front-facing test...)
+			if (this->index == 0)
+				isFrontFacing = true;
+
+			if (isFrontFacing)
+				frontFacingFaces.push_back(i);
+		}
+
+		if (frontFacingFaces.size() > 0)
+		{
+			// Describe material
+			file << "Material \"matte\" \"color Kd\" [" << cg->color[0] << ' ' << cg->color[1] << ' ' << cg->color[2] << "]" << endl;
+
+			// Describe shape
+			file << "AttributeBegin" << endl;
+			file << "Shape \"trianglemesh\"" << endl;
+			file << "  \"point P\" [" << endl;
+			// Vertices
+			for(UINT vertexIndex = 0; vertexIndex < mc->mesh->NumVertices(); vertexIndex++)
+			{
+				Eigen::Vector3f v = mc->mesh->Vertices()[vertexIndex];
+				Eigen::Vector3f pos = transform.TransformPoint(v);
+				file << "    " << pos.x() << ' ' << pos.y() << ' ' << pos.z() << endl;
+			}
+			file << "  ]" << endl;
+
+			// Indices
+			file << "  \"integer indices\" [" << endl;
+			for(UINT faceIndex = 0; faceIndex < frontFacingFaces.size(); faceIndex++)
+			{
+				const MeshFace& f = mc->mesh->Faces()[frontFacingFaces[faceIndex]];
+				file << "	" << f.i[0] << " " << f.i[1] << " " << f.i[2] << endl;
+			}
+			file << "  ]" << endl;
+			file << "AttributeEnd" << endl;
+		}
+	}
+	file.close();
+}
