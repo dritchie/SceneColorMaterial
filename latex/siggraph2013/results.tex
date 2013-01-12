@@ -144,15 +144,9 @@ Original&Recoloring 1&Recoloring 2&Recoloring 3\vspace{0.4em}\\
 
 \paragraph{Fashion design}
 
-%\remark{Leaving out performance for the time being.}
 
-%\subsection{Performance}
-%
-%\remark{Flesh this out with real data}
-%We measured the performance of our prototype implementation using wall-clock time on a machine with X specs~\remark{Use Matt's machine?}.
-%
-%Table ? shows the time it takes to train the model for different numbers of training examples~\remark{Show it split into phases: cross-validation(?), regressor training, weight-tuning (we may want to try fewer iterations of weight-tuning w/ higher learning rate?}. Most of the time is taken up by X. Training amounts to a one-time-cost; once a model has been trained, it can suggest multiple colorings for many different patterns.
-%
-%The time required to generate coloring suggestions varies depending on the visual complexity of the pattern, but on average takes X time in our experiments. Time breaks down into: running parallel tempering, running MMR (we retrieve the top 20 samples using MMR $\lambda = 0.5$).
-%
-%There are many avenues for improving the performance of our unoptimized prototype. We could leverage the massive parallelism of graphics hardware to speed up parallel tempering, as was done in related work on automatic furniture layout~\cite{MerrellFurnitureLayout}. We could also improve the convergence of the individual MCMC chains via gradient-based proposals, as in Hamiltonian MCMC~\cite{HamiltonianMCMC}. Prior work has shown the feasibility of computing the gradients of programmatically-expressed distributions using automatic differentation~\cite{AutoDiff}. 
+\subsection{Performance}
+
+The time required to generate coloring suggestions varies depending on the visual complexity of the pattern, but on average takes X time in our experiments. We gather timing measurements on a machine with X specs. We run parallel tempering with M chains for N iterations and retrieve the top 20 samples using MMR with $\lambda = 0.5$. The running time is dominated by the probabilistic inference phase.~\remark{Get real numbers from Matt's machine.}
+
+There are many avenues for improving the performance of our unoptimized prototype. We could leverage the massive parallelism of graphics hardware to speed up parallel tempering, as was done in related work on automatic furniture layout~\cite{MerrellFurnitureLayout}. We could also improve the convergence of the individual MCMC chains via gradient-based proposals, as in Hamiltonian MCMC~\cite{HamiltonianMCMC}. Prior work has shown the feasibility of computing the gradients of programmatically-expressed distributions using automatic differentation~\cite{AutoDiff}. 
