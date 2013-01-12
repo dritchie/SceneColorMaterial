@@ -2,6 +2,9 @@ package colorinference
 
 import java.io.{FileWriter, File}
 import collection.mutable
+import io.Source
+import java.awt
+import collection.mutable.ArrayBuffer
 
 /**
  * Created with IntelliJ IDEA.
@@ -19,7 +22,7 @@ object TurkMain {
   // Maximization parameters
   val numParallelChains = 5
   val iterations = 2000
-  val cciterations = 20000 //use different number of iterations for color compatibility model?
+  val cciterations = 2000//20000 //use different number of iterations for color compatibility model? TODO: in interest of time, currently setting this lower
   val initTemp = 1.0
   val finalTemp = 0.01
   val rounds = 40
@@ -40,7 +43,7 @@ object TurkMain {
     saveWeightsIfPossible = true
     loadRegressorsIfPossible = true
     loadWeightsIfPossible = true
-    modelSaveDirectory = "savedModel-turkModel-2"
+    modelSaveDirectory = "savedModel-turkModel-3"
 
     initialLearningRate = 0.2
     numWeightTuningIterations = 20
@@ -79,16 +82,16 @@ object TurkMain {
       1612867,
       1735168,
       1775244,
-      1879321,
       1894975,
       2019255,
       2531192,
       2539244,
-      2737168
+      2737168,
+      2644367
     )
 
     //TODO: determine n, or re-use trained model from elsewhere
-    val trainingSet = PatternIO.getTopNArtistPatterns(meshDir, 2, pids)
+    val trainingSet = PatternIO.getTopNArtistPatterns(meshDir, 3, pids)
     val testSet = PatternIO.getPatterns(meshDir).filter(p => pids.contains(p.pid))
 
     val trainingMeshes = trainingSet.map(p => new SegmentMesh(params.colorVarParams.variableGenerator, p.fullpath)).toArray
@@ -104,6 +107,7 @@ object TurkMain {
     outputRandomPatterns(model, ccmodel, testMeshes)
     outputCCPatterns(model, ccmodel, testMeshes)
     outputModelPatterns(model, ccmodel, testMeshes)
+    outputArtistPatterns()
 
   }
 
@@ -201,9 +205,35 @@ object TurkMain {
     savePatterns("ccPatterns.txt","c",pidToOutput)
   }
 
-  def outputArtistPatterns(indir:String)
+  def outputArtistPatterns()
   {
-    //TODO:Need to produce artist pattern info from Colourlovers
+    //TODO:Actually compute model scores for these, for now just output the colors
+
+    val artistFile = "../ColourLovers/turkPatterns.csv"
+    val source = Source.fromFile(artistFile)
+    val lineIterator = source.getLines()
+    val pidToOutput = new mutable.HashMap[Int, ArrayBuffer[TurkScoredValue]] ()
+    while (lineIterator.hasNext)
+    {
+      val line = lineIterator.next()
+      val tokens = line.split('|')
+      val pid:Int = tokens(0).toInt
+      val name = pid+"_a"+tokens(1)
+      val colorHex = tokens(3).split('^')
+
+      val colors = for (cstr <- colorHex) yield
+        {
+          val ac = awt.Color.decode("0x"+cstr)
+          val rgb = new Array[Float](3)
+          ac.getRGBColorComponents(rgb)
+          Color.RGBColor(rgb(0), rgb(1), rgb(2))
+        }
+      if (!pidToOutput.contains(pid))
+        pidToOutput(pid) = new ArrayBuffer[TurkScoredValue]()
+      pidToOutput(pid) += new TurkScoredValue(colors, 0, 0)
+    }
+    source.close()
+    savePatterns("artistPatterns.txt","a",pidToOutput.map((kv=>(kv._1, kv._2.toArray))))
   }
 
   def savePatterns(filename:String, label:String, samples:mutable.HashMap[Int, Array[TurkScoredValue]])
@@ -221,7 +251,7 @@ object TurkMain {
       for (idx <- pidSamples.indices)
       {
         //Record
-        writer.write("%d|%s|%f|%s\n".format(pid, pid+"_"+label+idx, pidSamples(idx).score, pidSamples(idx).values.map(c => c.copyIfNeededTo(RGBColorSpace).componentString).mkString("^")))
+        writer.write("%d|%s|%f|%s|%f\n".format(pid, pid+"_"+label+idx, pidSamples(idx).score, pidSamples(idx).values.map(c => c.copyIfNeededTo(RGBColorSpace).componentString).mkString("^"), pidSamples(idx).ccScore))
         writer.flush()
       }
 
