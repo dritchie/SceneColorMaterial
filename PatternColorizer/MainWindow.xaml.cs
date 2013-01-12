@@ -34,7 +34,7 @@ namespace PatternColorizer
         String outdir;
         String json;
         String weightsDir;
-        bool outputDebugImages = true; //outputting quantization results and connected components
+        bool outputDebugImages = false; //outputting quantization results and connected components
         bool renderFinal = true; //render the final images using Colourlovers site
 
         Dictionary<String, PaletteData> palettes;
@@ -748,6 +748,54 @@ namespace PatternColorizer
             //update the label
             OutDirLabel.Content = "IODir: " + outdir;
 
+        }
+
+        private void RenderTurk_Click(object sender, RoutedEventArgs e)
+        {
+            //read in the turk log files and write them all to one turk images directory
+            String turkDir = Path.Combine(outdir, "turkImages");
+            Directory.CreateDirectory(turkDir);
+
+            String textDir = Path.Combine(outdir, "turkLog");
+
+            String[] files = Directory.GetFiles(textDir);
+            foreach (String f in files)
+            {
+                RenderTurkFile(f, turkDir);
+            }
+
+
+
+        }
+
+        private void RenderTurkFile(String filename, String turkDir)
+        {
+            String[] lines = File.ReadAllLines(filename);
+            foreach (String line in lines)
+            {
+                String[] fields = line.Split('|');
+                String pid = fields[0];
+                String[] colors = fields[3].Split('^');
+
+                //render the template
+                Bitmap template = GetFinalRendering(pid, new PaletteData());
+                template.Save(Path.Combine(turkDir, pid + "_t.png"));
+
+                //render the candidate pattern
+                String name = fields[1]+".png";
+                PaletteData data = new PaletteData();
+                foreach (String color in colors)
+                {
+                    int[] cfields = color.Split(new string[]{" "},StringSplitOptions.RemoveEmptyEntries).Select<String, int>(s=>((int)(Math.Round(double.Parse(s)*255)))).ToArray<int>();
+                    data.colors.Add(Color.FromArgb(cfields[0], cfields[1], cfields[2]));
+                }
+                Bitmap cand = GetFinalRendering(pid, data);
+                cand.Save(Path.Combine(turkDir, name));
+
+                cand.Dispose();
+                template.Dispose();
+
+            }
         }
 
     }
