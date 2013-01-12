@@ -57,9 +57,10 @@ Suggestion&Results\\
 \paragraph{Soft color constraints}
 In another use case, a user might manually color a pattern and then wish to see variations upon this theme, hoping to find better-looking alternatives nearby in the space of colorings. Our model can support this type of query by incorporating an additional soft constraint factor on color variable, constraining it ot be close to a target color. Formally: 
 %%
-\begin{equation*}
+\begin{equation}
 \factor^\textrm{Target}(\colorVars_\group | \pattern) = \mathcal{N}(||\colorVars_\group - \textrm{targetColor}(\group)||, \sigma_\textrm{user})
-\end{equation*}
+\label{eq:targetFactor}
+\end{equation}
 %%
 Here, $\textrm{targetColor}(\group)$ is the desired color of group $\group$ and $\sigma_\textrm{user}$ controls the extent to which the group is allowed to deviate from the desired color. We assign this factor a weight $w_\textrm{user} * w_\textrm{model}$, where $w_\textrm{model}$ is the sum of the weights of all other factors in the model. $w_\textrm{user}$ controls the tradeoff between satisfying the user-specified target colors for a region versus satisfying the color distribution encoded by the trained model.
 %
@@ -126,6 +127,21 @@ Incoporating this term ensures that the body of the page stands out from the res
 \end{figure}
 
 \paragraph{3D scene design}
+Color-coordinating a virtual scene is another creative task that can benefit from computatational support. While repositories such as the 3D Warehouse provide a wealth of object models with which to build scenes, and prior research has investigated computational support for arranging those objects~\cite{SceneSynth}, coloring them in a consistent and pleasing way remains challenging. Figure~\ref{fig:sceneRecoloring} shows how our model can make this task easier. In this example, the original scene is composed of models whose material colors are internally consistent but do not harmonize with each other; this is a common problem when constructing scenes from repository models. We can treat this scene as a recolorable pattern by rendering its material coefficients to an image. The user then provides a few additional annotations to specify which object components should take the same color; in this example, all cushions, pillows, and wooden objects must take the same color. Finally, we add a factor to our model to enforce that the colors assigned to each component are similar to their original colors (see Equation~\ref{eq:targetFactor}). The resulting model, when sampled, suggests plausible, improved recolorings of the scene. Our model's applicability to this task, despite it being trained only on \emph{2D} patterns, suggests that it captures some simple cross-domain aesthetic principles.
+
+\begin{figure*}[t]
+\begin{tabular}{c|ccc} 
+Original&Recoloring 1&Recoloring 2&Recoloring 3\vspace{0.4em}\\
+\includegraphics[width=.23\linewidth]{figs/3dscene/original}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_00}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_01}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_05}\vspace{0.4em}\\
+\includegraphics[width=.23\linewidth]{figs/3dscene/original_pbrt}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_00_pbrt}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_01_pbrt}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_05_pbrt}\vspace{0.4em}\\
+\end{tabular}
+
+\caption{A poorly color-coordinated 3D scene is recolored using our model. Using the original coloring as a soft constraint, our model suggests multiple novel recolorings; here we show the top three suggestions. (Top) Diffuse material coefficients for each object. (Bottom) Final renderings of each scene.}
+\label{fig:sceneRecoloring}
+\vspace{-1.0em}
+\end{figure*}
+
+\paragraph{Fashion design}
 
 %\remark{Leaving out performance for the time being.}
 
