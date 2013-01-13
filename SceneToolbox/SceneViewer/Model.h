@@ -31,6 +31,7 @@ public:
 	void LoadFromUTF8(UTF8Model* utf8);
 	void Render(const RenderOptions& opts);
 	void Pick(const RenderOptions& opts);
+	void SavePBRT(const std::string& filename, const GraphicsEngine::Transform& cameraTransform);
 
 	GraphicsEngine::Transform transform;
 	std::vector<ModelComponent*> components;

@@ -3,9 +3,9 @@ We formulate the problem of generating colorings for a pattern template as findi
 
 We define the probability of a coloring for a particular pattern template as a log-linear model~\cite{LogLinearModels}:  
 \begin{equation*}
- p(\colors | \pattern : \weights) = \frac{1}{Z_\pattern(\weights)} \prod_{\term \in \model} \exp{\frac{ \weights_\term \cdot \termStats(\colors, \pattern)}{t}}
+ p(\colors | \pattern : \weights) = \frac{1}{Z_\pattern(\weights)} \prod_{\term \in \model} \exp(\weights_\term \cdot \termStats(\colors, \pattern))
 \end{equation*}
-The model $\model$ is comprised of a number of different terms $\term$, where each term scores the goodness of a color assignment based on a term-dependent sufficient statistics function $\termStats(\colors,\pattern)$. $Z_\pattern(\weights)$ is the pattern-dependent partition function that normalizes the distribution. The temperature $t$ affects the peakiness of the distribution and will play a role in sampling from the model, as described in Section~\ref{sec:sampling}. Each term also has a weight $\weights_\term$ which determines its relative contribution to the model; the method used for setting these weights is detailed in Section~\ref{sec:weights}.
+The model $\model$ is comprised of a number of different terms $\term$, where each term scores the goodness of a color assignment based on a term-dependent sufficient statistics function $\termStats(\colors,\pattern)$. $Z_\pattern(\weights)$ is the pattern-dependent partition function that normalizes the distribution. Each term also has a weight $\weights_\term$ which determines its relative contribution to the model; the method used for setting these weights is detailed in Section~\ref{sec:weights}.
 
 This type of model is well-suited to the coloring-generation problem. It is very flexible; in principle, the individual term statistics $\termStats$ can be any real-valued function. In our model, we include terms both for color compatibility as well as for spatial properties defined over groups, segments, and segment adjacencies. Users can also guide the model via additional soft constraint terms (Section~\ref{sec:results}). In addition, it is very easy to compare the relative importance of each term by comparing their weights, which we will do in Section~\ref{sec:weights} to gain some insight into which terms contribute the most to producing attractive colorings. 
 
@@ -39,7 +39,7 @@ Note that there is nothing special about the O'Donovan model that makes it work 
 
 In the factor graph representation of our model, this term contributes one factor that touches the five color variables belong to the five largest groups (or fewer, if there are less than five groups in the pattern). Formally:
 \begin{equation*}
-\factor(\textrm{top}(\colorVars) | \pattern) = \exp(\colorCompatWeight \cdot \colorCompatTerm(\colorVars | \pattern) / t)
+\factor(\textrm{top}(\colorVars) | \pattern) = \exp(\colorCompatWeight \cdot \colorCompatTerm(\colorVars | \pattern))
 \end{equation*}
 where $\textsl{top}$ are the color variables of the largest five groups in the pattern, and $t$ is the temperature of the model as defined previously.
 
@@ -99,7 +99,7 @@ These terms contribute unary factors over each color variable by grouping togeth
  %\factor(\colorVars(\group)) = \prod_{\prop \in \unaryProps} \exp\left(\frac{\groupTermWeight \cdot \groupInstStats(\group) + \segTermWeight \cdot \sum_{\segment \in \group} \segInstStats(\segment)}{t}\right) 
  \factor(\colorVars_\group | \pattern) = \prod_{\prop \in \unaryProps}
  		\exp( (&\groupTermWeight \cdot \groupInstStats(\colorVars_\group | \pattern, \group)  \\
- 		     + &\segTermWeight \cdot \sum_{\segment \in \group} \segInstStats(\colorVars_\group | \pattern, \segment)) / t) 
+ 		     + &\segTermWeight \cdot \sum_{\segment \in \group} \segInstStats(\colorVars_\group | \pattern, \segment))) 
 \end{align*}
 
 
@@ -140,7 +140,7 @@ where $\adjStrength(\segment,\segprime)$ is the strength of the adjacency $(\seg
 These terms contribute binary factors over each adjacent pair of color variables:
 \begin{equation*}
  %\factor(\colorVars(\group), \colorVars(\groupprime)) = \prod_{\prop \in \binaryProps} \exp\left(\frac{\adjTermWeight \cdot \sum_{(\segment, \segprime) \in \adj(\group, \groupprime)} \adjInstStats(\segment, \segprime)}{t}\right) 
- \factor(\colorVars_\group, \colorVars_\groupprime | \pattern) = \prod_{\prop \in \binaryProps} \exp( (\adjTermWeight \cdot \sum_{(\segment, \segprime) \in \adj(\group, \groupprime)} \adjInstStats( \colorVars_\group, \colorVars_\groupprime | \pattern, \segment, \segprime)) / t) 
+ \factor(\colorVars_\group, \colorVars_\groupprime | \pattern) = \prod_{\prop \in \binaryProps} \exp( (\adjTermWeight \cdot \sum_{(\segment, \segprime) \in \adj(\group, \groupprime)} \adjInstStats( \colorVars_\group, \colorVars_\groupprime | \pattern, \segment, \segprime))) 
 \end{equation*}
 %  \begin{equation*}
 %  \factor(\colorVars(\group), \colorVars(\groupprime)) = exp\left(\sum_{\substack{\prop \in \binaryProps \\ (\segment, \segprime) \in \adj(\group, \groupprime)}} \adjTermWeight \cdot \adjInstStats(\segment, \segprime)\right) 
