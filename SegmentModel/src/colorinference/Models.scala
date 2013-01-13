@@ -191,6 +191,14 @@ class ColorInferenceModel extends TemplateModel
         trainables.foreach(t => t.setWeight(math.max(minWeight, t.getWeight)))
     }
 
+    def normalizeWeights()
+    {
+        // First, all weights have to be non-negative
+        enforceMinimumWeight(0.0)
+        val weightsum = trainables.map(_.getWeight).sum
+        trainables.foreach(t => t.setWeight(t.getWeight / weightsum))
+    }
+
     def randomizeWeights()
     {
         for (t <- trainables) t.setWeight(math.random)
@@ -701,6 +709,8 @@ object ColorCompatibilityTemplate
 
 class ColorCompatibilityTemplate extends DotTemplateN[ContinuousColorVariable] with ColorInferenceModel.Trainable
 {
+    var skipTopN = 0
+
     def name = "ColorCompatibility"
 
     private def colorsToArray(colors:Seq[Color]) : Array[Double] =
@@ -729,7 +739,7 @@ class ColorCompatibilityTemplate extends DotTemplateN[ContinuousColorVariable] w
     private def sizedOrderedVars(mesh:SegmentMesh) =
     {
         // (At most) the top five biggest groups in the mesh
-        mesh.groups.sortWith(_.size > _.size).map(_.color.asInstanceOf[ContinuousColorVariable]).slice(0,5)
+        mesh.groups.sortWith(_.size > _.size).map(_.color.asInstanceOf[ContinuousColorVariable]).slice(skipTopN,skipTopN+5)
     }
 
     def unroll(v:ContinuousColorVariable) : Iterable[Factor] =

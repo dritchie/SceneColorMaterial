@@ -484,8 +484,8 @@ namespace Engine
         /// <returns>A bitmap of the image requested</returns>
         public static Bitmap BitmapFromWeb(string URL)
         {
-            //try
-            //{
+            try
+            {
                 // create a web request to the url of the image
                 HttpWebRequest myRequest = (HttpWebRequest)WebRequest.Create(URL);
                 // set the method to GET to get the image
@@ -498,11 +498,11 @@ namespace Engine
                 myResponse.Close();
                 // return the Bitmap of the image
                 return bmp;
-            //}
-            //catch (Exception ex)
-            //{
-            //    return null; // if for some reason we couldn't get to image, we return null
-            //}
+            }
+            catch (Exception ex)
+            {
+                return null; // if for some reason we couldn't get to image, we return null
+            }
         }
 
 

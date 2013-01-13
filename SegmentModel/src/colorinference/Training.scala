@@ -69,6 +69,7 @@ abstract class ModelTrainingParams
     var numWeightTuningIterations = 10
     var enforceMinimumWeight = false
     var minWeight = 0.0
+    var normalizeWeights = false
 
     // MH Sampling / Contrastive divergence params
     var cdK = 1
@@ -113,7 +114,7 @@ object DiscreteColorVariableParams extends ColorVariableParams[DiscreteColorVari
     def newTrainingSampler(model:Model, params:ModelTrainingParams) = new DiscreteColorTrainingSampler(model, params.cdK)
     def initDomain(mesh:SegmentMesh)
     {
-        val palette = ColorPalette(mesh);
+        val palette = ColorPalette(mesh)
         DiscreteColorVariable.initDomain(palette)
         for (color <- palette) color.convertTo(LABColorSpace)   // Since most features are in LAB
     }
@@ -547,6 +548,8 @@ class ModelTraining(val params:ModelTrainingParams)
 
                 if (params.enforceMinimumWeight)
                     model.enforceMinimumWeight(params.minWeight)
+                if (params.normalizeWeights)
+                    model.normalizeWeights()
             }
 
 //            var ll = 0.0

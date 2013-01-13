@@ -1,49 +1,40 @@
 package colorinference
 
+import java.io.{FileWriter, File}
+import javax.imageio.ImageIO
+
 /**
  * Created with IntelliJ IDEA.
  * User: Daniel
- * Date: 12/26/12
- * Time: 6:00 PM
+ * Date: 1/12/13
+ * Time: 5:17 PM
  * To change this template use File | Settings | File Templates.
  */
 
-import java.io.{FileWriter, File}
-import cc.factorie.{Model, Family, SamplingMaximizer}
-
-object MMRTest
+object FashionRecoloringMain
 {
     var params:ModelTrainingParams = null
 
-    val inputDir = "../PatternColorizer/out/mesh"
-    val randVisDir = "../PatternColorizer/out/vis_rand"
-    val mmrVisDir = "../PatternColorizer/out/vis_mmr"
+    val inputDir = "../fashion_recoloring/out/mesh"
+    val visDir = "../fashion_recoloring/out/vis_mmr"
+
+    // MMR
     val lambdas = Array(0.25, 0.5, 0.75)
     val numSamplesToOutput = 20
 
-    // Maximization parameters
-    val numParallelChains = 5
-    val iterations = 2000
-    val initTemp = 1.0
-    val finalTemp = 0.01
-    val rounds = 40
-
-    // Parallel tempering parameters
+    // Parallel tempering
     val chainTemps = Array(1.0, 0.5, 0.2, 0.05, 0.01)
+    val iterations = 2000
     val itersBetweenSwaps = 50
 
     def main(args:Array[String])
     {
-        // Verify that visDirs exists
-//        var visDirTestFile = new File(randVisDir)
-//        if (!visDirTestFile.exists)
-//            visDirTestFile.mkdir
-        val visDirTestFile = new File(mmrVisDir)
+        val visDirTestFile = new File(visDir)
         if (!visDirTestFile.exists)
             visDirTestFile.mkdir
 
-        val allArtists = Set("sugar!", "davidgav")
-        val trainingArtists = Set("davidgav")
+        val allArtists = Set("sugar!", "h&m")
+        val trainingArtists = Set("sugar!")
         val patterns = PatternIO.getPatterns(inputDir).filter(p=>(allArtists.contains(p.directory))).toArray
 
         if (patterns.length == 0)
@@ -57,15 +48,15 @@ object MMRTest
 
             modelSaveDirectory = "savedModel"
             doWeightTuning = true
-            saveRegressorsIfPossible = false
-            saveWeightsIfPossible = false
+            saveRegressorsIfPossible = true
+            saveWeightsIfPossible = true
             loadRegressorsIfPossible = true
-            loadWeightsIfPossible = false
+            loadWeightsIfPossible = true
 
             includeColorCompatibilityTerm = true
-//            includeUnaryTerms = false
-//            includeBinaryTerms = false
-//            includeGroupTerms = false
+            //            includeUnaryTerms = false
+            //            includeBinaryTerms = false
+            //            includeGroupTerms = false
 
             crossValidateHistogramParams = false
             saveCrossValidationLog = false
@@ -82,21 +73,8 @@ object MMRTest
 
         // These are the ids of the patterns we will test on
         val pids = Array(
-            296605,
-            244833,
-            231386,
-            447439,
-            499194,
-            506633,
-            789577,
-            304986,
-            243893,
-            220077,
-            500393,
-            508162,
-            515691,
-            798455)
-//            508162)
+            1234567,
+            7654321)
 
 
         val testingMeshes = {for (idx<-meshes.indices if (pids.contains(patterns(idx).name.replace(".txt","").toInt))) yield meshes(idx)}
@@ -106,38 +84,29 @@ object MMRTest
         println("Training on " + trainingMeshes.length + " meshes")
         val model = ModelTraining(trainingMeshes, params)
 
+        // We don't want to harmonize with the background, since that's kind of an arbitrary fixed color
+        (model.templates.collect{case cc:ColorCompatibilityTemplate => cc}).head.skipTopN = 1
+
         for (i <- meshes.indices if (pids.contains(patterns(i).name.replace(".txt","").toInt)))
         {
             val pattern = patterns(i)
             println("Generating patterns for mesh %s...".format(pattern.name))
             val mesh = meshes(i)
-            //outputRandomPatterns(mesh, pattern, model)
             outputOptimizedPatterns(mesh, pattern, model)
         }
-    }
-
-    def outputRandomPatterns(mesh:SegmentMesh, pattern:PatternItem, model:ColorInferenceModel)
-    {
-        println("Generating random patterns...")
-        val samples = (for (i <- 0 until numSamplesToOutput) yield
-        {
-            mesh.randomizeVariableAssignments()
-            val variables = mesh.variablesAs[ContinuousColorVariable]
-            model.conditionOn(mesh)
-            val score = model.currentScore(variables)
-            ScoredValue(variables.map(_.getColor), score)
-        }).sortWith(_.score > _.score)
-
-        savePatterns(mesh, samples, randVisDir, pattern)
     }
 
     def outputOptimizedPatterns(mesh:SegmentMesh, pattern:PatternItem, model:ColorInferenceModel)
     {
         println("Generating MMR-optimized patterns...")
 
-//        // TEST: Fix one of the colors for conditional inference.
-//        mesh.groups(0).color.setColor(Color.RGBColor(0.28, 0.03, 0.23))
-//        mesh.groups(0).color.fixed = true
+        // Fix the values of the three largest color groups (these are the background, skin, and hair colors)
+        val sortedGroups = mesh.groups.sortWith(_.size > _.size)
+        for (i <- 0 until 3)
+        {
+            sortedGroups(i).color.setColor(sortedGroups(i).color.observedColor)
+            sortedGroups(i).color.fixed = true
+        }
 
         model.conditionOn(mesh)
         val samplerGenerator = () => { new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable] }
@@ -153,7 +122,7 @@ object MMRTest
         val mmr = new MMR(maximizer.samples, metric)
         for (lambda <- lambdas)
         {
-            val dirName = "%s/%1.2f".format(mmrVisDir, lambda)
+            val dirName = "%s/%1.2f".format(visDir, lambda)
 
             // Ensure directory exits
             val dir = new File(dirName)
