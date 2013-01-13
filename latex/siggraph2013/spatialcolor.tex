@@ -1,5 +1,5 @@
 
-We formulate the problem of generating colorings for a pattern template as finding high-probability colorings under a probabilistic model. Formally, we define a pattern template as $\pattern = (\segments, \groups, \colorVars, \features)$, where $\groups$ is a set of individual groups $\group$, and $\segments$ is a set of individual segments $\segment$, $\colorVars$ is a set of color variables, and $\features$ is a set of features over different groups, segments, and segment adjacencies within the pattern. Each $\group$ and $\segment$ is associated with a color variable ($\colorVars_\group$ and $\colorVars_\segment$, respectively). All segments within a color group have the same color by definition, so $\colorVars_{\text{group}(\segment))} = \colorVars_\segment$. A coloring $\colors$ is an assignment of colors to color variables.
+We formulate the problem of generating colorings for a pattern template as finding high-probability colorings under a probabilistic model. Formally, we define a pattern template as $\pattern = (\segments, \groups, \colorVars, \features)$, where $\groups$ is a set of individual groups $\group$, $\segments$ is a set of individual segments $\segment$, $\colorVars$ is a set of color variables, and $\features$ is a set of features over different groups, segments, and segment adjacencies within the pattern. Each $\group$ and $\segment$ is associated with a color variable ($\colorVars_\group$ and $\colorVars_\segment$, respectively). All segments within a color group have the same color by definition, so $\colorVars_{\text{group}(\segment)} = \colorVars_\segment$. A coloring $\colors$ is an assignment of colors to color variables.
 
 We define the probability of a coloring for a particular pattern template as a log-linear model~\cite{LogLinearModels}:  
 \begin{equation*}
@@ -9,12 +9,13 @@ The model $\model$ is comprised of a number of different terms $\term$, where ea
 
 This type of model is well-suited to the coloring-generation problem. It is very flexible; in principle, the individual term statistics $\termStats$ can be any real-valued function. In our model, we include terms both for color compatibility as well as for spatial properties defined over groups, segments, and segment adjacencies. Users can also guide the model via additional soft constraint terms (Section~\ref{sec:results}). In addition, it is very easy to compare the relative importance of each term by comparing their weights, which we will do in Section~\ref{sec:weights} to gain some insight into which terms contribute the most to producing attractive colorings. 
 
-The model can also be interpreted graphically as a factor graph (Yeh et al.~\shortcite{YiTingTiledPatterns} provides an accessible introduction for the graphics community). Each type of term contributes different factors to the graph. For example, the color compatibility term contributes a factor touching at most five color variables that scores the compatibility of those colors. The spatial terms contribute a unary factor for each color variable and binary factors for color variables that are adjacent in the pattern. Figure~\ref{fig:FactorGraph} shows an example of such a factor graph. Circles denote the color variables, while squares denote the different factors $\factor$, and edges connect each factor to the variables within their scope. 
+The model can also be interpreted graphically as a factor graph (Yeh et al.~\shortcite{YiTingTiledPatterns} provides an accessible introduction for the graphics community). Each type of term contributes different factors to the graph. For example, our color compatibility term contributes a factor touching at most five color variables that scores the compatibility of those colors. The spatial terms contribute a unary factor for each color variable and binary factors for color variables that are adjacent in the pattern. Figure~\ref{fig:FactorGraph} shows an example of such a factor graph. Circles denote the color variables, while squares denote the different factors $\factor$, and edges connect each factor to the variables within their scope. 
 
 
 \begin{figure}[ht]
 \begin{tabular}{cc}
-\includegraphics[width=.7\columnwidth]{figs/factorGraph} & \includegraphics[width=.2\columnwidth]{figs/factorGraphPattern}\\
+\raisebox{4em}{\includegraphics[width=.2\columnwidth]{figs/factorGraphPattern}} &
+\includegraphics[width=.7\columnwidth]{figs/factorGraph} \\
 \end{tabular} 
 \caption{A factor graph for an example pattern template. Factors correspond with the color compatibility and spatial terms from our model. In the figure, nodes are colored according to their corresponding color group in the pattern\remark{Rough figure.}}
 \label{fig:FactorGraph}
@@ -27,7 +28,7 @@ The model can also be interpreted graphically as a factor graph (Yeh et al.~\sho
 
 Previous work has shown that the aesthetic appeal of an image can be improved by increasing the compatibility or harmony of image colors ~\cite{CohenOrHarmonization,DressUp,ColorizationUsingHarmony,ODonovan}. Our model includes a color compatibility term to score the general appeal of the colors in an assignment, based on the compatibility model introduced by O'Donovan et al.~\shortcite{ODonovan}. This compatibility model predicts 0-5 numeric aesthetic ratings for five-color `color themes,' which are ordered rows of five colors. 
 
-We extract such a color theme from a pattern by taking the colors of the five largest color groups and ordering them by size. If the pattern contains fewer than five color groups, we repeat colors in order of size to fill the rest of theme. Inspection of five-color patterns showed that size-ordering of colors tends to produce themes that are, on average, rated higher than random orderings but lower than the optimal ordering. Additionally, ordering has little effect on discriminative power: in general, low-scoring themes are rated lower than high-scoring themes regardless of permutation.
+We extract such a color theme from a pattern by taking the colors of the five largest color groups and ordering them by size. If the pattern contains fewer than five color groups, we repeat colors in order of size to fill the rest of the theme. Inspection of five-color patterns showed that size-ordering of colors tends to produce themes that are, on average, rated higher than random orderings but lower than the optimal ordering. Additionally, ordering has little effect on discriminative power: in general, low-scoring themes are rated lower than high-scoring themes regardless of permutation.
 
 The term statistics function is then defined as the log-normalized theme rating under O'Donovan's compatibility model. Formally:
 \begin{equation*}
@@ -41,7 +42,7 @@ In the factor graph representation of our model, this term contributes one facto
 \begin{equation*}
 \factor(\textrm{top}(\colorVars) | \pattern) = \exp(\colorCompatWeight \cdot \colorCompatTerm(\colorVars | \pattern))
 \end{equation*}
-where $\textsl{top}$ are the color variables of the largest five groups in the pattern, and $t$ is the temperature of the model as defined previously.
+where $\textsl{top}$ are the color variables of the largest five groups in the pattern, and $t$ is the temperature of the model as defined previously. \remark{Actually, temperature hasn't been defined yet. We should also introduce the $\factor$ symbol better, as at present it's only defined in reference to Figure 3 and is easy to miss.}
 
 %\remark{S: Another possibility is to just define the factor sufficient statistics (need to find a good symbol for it), and then we don't need to keep writing the exp notation (with the temperature). Not sure if that would be more confusing. }
 
@@ -53,7 +54,7 @@ where $\textsl{top}$ are the color variables of the largest five groups in the p
 
 As shown in Figure~\ref{fig:ColorCompatOnly}, color compatibility alone does not predict attractive colorings. Good color assignments also depend on the properties of the regions being colored and their spatial arrangement. To capture these dependencies, our model includes spatial terms over groups, segments, and segment adjacencies. Group and segment terms capture color dependencies on region features, and segment adjacency terms capture color dependencies on the relationship between nearby regions.
 
-These spatial terms score color assignments based on the conditional probability of a color property $\prop$ (e.g. lightness or colorfulness) given the features of an object $x$ (which is either a group, segment, or segment adjacency). Formally:
+These spatial terms score color assignments based on the conditional probability of a color property $\prop$ (e.g. lightness or colorfulness) given the features of an object $x$ (which is either a group, segment, or segment adjacency). Formally: \remark{We should try to come up with something more interesting than Formally: as we tend to repeat this phrase too much}
 %%
 \begin{align*}
 	\termStats(\colors | \pattern) &= \sum_{x \in \pattern} \termInstStats(\colors_x | \pattern, x) \\
@@ -61,6 +62,8 @@ These spatial terms score color assignments based on the conditional probability
 	\termInstStats(\colors_x | \pattern, x) &\propto p(\prop(\colors_x) | \features_x)
 \end{align*}
 %%
+\remark{Yes, these are correct, but they seem redundant or at least confusing. When you go on to read the equation in the next subsection, you spend a lot of time trying to match terms back to this equation and the correspondences are weird.}
+
 We compute these probabilities on color properties instead of directly on colors to allow for more generalization over colors that do not occur in the model's training data.
 %$s_x$ is the contribution of $x$ to the overall score, and is based on the impact $x$ has on the appearance of the pattern (i.e. the area of a group or segment or the strength of an adjacency).
 
@@ -92,6 +95,9 @@ Similarly, the segment term for property $\prop$ has the statistics function:
  \segTerm(\colors|\pattern) = \sum_{\segment \in \segments} \segInstStats(\colors_\segment | \pattern, \segment) \\
  \segInstStats(\colors_\segment | \pattern, \segment) = \ln p( \prop( \colors_\segment ) | \features_\segment) \cdot \size_\segment
 \end{align*}
+
+\remark{Is there much to be gained by not inlining directly? This equation is already pretty redundant with the previous one, just replacing groups for segments.}
+
 where $\size_\segment$ is the size of the segment $\segment$ and $\features_\segment$ are the features of $\segment$.
 
 These terms contribute unary factors over each color variable by grouping together statistics for the group and segments associated with the variable. Formally:
