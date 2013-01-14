@@ -9,7 +9,7 @@ The model $\model$ is comprised of a number of different terms $\term$, where ea
 
 This type of model is well-suited to the coloring-generation problem. It is very flexible; in principle, the individual term statistics $\termStats$ can be any real-valued function. In our model, we include terms both for color compatibility as well as for spatial properties defined over groups, segments, and segment adjacencies. Users can also guide the model via additional soft constraint terms (Section~\ref{sec:results}). In addition, it is very easy to compare the relative importance of each term by comparing their weights, which we will do in Section~\ref{sec:weights} to gain some insight into which terms contribute the most to producing attractive colorings. 
 
-The model can also be interpreted graphically as a factor graph (Yeh et al.~\shortcite{YiTingTiledPatterns} provides an accessible introduction for the graphics community). Each type of term contributes different factors to the graph. For example, our color compatibility term contributes a factor touching at most five color variables that scores the compatibility of those colors. The spatial terms contribute a unary factor for each color variable and binary factors for color variables that are adjacent in the pattern. Figure~\ref{fig:FactorGraph} shows an example of such a factor graph. Circles denote the color variables, while squares denote the different factors $\factor$, and edges connect each factor to the variables within their scope. 
+The model can also be interpreted graphically as a factor graph (Yeh et al.~\shortcite{YiTingTiledPatterns} provides an accessible introduction for the graphics community). Each type of term contributes different factors $\factor$ to the graph. For example, our color compatibility term contributes a factor touching at most five color variables that scores the compatibility of those colors. The spatial terms contribute a unary factor for each color variable and binary factors for color variables that are adjacent in the pattern. Figure~\ref{fig:FactorGraph} shows an example of such a factor graph. Circles denote the color variables, while squares denote the different factors $\factor$, and edges connect each factor to the variables within their scope. 
 
 
 \begin{figure}[ht]
@@ -30,7 +30,7 @@ Previous work has shown that the aesthetic appeal of an image can be improved by
 
 We extract such a color theme from a pattern by taking the colors of the five largest color groups and ordering them by size. If the pattern contains fewer than five color groups, we repeat colors in order of size to fill the rest of the theme. Inspection of five-color patterns showed that size-ordering of colors tends to produce themes that are, on average, rated higher than random orderings but lower than the optimal ordering. Additionally, ordering has little effect on discriminative power: in general, low-scoring themes are rated lower than high-scoring themes regardless of permutation.
 
-The term statistics function is then defined as the log-normalized theme rating under O'Donovan's compatibility model. Formally:
+The term statistics function is then defined as the log-normalized theme rating under O'Donovan's compatibility model:
 \begin{equation*}
 \colorCompatTerm(\colors| \pattern) = \ln(\textrm{compat}(\textrm{theme}(\colors| \pattern))/5)
 \end{equation*}
@@ -38,15 +38,11 @@ where $\textsl{theme}$ is the ordered theme extracted from the pattern and $\tex
 
 Note that there is nothing special about the O'Donovan model that makes it work in our case. Our modeling framework is general enough to accomodate any color compatibility or harmony model that can `score' a set of colors.
 
-In the factor graph representation of our model, this term contributes one factor that touches the five color variables belong to the five largest groups (or fewer, if there are less than five groups in the pattern). Formally:
+In the factor graph representation of our model, this term contributes one factor that touches the five color variables belong to the five largest groups (or fewer, if there are less than five groups in the pattern):
 \begin{equation*}
 \factor(\textrm{top}(\colorVars) | \pattern) = \exp(\colorCompatWeight \cdot \colorCompatTerm(\colorVars | \pattern))
 \end{equation*}
-where $\textsl{top}$ are the color variables of the largest five groups in the pattern, and $t$ is the temperature of the model as defined previously. \remark{Actually, temperature hasn't been defined yet. We should also introduce the $\factor$ symbol better, as at present it's only defined in reference to Figure 3 and is easy to miss.}
-
-%\remark{S: Another possibility is to just define the factor sufficient statistics (need to find a good symbol for it), and then we don't need to keep writing the exp notation (with the temperature). Not sure if that would be more confusing. }
-
-%\remark{S: To get more justification for the ordering criteria, we can also try looking at the ordered themes associated patterns and see if they look reasonable. I think we can also try getting the optimal rating of the top 5 colors in MATLAB (instead of having Scala pass permutations 120 times to MATLAB) to see how slow it is...or for comparison}.
+where $\textsl{top}$ are the color variables of the largest five groups in the pattern.
 
 
 \subsection{Spatial Properties}
@@ -54,20 +50,24 @@ where $\textsl{top}$ are the color variables of the largest five groups in the p
 
 As shown in Figure~\ref{fig:ColorCompatOnly}, color compatibility alone does not predict attractive colorings. Good color assignments also depend on the properties of the regions being colored and their spatial arrangement. To capture these dependencies, our model includes spatial terms over groups, segments, and segment adjacencies. Group and segment terms capture color dependencies on region features, and segment adjacency terms capture color dependencies on the relationship between nearby regions.
 
-These spatial terms score color assignments based on the conditional probability of a color property $\prop$ (e.g. lightness or colorfulness) given the features of an object $x$ (which is either a group, segment, or segment adjacency). Formally: \remark{We should try to come up with something more interesting than Formally: as we tend to repeat this phrase too much}
-%%
-\begin{align*}
-	\termStats(\colors | \pattern) &= \sum_{x \in \pattern} \termInstStats(\colors_x | \pattern, x) \\
-	%\termInstStats(x, \colors| \pattern) &= \ln p(\prop(\colors(x)) | \features(x)) \cdot s_x
-	\termInstStats(\colors_x | \pattern, x) &\propto p(\prop(\colors_x) | \features_x)
-\end{align*}
-%%
-\remark{Yes, these are correct, but they seem redundant or at least confusing. When you go on to read the equation in the next subsection, you spend a lot of time trying to match terms back to this equation and the correspondences are weird.}
+These spatial terms score color assignments based on the conditional probability of a color property $\prop$ (such as lightness or colorfulness) given the features of an object $x$ (which is either a group, segment, or segment adjacency). We compute these probabilities on color properties instead of directly on colors to allow for more generalization over colors that do not occur in the model's training data.
+%%%
+%\begin{align*}
+%	\termStats(\colors | \pattern) &= \sum_{x \in \pattern} \termInstStats(\colors_x | \pattern, x) \\
+%	%\termInstStats(x, \colors| \pattern) &= \ln p(\prop(\colors(x)) | \features(x)) \cdot s_x
+%	\termInstStats(\colors_x | \pattern, x) &\propto p(\prop(\colors_x) | \features_x)
+%\end{align*}
+%%%
+%\remark{Yes, these are correct, but they seem redundant or at least confusing. When you go on to read the equation in the next subsection, you spend a lot of time trying to match terms back to this equation and the correspondences are weird.}
+For example, Figure~\ref{fig:conditionalDistribution} shows the conditional probability distribution over lightness for the background group of one pattern. The distribution is conditional on several characteristic features of the group, such as its size and the number of segments it contains. In the next sections, we give definitions for the group and segment terms in the model (Section~\ref{sec:groupAndSegTerms}) and the adjacency terms (Section~\ref{sec:adjTerms}). We then describe how to learn these conditional probability distributions from example patterns (Section~\ref{sec:learningPdfs}). A complete listing of the features used, as well as more details on the computation of color properties, can be found in the Appendix.
 
-We compute these probabilities on color properties instead of directly on colors to allow for more generalization over colors that do not occur in the model's training data.
-%$s_x$ is the contribution of $x$ to the overall score, and is based on the impact $x$ has on the appearance of the pattern (i.e. the area of a group or segment or the strength of an adjacency).
-
-In the next sections, we give definitions for the group and segment terms in the model (Section~\ref{sec:groupAndSegTerms}) and the adjacency terms (Section~\ref{sec:adjTerms}). We then describe how to learn these terms from example patterns (Section~\ref{sec:learningPdfs}).
+\begin{figure}[ht]
+\begin{tabular}{cc}
+\raisebox{5em}{\includegraphics[width=.22\columnwidth]{figs/histogramImage}}&\includegraphics[width=.7\columnwidth]{figs/histogram}%\vspace{0.5em}\\
+\end{tabular}
+\caption{The conditional probability distribution of lightness values for the background color group of a pattern (highlighted in orange). The distribution's multimodality indicates that either very light or very dark backgrounds may be acceptable for this pattern.}
+\label{fig:conditionalDistribution}
+\end{figure}
 
 \subsubsection{Group and Segment Terms}
 \label{sec:groupAndSegTerms}
@@ -81,7 +81,7 @@ Our model has one group and one segment term for each of the color properties $ 
                  &\propName{NameCounts}, \propName{NameSaliency} \}
 \end{align*}
 %%   
-The properties \propName{Lightness} and \propName{Colorfulness} are computed in \lab space, a perception-based color space. \propName{NameCounts} (counts of how many times a color is described with different names) and \propName{NameSaliency} (how uniquely a color is named) are as described by Heer and Stone~\shortcite{ColorNamingModels}. While lightness and colorfulness capture perceptual properties of color, name saliency and color name counts capture more categorical properties. More details on the computation of these color properties can be found in the Appendix.
+The properties \propName{Lightness} and \propName{Colorfulness} are computed in \lab space, a perception-based color space. \propName{NameCounts} (counts of how many times a color is described with different names) and \propName{NameSaliency} (how uniquely a color is named) are as described by Heer and Stone~\shortcite{ColorNamingModels}. While lightness and colorfulness capture perceptual properties of color, name saliency and color name counts capture more categorical properties.
 
 The group term for property $\prop \in \unaryProps$ has the sufficient statistics function:
 \begin{align*}
@@ -90,17 +90,19 @@ The group term for property $\prop \in \unaryProps$ has the sufficient statistic
 \end{align*}
 where $\size_\group$ is the size of the group $\group$ and $\features_\group$ are the features of the group $\group$ (See the Appendix for the complete list of features used). We weight the contribution of each group to the term statistics by its relative area as larger regions tend to have more impact on the appearance of a coloring.
 
-Similarly, the segment term for property $\prop$ has the statistics function:
-\begin{align*}
- \segTerm(\colors|\pattern) = \sum_{\segment \in \segments} \segInstStats(\colors_\segment | \pattern, \segment) \\
- \segInstStats(\colors_\segment | \pattern, \segment) = \ln p( \prop( \colors_\segment ) | \features_\segment) \cdot \size_\segment
-\end{align*}
+Similarly, the segment term for property $\prop$ has the statistics function $\segTerm(\colors|\pattern) = \sum_{\segment \in \segments} \segInstStats(\colors_\segment | \pattern, \segment)$, where $\segInstStats(\colors_\segment | \pattern, \segment) = \ln p( \prop( \colors_\segment ) | \features_\segment) \cdot \size_\segment$. Here, $\size_\segment$ is the size of the segment $\segment$ and $\features_\segment$ are the features of $\segment$.
 
-\remark{Is there much to be gained by not inlining directly? This equation is already pretty redundant with the previous one, just replacing groups for segments.}
+%Similarly, the segment term for property $\prop$ has the statistics function:
+%\begin{align*}
+% \segTerm(\colors|\pattern) = \sum_{\segment \in \segments} \segInstStats(\colors_\segment | \pattern, \segment) \\
+% \segInstStats(\colors_\segment | \pattern, \segment) = \ln p( \prop( \colors_\segment ) | \features_\segment) \cdot \size_\segment
+%\end{align*}
+%
+%\remark{Is there much to be gained by not inlining directly? This equation is already pretty redundant with the previous one, just replacing groups for segments.}
+%
+%where $\size_\segment$ is the size of the segment $\segment$ and $\features_\segment$ are the features of $\segment$.
 
-where $\size_\segment$ is the size of the segment $\segment$ and $\features_\segment$ are the features of $\segment$.
-
-These terms contribute unary factors over each color variable by grouping together statistics for the group and segments associated with the variable. Formally:
+These terms contribute unary factors over each color variable by grouping together statistics for the group and segments associated with the variable:
 \begin{align*}
  %\factor(\colorVars(\group)) = \prod_{\prop \in \unaryProps} \exp\left(\frac{\groupTermWeight \cdot \groupInstStats(\group) + \segTermWeight \cdot \sum_{\segment \in \group} \segInstStats(\segment)}{t}\right) 
  \factor(\colorVars_\group | \pattern) = \prod_{\prop \in \unaryProps}
@@ -155,20 +157,12 @@ These terms contribute binary factors over each adjacent pair of color variables
 \subsubsection{Learning Conditional Probability Distributions}
 \label{sec:learningPdfs}
 
-Each group, segment, and adjacency term requires a conditional probability distribution $p(\prop(\colorVars_x)|\features_x)$ in order to compute its statistics. What form should these distributions take? Closed-form continuous distributions, such as the normal distribution, are appealing for their simplicity.  However, they are unlikely to capture the nuances of data drawn from real patterns, which is often \emph{multimodal} in nature. As a simple example, pattern backgrounds are typically either very dark or very light. A normal distribution, which concentrates its probability mass at one mode, cannot faithfully capture this type of bimodal behavior.
+Each group, segment, and adjacency term requires a conditional probability distribution $p(\prop(\colorVars_x)|\features_x)$ in order to compute its statistics. What form should these distributions take? Closed-form continuous distributions, such as the normal distribution, are appealing for their simplicity.  However, they are unlikely to capture the nuances of data drawn from real patterns, which is often \emph{multimodal} in nature. As a simple example, pattern backgrounds are typically either very dark or very light (See Figure~\ref{fig:conditionalDistribution}). A normal distribution, which concentrates its probability mass at one mode, cannot faithfully capture this type of bimodal behavior.
 
-In our model, we adapt the approach of Charpiat et al.~\shortcite{MultimodalColorization}, who learn conditional probability distributions of colors given local texture features for the purpose of grayscale image colorization. This method was designed explicitly to account for multimodality. The basic idea of our approach is as follows: first, the space of property values is discretized into a finite number of bins. Next, a regressor is trained on pairs of the form $(\prop(\colors_x), \features_x)$ to predict, given a feature vector $\features_x$, the probability that its corresponding property value $\prop(\colors_x)$ falls into each bin. Given a new, never-before-seen feature vector, the regressor can then output a histogram of these probabilities for each bin. The resulting histogram is then smoothed using a form of kernel density estimation, and the resulting density forms the final conditional probability distribution. Figure~\ref{fig:histograms} shows an example of raw and smoothed histograms for the background region of a pattern template (highlighted in orange).
+In our model, we adapt the approach of Charpiat et al.~\shortcite{MultimodalColorization}, who learn conditional probability distributions of colors given local texture features for the purpose of grayscale image colorization. This method was designed explicitly to account for multimodality. The basic idea of our approach is as follows: first, the space of property values is discretized into a finite number of bins. Next, a regressor is trained on pairs of the form $(\prop(\colors_x), \features_x)$ to predict, given a feature vector $\features_x$, the probability that its corresponding property value $\prop(\colors_x)$ falls into each bin. Given a new, never-before-seen feature vector, the regressor can then output a histogram of these probabilities for each bin. The resulting histogram is then smoothed using a form of kernel density estimation, and the resulting density forms the final conditional probability distribution.
+%Figure~\ref{fig:histograms} shows an example of raw and smoothed histograms for the background region of a pattern template (highlighted in orange).
 
 We discretize the space of property values using K-means clustering on the values found in the training examples. The optimal number of bins is computed for each term using cross-validation.~\remark{Will this be true, in the final version of thigs?} We then use multinomial logistic regression to predict the histograms of property values given features. To ensure each pattern template in the training set has equal weight in the regression, we weight each group example by one over the number of groups in the template; segment and adjacency examples are weighted similarly. Finally, we smooth the histograms using the approach of Wang et al.~\shortcite{ThemeEnhancement}, which places a Gaussian at the center of each histogram bin. To set the Gaussian bandwidth, we use the average distance to the nearest three other bins.
-
-\begin{figure}[ht]
-\begin{tabular}{cc}
-\raisebox{10em}{\includegraphics[width=.22\columnwidth]{figs/histogramImage}}&\includegraphics[width=.7\columnwidth]{figs/histograms}\vspace{0.5em}\\
-\end{tabular}
-\caption{Predicted histograms over lightness (right) for the background region of a pattern template (left). The region is highlighted in orange. The top histogram shows the discrete probability distribution over lightness bins (K=7), outputted by our regressors. The bottom histogram shows the probability density over lightness values after smoothing the discrete distribution.}
-\label{fig:histograms}
-\end{figure}
-
 
 
 %\remark{D: This is a lot of abstract concepts. We really should have a figure, something from our Tableau visualizations, that shows e.g. a group and the predicted (smoothed) histogram.}
