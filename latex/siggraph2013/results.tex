@@ -56,7 +56,7 @@ Suggestion&Results\\
 \end{figure}
 
 \paragraph{Soft color constraints}
-In another use case, a user might manually color a pattern and then wish to see variations upon this theme, hoping to find better-looking alternatives nearby in the space of colorings. Our model can support this type of query by incorporating an additional soft constraint factor on color variable, constraining it ot be close to a target color. Formally: 
+In another use case, a user might manually color a pattern and then wish to see variations upon this theme, hoping to find better-looking alternatives nearby in the space of colorings. Our model can support this type of query by incorporating an additional soft constraint factor on color variable, constraining it ot be close to a target color:
 %%
 \begin{equation}
 \factor^\textrm{Target}(\colorVars_\group | \pattern) = \mathcal{N}(||\colorVars_\group - \textrm{targetColor}(\group)||, \sigma_\textrm{user})
@@ -82,7 +82,7 @@ Style&Example&Results\\ %\hline
 \raisebox{1.55em}{\emph{Mellow}}&\includegraphics[width=.148\columnwidth]{figs/styleResultsMellowExample}&\includegraphics[width=.62\columnwidth]{figs/styleResultsMellow}\vspace{0.5em}\\
 \end{tabular}
 
-\caption{In this example, 17 patterns were chosen in three different styles, and a representative image from each style is shown in the second column. A separate model was then trained on each style, and in the third column we show four samples drawn from each model. In each case, our model is able to learn different properties of the desired distribution over colors.~\remark{Confusion matrix/matrices?}}
+\caption{In this example, 17 patterns were chosen in three different styles, and a representative image from each style is shown in the second column. A separate model was then trained on each style, and in the third column we show four samples drawn from each model. In each case, our model is able to learn different properties of the desired distribution over colors.}
 \label{fig:styleTraining}
 \vspace{-1.0em}
 \end{figure}
@@ -117,14 +117,14 @@ Artist A&Artist B\\
 \subsection{Applications}
 
 \paragraph{Web design}
-Our model can assist web designers by suggesting recolorings for web page pattern elements. In Figure~\ref{fig:webpageRecoloring}, the background pattern of a blog is recolored according to different seasons; the blog author could use a different coloring depending on the time of year. We generate these recolorings by adding new factors to the model. First, we add a unary factor to each color variable that encourages it to be similar to a color that occurs in the web page body. Formally:
+Our model can assist web designers by suggesting recolorings for web page pattern elements. In Figure~\ref{fig:webpageRecoloring}, the background pattern of a blog is recolored according to different seasons; the blog author could use a different coloring depending on the time of year. We generate these recolorings by adding new factors to the model. First, we add a unary factor to each color variable that encourages it to be similar to a color that occurs in the web page body:
 %%
 \begin{equation*}
 \factor^\textrm{WebSim}(\colorVars_\group | \webpage) = p(\colorVars_\group | \webpage)
 \end{equation*}
 %%
 where $\webpage$ is a rendered image of the web page body. The distribution $p$ is represented with a smoothed histogram of colors in the image, after quantizing to a small number of colors (20, in this experiment).
-We also add a factor to the pattern's background color group (assumed to be the largest color group in the pattern) that penalizes it for being too similar to the web page body background color. Formally:
+We also add a factor to the pattern's background color group (assumed to be the largest color group in the pattern) that penalizes it for being too similar to the web page body background color:
 %%
 \begin{equation*}
 \factor^\textrm{BgPen}(\colorVars_{\textrm{largest}(\groups)} | \webpage) = 0.05 \cdot || \colorVars_{\textrm{largest}(\groups)} - \textrm{bgColor}(\webpage) ||
