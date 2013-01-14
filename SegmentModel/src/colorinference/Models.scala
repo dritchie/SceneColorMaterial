@@ -93,24 +93,21 @@ object ColorInferenceModel
                     val trainData = examples.slice(0, splitPoint)
                     val testData = examples.slice(splitPoint+1, examples.length)
 
-                    // Find the number of bins that gives the best likelihood after averaging
-                    // over 'all possible' (read: many) bandwidth scales
 
                     //Find the number of bins and the bandwidth scale that gives the best likelihood
                     //on cross validation
                     var bestLL = Double.NegativeInfinity
                     var bestNumBins = -1
                     var bestBandScale = bandScale
+                    var bestRegressor:WekaMultiClassHistogramRegressor = null
                     for (bins <- cvRanges.numBins)
                     {
                         println("Trying numBins = %d".format(bins))
                         regressor.train(trainData, new KMeansVectorQuantizer(bins))
-                        var avgLL = 0.0
                         for (scale <- cvRanges.bandScale)
                         {
-                            regressor.bandwithScale = scale
+                            regressor.bandwidthScale = scale
                             val ll = regressor.avgLogLikelihood(testData)
-                            avgLL += ll
                             if (saveValidationLog)
                             {
                                 val acc = regressor.asInstanceOf[WekaMultiClassHistogramRegressor].classificationAccuracy(testData)
@@ -123,29 +120,25 @@ object ColorInferenceModel
                               bestLL = ll
                               bestNumBins = bins
                               bestBandScale = scale
+                              bestRegressor = regressor.asInstanceOf[WekaMultiClassHistogramRegressor].copy
                             }
 
                         }
-                        avgLL /= cvRanges.bandScale.length
-                       /* if (avgLL > bestLL)
-                        {
-                            bestLL = avgLL
-                            bestNumBins = bins
-                        } */
                     }
 
-                    println("Best numBins = %d".format(bestNumBins))
+                    println("Best numBins = %d | Best bandScale = %g".format(bestNumBins, bestBandScale))
                     bins = bestNumBins
-                    // Reset bandwidth scale to original value
-                    //regressor.bandwithScale = bandScale
-                    regressor.bandwithScale = bestBandScale
+                    regressor.bandwidthScale = bestBandScale
+
+                    regressor.asInstanceOf[WekaMultiClassHistogramRegressor].copyFrom(bestRegressor)
 
                     if (saveValidationLog)
                         log.close()
                 }
-                // Final training
-                println("Training...")
-                regressor.train(examples, new KMeansVectorQuantizer(bins))
+                else
+                {
+                    regressor.train(examples, new KMeansVectorQuantizer(bins))
+                }
             }
         }
 

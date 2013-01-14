@@ -37,7 +37,8 @@ abstract class ModelTrainingParams
     var saveCrossValidationLog = false
     import HistogramRegressor.CrossValidationRanges
     var cvRanges = CrossValidationRanges(VectorHistogram.numBandwidthEstimationNeighbors+1 until 15,
-                                             Array(4.0, 2.0, 1.0, 1/2.0, 1/4.0, 1/8.0, 1/16.0, 1/32.0, 1/64.0, 1/128.0, 1/256.0))
+                                         //Array(4.0, 2.0, 1.0, 1/2.0, 1/4.0, 1/8.0, 1/16.0, 1/32.0, 1/64.0, 1/128.0, 1/256.0))
+                                         Array(1.0, 1/2.0, 1/4.0, 1/8.0))
 
     /** filtering options**/
     var filterWhenTraining = false //filter meshes when training the model? If we want to filter when testing, we have to enforce that ourselves
@@ -78,6 +79,7 @@ abstract class ModelTrainingParams
     var initialLearningRate = 1.0
 
     // New stuff
+    var weightTuningMaxNumBatches = 100
     var weightTuningMiniBatchSize = 10
     var weightTuningValidationSetSize = 0.25
     var weightTuningBatchesBetweenOverfitCheck = 4
@@ -595,7 +597,7 @@ class ModelTraining(val params:ModelTrainingParams)
         val trainMeshes = trainingMeshList.shuffle
         var batchesSinceLastOverfitCheck = 0
         var nextMesh = 0
-        while (true)
+        while (batchCount < params.weightTuningMaxNumBatches)
         {
             // Process the training data in small 'mini-batches'
             val meshesPerBatch = params.weightTuningMiniBatchSize
