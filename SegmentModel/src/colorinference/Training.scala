@@ -28,7 +28,7 @@ abstract class ModelTrainingParams
     var includeGroupTerms = true
 
     // This is only possible if we're doing continuous variables, though
-    var includeColorCompatibilityTerm = false
+    var includeColorCompatibilityTerm = true
 
     // Training histogram regressors
     var fixedBandwidthScale = 1.0
@@ -69,8 +69,8 @@ abstract class ModelTrainingParams
     }
     var trainerType = TrainerType.ContrastiveDivergence
 
-    var cdK = 1
-    var normalizeWeights = false
+    var cdK = 10
+    var normalizeWeights = true
 
     // Old stuff
     var numWeightTuningIterations = 10
@@ -79,12 +79,9 @@ abstract class ModelTrainingParams
     var initialLearningRate = 1.0
 
     // New stuff
-    var weightTuningMaxNumBatches = 100
+    var weightTuningNumBatches = 100
     var weightTuningMiniBatchSize = 10
-    var weightTuningValidationSetSize = 0.25
-    var weightTuningBatchesBetweenOverfitCheck = 4
     var weightTuningWeightUpdateMagnitude = 10e-3
-    var weightTuningOverfitThreshold = 0.025
 
     /* END weight tuning */
 
@@ -99,7 +96,7 @@ abstract class ModelTrainingParams
     var colorChoiceType = ModelTraining.ColorChoiceType.LABConditional
 
     //weigh the groups or not?
-    var weightGroups = false
+    var weightGroups = true
 
     // Which variable type are we using?
     type VariableType <: ColorVariable
@@ -522,82 +519,16 @@ class ModelTraining(val params:ModelTrainingParams)
     {
         println("Tuning weights by Contrastive Divergence...")
 
-        // Just so randomness is a bit more random, for testing
-        setRandomSeed(compat.Platform.currentTime)
-
         val trainer = params.colorVarParams.newTrainingSampler(model, params)
 
         if (params.normalizeWeights)
             model.normalizeWeights()
 
-        // Split the data into training and validation, so we can monitor overfitting.
         val shuffledMeshes = trainingMeshes.shuffle
-        val splitPoint = ((1.0 - params.weightTuningValidationSetSize)*shuffledMeshes.length).toInt
-        val trainingMeshList = shuffledMeshes.slice(0, splitPoint)
-        val validationMeshList = shuffledMeshes.slice(splitPoint+1, shuffledMeshes.length)
-        val trainingRepresentativeMeshList = trainingMeshList.take(validationMeshList.length)
 
-        // This only works with discrete variables
-        def logZ(meshes:Seq[SegmentMesh]) : Double =
-        {
-            meshes.map(mesh =>
-            {
-                params.colorVarParams.initDomain(mesh)
-                model.conditionOn(mesh)
-                mesh.setVariableValuesToObserved()
-                ExhaustiveInference.logZAllPermutations(mesh, model)
-            }).sum
-        }
-
-        // Checking likelihoods every so often
-        val batchesBetweenLikelihoodChecks = 200
-        var batchCount = 0
-
-        def overfitCheck() : Double =
-        {
-            val avgTrainingScore = trainingRepresentativeMeshList.map(mesh =>
-            {
-                params.colorVarParams.initDomain(mesh)
-                model.conditionOn(mesh)
-                mesh.setVariableValuesToObserved()
-                model.currentScore(mesh.variablesAs[params.VariableType])
-            }).sum / trainingRepresentativeMeshList.length
-
-            val avgValidationScore = validationMeshList.map(mesh =>
-            {
-                params.colorVarParams.initDomain(mesh)
-                model.conditionOn(mesh)
-                mesh.setVariableValuesToObserved()
-                model.currentScore(mesh.variablesAs[params.VariableType])
-            }).sum / validationMeshList.length
-
-            if (trainingMeshes.head.groups.head.color.isInstanceOf[DiscreteColorVariable]
-                && (batchCount % batchesBetweenLikelihoodChecks == 0))
-            {
-                val trainingLogZ = logZ(trainingRepresentativeMeshList)
-                val validationLogZ = logZ(validationMeshList)
-                val trainingLL = avgTrainingScore*trainingRepresentativeMeshList.length - trainingLogZ
-                val validationLL = avgValidationScore*validationMeshList.length - validationLogZ
-                println("Training log likelihood: %g | Validation log likelihood: %g".format(trainingLL, validationLL))
-            }
-            val likelihoodRatio = math.exp(avgTrainingScore - avgValidationScore)
-            println("Average training score: %g | Average validation score: %g | Likelihood ratio: %g".format(avgTrainingScore, avgValidationScore, likelihoodRatio))
-            likelihoodRatio
-        }
-
-        // Maintain a buffer of the weight vectors from the last few batches
-        var weightBuffer = new ArrayBuffer[Tensor1]
-
-        // Get the initial overfitting bias (this should be close to 1.0)
-        // We will run training until the overfitting bias gets larger than this initial bias
-        // by a fixed threshold
-        val initialOverfitBias = overfitCheck()
-
-        // Iterate over the whole training set multiple times
-        val trainMeshes = trainingMeshList.shuffle
-        var batchesSinceLastOverfitCheck = 0
+        // Run training for as many batches as requested
         var nextMesh = 0
-        while (batchCount < params.weightTuningMaxNumBatches)
+        for (batchCount <- 0 until params.weightTuningNumBatches)
         {
             // Process the training data in small 'mini-batches'
             val meshesPerBatch = params.weightTuningMiniBatchSize
@@ -607,12 +538,11 @@ class ModelTraining(val params:ModelTrainingParams)
             // them by the average gradient over the whole mini-batch.
             println("Mini-batch %d".format(batchCount+1))
             val weightGradient = Tensor1(Array.fill(model.trainables.length)(0.0):_*)
-            //for (m <- b*meshesPerBatch until (b+1)*meshesPerBatch if m < trainMeshes.length)
             for (m <- 0 until meshesPerBatch)
             {
-                println("Processing mesh %d/%d".format(nextMesh, trainMeshes.length))
-                val mesh = trainMeshes(nextMesh)
-                nextMesh = (nextMesh + 1) % trainMeshes.length
+                println("Processing mesh %d/%d".format(nextMesh, shuffledMeshes.length))
+                val mesh = shuffledMeshes(nextMesh)
+                nextMesh = (nextMesh + 1) % shuffledMeshes.length
 
                 params.colorVarParams.initDomain(mesh)
 
@@ -631,7 +561,8 @@ class ModelTraining(val params:ModelTrainingParams)
 
             // The learning rate is set so that the weight update is approximately
             // params.weightTuningWeightUpdateMagnitude times the size of the weights
-            // This is a rule of thumb to enforce that we don't make updates too big.
+            // This is a rule of thumb to enforce that we don't make updates too big
+            // (keeps learning from oscillating)
             val updateSize = params.weightTuningWeightUpdateMagnitude * model.getWeights.twoNorm
             weightGradient.twoNormalize(); weightGradient *= updateSize
 
@@ -650,37 +581,6 @@ class ModelTraining(val params:ModelTrainingParams)
                 println(t.name + " : " + t.getWeight)
             }
             println()
-
-            // Update the weight buffer (evicting if necessary)
-            if (weightBuffer.length == params.weightTuningBatchesBetweenOverfitCheck)
-                weightBuffer = weightBuffer.drop(1)
-            weightBuffer += newweights
-
-            batchCount += 1
-            batchesSinceLastOverfitCheck += 1
-            if (batchesSinceLastOverfitCheck == params.weightTuningBatchesBetweenOverfitCheck)
-            {
-                batchesSinceLastOverfitCheck = 0
-
-                // Compare the average training set score to the average validation set score
-                // If the training score is significantly higher than the validation score, we
-                // are probably starting to overfit.
-                println("Checking for overfitting...")
-                val overfitBias = overfitCheck()
-                if (overfitBias - initialOverfitBias > params.weightTuningOverfitThreshold)
-                {
-                    // If we are overfitting, then average out the weights from the last few batches
-                    // and quit learning
-                    println("FAILED; stopping training")
-                    val finalweights = Tensor1(Array.fill(model.trainables.length)(0.0):_*)
-                    for (w <- weightBuffer) finalweights += w
-                    finalweights /= weightBuffer.length
-                    model.setWeights(finalweights)
-                    return
-                }
-
-                println("PASSED; continuing training")
-            }
         }
     }
 }

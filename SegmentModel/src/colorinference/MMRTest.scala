@@ -66,18 +66,8 @@ object MMRTest
             loadRegressorsIfPossible = true
             loadWeightsIfPossible = true
 
-            includeColorCompatibilityTerm = true
-//            includeUnaryTerms = false
-//            includeBinaryTerms = false
-//            includeGroupTerms = false
-
             crossValidateHistogramParams = false
             saveCrossValidationLog = false
-
-            cdK = 10
-            normalizeWeights = true
-
-            weightGroups = true
         }
 
         val meshes = for (p <- patterns) yield new SegmentMesh(params.colorVarParams.variableGenerator, p.fullpath)
