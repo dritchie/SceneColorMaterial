@@ -183,8 +183,19 @@ class ColorInferenceModel extends TemplateModel
     import ColorInferenceModel._
 
     def trainables:Seq[Trainable] = families.collect{case t:Trainable => t}
-    def trainableWeights:Tensor1 = MathUtils.concatVectors(trainables.map(_.weights))
     def regressionBasedComps:Seq[RegressionBased] = families.collect{case rb:RegressionBased => rb}
+
+    def getWeights: Tensor1 =
+    {
+        Tensor1((for (t <- trainables) yield t.getWeight):_*)
+    }
+
+    def setWeights(weights:Tensor1)
+    {
+        val ts = trainables
+        for (i <- 0 until ts.length)
+            ts(i).setWeight(weights(i))
+    }
 
     def enforceMinimumWeight(minWeight:Double)
     {

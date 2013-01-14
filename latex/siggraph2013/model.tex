@@ -74,9 +74,9 @@ CD(\weights : \dataset) =
 		 -\termStats(\hat{\colors}, \pattern)
 \end{equation*}
 %%
-where $\hat{\colors}$ is the coloring state obtained by running an MCMC chain for one step from the initial state $\colors$. CD essentially forms a local approximation to the likelihood gradient around the neighborhood of state $\colors$. Since all terms in our model are conditional log-probabilities, we enforce the additional constraint during optimization that all weights be positive.~\remark{Happy to take this out if we can find a way around it}
+where $\hat{\colors}$ is the coloring state obtained by running an MCMC chain for one step from the initial state $\colors$. CD essentially forms a local approximation to the likelihood gradient around the neighborhood of state $\colors$.~\remark{Describe normalization, termination conditions?}
 
-While the exact weights learned depend on the training dataset, there are several strong general trends. The color compatibility term usually recieves one of the highest weight; as expected, it is important that the patterns colors be coordinated. However, the highest weights are found amongst the segment adjacency terms. Perceptual difference typically receives the highest weight of all, and both relative lightness and relative colorfulness also receive high weights. These trends supports our hypothesis that spatial relationships in patterns form strong predictors for that pattern's use of color.
+\remark{Revise}~While the exact weights learned depend on the training dataset, there are several strong general trends. The color compatibility term usually recieves one of the highest weight; as expected, it is important that the patterns colors be coordinated. However, the highest weights are found amongst the segment adjacency terms. Perceptual difference typically receives the highest weight of all, and both relative lightness and relative colorfulness also receive high weights. These trends supports our hypothesis that spatial relationships in patterns form strong predictors for that pattern's use of color.
 
 \subsection{Implementation}
 \label{sec:implementation}

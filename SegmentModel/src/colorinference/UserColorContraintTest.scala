@@ -152,7 +152,7 @@ object UserColorContraintTest
 //        mesh.groups(0).color.setColor(Color.RGBColor(0.28, 0.03, 0.23))
 //        mesh.groups(0).color.fixed = true
         val constraintTemplate = new UserColorConstraintGroupTemplate("userLABConstraint", ModelTraining.labColor, deviationBandwidth)
-        constraintTemplate.setWeight(model.trainableWeights.sum * constraintFactorWeight)
+        constraintTemplate.setWeight(model.getWeights.sum * constraintFactorWeight)
         model += constraintTemplate
         model.conditionOn(mesh)
 

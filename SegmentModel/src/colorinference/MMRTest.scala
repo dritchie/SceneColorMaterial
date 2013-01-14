@@ -54,13 +54,15 @@ object MMRTest
         {
             type VariableType = ContinuousColorVariable
             val colorVarParams = ContinuousColorVariableParams
+//            type VariableType = DiscreteColorVariable
+//            val colorVarParams = DiscreteColorVariableParams
 
             modelSaveDirectory = "savedModel"
             doWeightTuning = true
-            saveRegressorsIfPossible = false
-            saveWeightsIfPossible = false
+            saveRegressorsIfPossible = true
+            saveWeightsIfPossible = true
             loadRegressorsIfPossible = true
-            loadWeightsIfPossible = false
+            loadWeightsIfPossible = true
 
             includeColorCompatibilityTerm = true
 //            includeUnaryTerms = false
@@ -70,12 +72,10 @@ object MMRTest
             crossValidateHistogramParams = false
             saveCrossValidationLog = false
 
-            initialLearningRate = 0.2
-            numWeightTuningIterations = 20
-            //cdK = 100
+            cdK = 10
+            normalizeWeights = true
 
-            enforceMinimumWeight = true
-            minWeight = 0.0
+            weightGroups = true
         }
 
         val meshes = for (p <- patterns) yield new SegmentMesh(params.colorVarParams.variableGenerator, p.fullpath)
