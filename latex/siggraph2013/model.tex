@@ -11,13 +11,7 @@
 \subsection{Sampling}
 \label{sec:sampling}
 
-To generate good coloring suggestions, we must sample high-probability states from the model. Rather than sample directly from the distribution encoded by the model, we sample from an \emph{annealed} distribution of the form
-%%
-\begin{equation*}
-p(\colors | \pattern : \weights)^\frac{1}{t}
-\end{equation*}
-%%
-where $t$ is a `temperature' term that controls the peakiness of the distribution.
+To generate good coloring suggestions, we must sample high-probability states from the model. Rather than sample directly from the distribution encoded by the model, we sample from an \emph{annealed} distribution of the form $p(\colors | \pattern : \weights)^\frac{1}{t}$, where $t$ is a `temperature' term that controls the peakiness of the distribution.
 We use the Metropolis-Hastings algorithm (MH), a variant of Markov Chain Monte Carlo (MCMC), to sample coloring suggestions~\cite{Metropolis,Hastings}. MH explores the coloring state space by \emph{proposing} candidate new states; these proposals are accepted with probability proportional to their model score. Our sampler uses the following proposals:
 \begin{itemize}
 	\item{\textbf{Perturb} a randomly chosen color by $v \sim \mathcal{N}(0, \sigma)$ in RGB color space}

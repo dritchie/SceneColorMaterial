@@ -74,13 +74,7 @@ For example, Figure~\ref{fig:conditionalDistribution} shows the conditional prob
 
 Both global group features as well as local segment features affect the appearance of a color assignment. The total area of a group and overall spread of its member segments correspond to the overall proportion and spread of its assigned color within an image. In addition, the size and shape of member segments may impact the color a group takes on. As an example, smaller segments may often be more saturated, and a group composed of many small segments may be more likely to be saturated than a group composed of a few small segments but also one large segment \remark{S: Made up example. Should probably find one that holds in our data}.
 
-Our model has one group and one segment term for each of the color properties $ \prop \in \unaryProps$, which is defined as
-%%
-\begin{align*}
-\unaryProps = \{ &\propName{Lightness}, \propName{Colorfulness}, \\
-                 &\propName{NameCounts}, \propName{NameSaliency} \}
-\end{align*}
-%%   
+Our model has one group and one segment term for each of the color properties $ \prop \in \unaryProps$, which are \propName{Lightness}, \propName{Colorfulness}, \propName{NameCounts}, and \propName{NameSaliency}.
 The properties \propName{Lightness} and \propName{Colorfulness} are computed in \lab space, a perception-based color space. \propName{NameCounts} (counts of how many times a color is described with different names) and \propName{NameSaliency} (how uniquely a color is named) are as described by Heer and Stone~\shortcite{ColorNamingModels}. While lightness and colorfulness capture perceptual properties of color, name saliency and color name counts capture more categorical properties.
 
 The group term for property $\prop \in \unaryProps$ has the sufficient statistics function:
@@ -128,14 +122,7 @@ Good color assignments to adjacent segments may depend on the nature of their ad
 
 %~\remark{D: These examples might work better with pictures...} 
 
-Our model has one adjacency term for each of the color properties $ \prop \in \binaryProps$, which is defined as
-%%
-\begin{align*}
-\binaryProps = \{ &\propName{RelativeLightness}, \propName{RelativeColorfulness}, \\
-                  &\propName{PerceptualDifference}, \propName{ChromaDifference}, \\
-                  &\propName{NameSimilarity} \}
-\end{align*}
-%%
+Our model has one adjacency term for each of the color properties $ \prop \in \binaryProps$, which are \propName{RelativeLightness}, \propName{RelativeColorfulness}, \propName{PerceptualDifference}, \propName{ChromaDifference}, and \propName{NameSimilarity}.
 As with group and segment terms, \propName{RelativeLightness} and \propName{RelativeColorfulness} are computed in \lab space. \propName{PerceptualDifference} is Euclidean distance in \lab space, and \propName{ChromaDifference} is the percentage of that distance that is due to the chroma channels. Finally, \propName{NameSimilarity} is the color name cosine similarity measure defined by Heer and Stone~\shortcite{ColorNamingModels}.
 
 The sufficient statistics function for each binary property is:
