@@ -248,6 +248,7 @@ function registerEvents()
 			$("#"+id).find(".delete").click(function(){
 				//enable the draggable again
 				$("#s_"+id).draggable("option","cancel","");
+				$("#s_"+id).css("opacity","1.0");
 				$("#s_"+id).removeClass("unselectable").addClass("selectable");
 				//remove
 				$("#"+id).remove()
@@ -258,8 +259,9 @@ function registerEvents()
 			
 
 			
-			//disable the current draggable
+			//disable the current draggable, and reduce opacity
 			dragged.draggable("option","cancel","#grid");
+			dragged.css("opacity","0.1");
 
 		}
 	})
@@ -285,6 +287,7 @@ function registerEvents()
 			$("#"+id).find(".delete").click(function(){
 				//enable the draggable again
 				$("#s_"+id).draggable("option","cancel","");
+				$("#s_"+id).css("opacity","1.0");
 				$("#s_"+id).removeClass("unselectable").addClass("selectable");
 				//remove
 				$("#"+id).remove()
@@ -297,6 +300,7 @@ function registerEvents()
 			
 			//disable the current draggable
 			dragged.draggable("option","cancel","#grid");
+			dragged.css("opacity","0.1");
 		}
 	})
 	
