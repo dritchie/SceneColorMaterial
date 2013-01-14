@@ -66,8 +66,8 @@ object MMRTest
             loadRegressorsIfPossible = true
             loadWeightsIfPossible = true
 
-            crossValidateHistogramParams = false
-            saveCrossValidationLog = false
+            crossValidateHistogramParams = true
+            saveCrossValidationLog = true
         }
 
         val meshes = for (p <- patterns) yield new SegmentMesh(params.colorVarParams.variableGenerator, p.fullpath)
