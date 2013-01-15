@@ -45,7 +45,7 @@ object MMRTest
             visDirTestFile.mkdir
 
         val allArtists = Set("sugar!", "davidgav", "a peace of mind")
-        val trainingArtists = Set("davidgav", "a peace of mind")
+        val trainingArtists = Set("sugar!", "davidgav", "a peace of mind")
         val patterns = PatternIO.getPatterns(inputDir).filter(p=>(allArtists.contains(p.directory))).toArray
 
         if (patterns.length == 0)
