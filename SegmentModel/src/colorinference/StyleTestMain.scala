@@ -67,8 +67,8 @@ object StyleTestMain {
     includeColorCompatibilityTerm = true
     saveRegressorsIfPossible = true
     saveWeightsIfPossible = true
-    loadRegressorsIfPossible = true
-    loadWeightsIfPossible = true
+    loadRegressorsIfPossible = false
+    loadWeightsIfPossible = false
     modelSaveDirectory = "" //this will be changed to whatever the style folder is named
 
     initialLearningRate = 0.2
@@ -82,7 +82,7 @@ object StyleTestMain {
     includeGroupTerms = true
     includeBinaryTerms = true
 
-    weightGroups = false //I think setting this to true produces more expected results for some styles (i.e. blue and pink), and is a bit more consistent
+    weightGroups = true //I think setting this to true produces more expected results for some styles (i.e. blue and pink), and is a bit more consistent
   }
 
   def main(args:Array[String])

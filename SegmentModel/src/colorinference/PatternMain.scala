@@ -49,7 +49,7 @@ object PatternMain {
       histDirTestFile.mkdir
 
     //load all files TODO: to make this manageable, let's try out one subfolders for now
-    patterns = PatternIO.getPatterns(inputDir).filter(p=>(p.directory == "sugar!")).toArray// || p.directory=="cameo")).toArray
+    patterns = PatternIO.getPatterns(inputDir).filter(p=>(p.directory == "davidgav")).toArray// || p.directory=="cameo")).toArray
 
     if (patterns.length == 0)
       println("No files found in the input directory!")
@@ -77,20 +77,15 @@ object PatternMain {
 
     //list of patterns to consider
     val pids = Array(
-      296605,
-      244833,
-      231386,
-      447439,
-      499194,
-      506633,
-      789577,
-      304986,
-      243893,
-      220077,
-      500393,
-      508162,
-      515691,
-      798455)
+        2991717,
+        2840695,
+        2733843,
+        2740524,
+        2733830,
+        2439705,
+        2439487,
+        2441582,
+        2991721)
 
 
     //train a model on all patterns, except the ones being considered (train/test set)
@@ -114,7 +109,7 @@ object PatternMain {
     //OutputVisualizations(pids, model,"knn")
 
 
-    //OutputVisualizations(pids, model, "")
+    OutputVisualizations(pids, model, "")
 
   }
 
@@ -177,7 +172,24 @@ object PatternMain {
       println("Testing mesh " + patterns(idx).name)
       val vfilename = PatternIO.ensureAndGetFileName(patterns(idx), visDir, ".txt")//visDir + "/"+patterns(idx).name
 
-      val palette = ColorPalette(meshes(idx))
+      //val palette = ColorPalette(meshes(idx))
+
+        val palette = new ColorPalette
+
+        //Brick: 199,70,41 99,149,234 100,30,20 145,136,129 30,32,45
+        //palette += Color.RGBColor(199.0 / 255.0, 70.0 / 255.0, 41.0 / 255.0)
+        //palette += Color.RGBColor(99.0 / 255.0, 149.0 / 255.0, 234.0 / 255.0)
+        //palette += Color.RGBColor(100.0 / 255.0, 30.0 / 255.0, 20.0 / 255.0)
+        //palette += Color.RGBColor(145.0 / 255.0, 136.0 / 255.0, 129.0 / 255.0)
+        //palette += Color.RGBColor(30.0 / 255.0, 32.0 / 255.0, 45.0 / 255.0)
+
+        //Sunset: 243,37,0 253,253,245 253,237,27 139,44,0 59,7,9
+        palette += Color.RGBColor(243.0 / 255.0, 37.0 / 255.0, 0.0 / 255.0)
+        palette += Color.RGBColor(253.0 / 255.0, 253.0 / 255.0, 245.0 / 255.0)
+        palette += Color.RGBColor(253.0 / 255.0, 237.0 / 255.0, 27.0 / 255.0)
+        palette += Color.RGBColor(139.0 / 255.0, 44.0 / 255.0, 0.0 / 255.0)
+        palette += Color.RGBColor(59.0 / 255.0, 7.0 / 255.0, 9.0 / 255.0)
+
       DiscreteColorVariable.initDomain(palette)
 
       model.conditionOn(meshes(idx))

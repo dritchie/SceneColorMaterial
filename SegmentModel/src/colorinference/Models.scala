@@ -632,7 +632,8 @@ class UserColorConstraintGroupTemplate(name: String, extractor:ColorGroupTemplat
 
     override def statistics(v1:ContinuousColorVariable#Value, v2:DatumVariable#Value) : Tensor =
     {
-        Tensor1(MathUtils.logGaussianKernel(metric(colorPropExtractor(v2.group.color.observedColor), colorPropExtractor(v1)), 0, bandwidth))
+        //Tensor1(MathUtils.logGaussianKernel(metric(colorPropExtractor(v2.group.color.observedColor), colorPropExtractor(v1)), 0, bandwidth))
+        Tensor1(MathUtils.logGaussianKernel(metric(colorPropExtractor( { if(v2.group.color.overrideColor == null) v2.group.color.observedColor else v2.group.color.overrideColor } ), colorPropExtractor(v1)), 0, bandwidth))
     }
 
     override def conditionOn(mesh:SegmentMesh)
