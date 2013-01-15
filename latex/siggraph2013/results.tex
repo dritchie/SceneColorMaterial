@@ -13,7 +13,7 @@ The results shown below are rendered using the COLOURlovers interface, using col
 
 \paragraph{Automatic pattern coloring} In the most direct application of our framework, we can sample from our model to produce colorings for a pattern template that are similar to the colorings used for training. Figure~\ref{fig:teaser} shows two examples of this process. The sampled patterns exhibit a range of colors and styles employed by the Colourlover artists. For comparison, the same patterns colored with palettes randomly sampled from RGB-space are shown on the right. These patterns exhibit significant problems, such as low color harmony and adjacent regions with equi-limuinant colors.
 
-\begin{figure*}[ht]
+\begin{figure*}[ht!]
 \begin{tabular}{ccc}
 \includegraphics[width=.15\linewidth]{figs/permutationTemplatePalette} & \includegraphics[width=.4\linewidth]{figs/permutationBest8} & \includegraphics[width=.4\linewidth]{figs/permutationWorst8} %& \includegraphics[width=.12\linewidth]{figs/permutationArtist}
   \\
@@ -25,9 +25,25 @@ The results shown below are rendered using the COLOURlovers interface, using col
 \label{fig:permutation}
 \end{figure*}
 
-\paragraph{Coloring with fixed palettes} In some cases, an artist already knows what colors she wants to use in an image. She might have found a palette she is enamored with elsewhere or mayhave a very specific theme in mind. Even with a fixed palette, there are still a range of images that can be created by mapping different colors to different regions, only some of which are desirable. To support this task, we use our model's score to rank all possible permutations of the colors. Figure~\ref{fig:permutation} shows one example of this process. \ref{fig:permutation}b shows the eight highest-rated color assignments which exhibit a variety of color styles, such as using four different background colors. On the other hand, the lowest-rated assignments all use the tangerine background color. Our color model assigns a very low score to using this color for the background region because its color properties are not similar to background colors in the training set. The actual color assignment originally provided by the artist for this color template received the second-highest score, suggesting that our model was able to capture the artist's intent.
 
-\begin{figure*}[ht]
+\begin{figure}[ht!]
+\begin{tabular}{cccc} 
+\raisebox{0.5em}{\includegraphics[width=.275\columnwidth]{figs/photos/brick}}&
+\includegraphics[width=.65\columnwidth]{figs/photos/brickAll}\\
+\raisebox{0.5em}{\includegraphics[width=.275\columnwidth]{figs/photos/sunset}}&
+\includegraphics[width=.65\columnwidth]{figs/photos/sunsetAll}
+\end{tabular}
+
+\caption{Palettes are extracted from the two input photographs on the left, and on the right we show the top-scoring coloring suggested by our algorithm for three different pattern templates.}
+\vspace{-1.0em}
+\label{fig:photographMatching}
+\end{figure}
+
+\paragraph{Coloring with fixed palettes} In some cases, an artist already knows what colors she wants to use in an image. She might have found a palette she is enamored with elsewhere or may have a very specific theme in mind. Even with a fixed palette, there are still a range of images that can be created by mapping different colors to different regions, only some of which are desirable. To support this task, we use our model's score to rank all possible permutations of the colors. Figure~\ref{fig:permutation} shows one example of this process. \ref{fig:permutation}b shows the eight highest-rated color assignments which exhibit a variety of color styles, such as using four different background colors. On the other hand, the lowest-rated assignments all use the tangerine background color. Our color model assigns a very low score to using this color for the background region because its color properties are not similar to background colors in the training set. The actual color assignment originally provided by the artist for this color template received the second-highest score, suggesting that our model was able to capture the artist's intent. Figure~\ref{fig:photographMatching} shows another application, where the input palette is instead derived from an input photograph~\cite{SharonPaletteExtraction}. Our algorithm automatically computes a pleasing mapping from the colors in the extracted palette to regions in a given pattern template.
+
+\paragraph{Hard color constraints}
+
+\begin{figure*}[ht!]
 \begin{tabular}{cc} 
 \includegraphics[width=.475\linewidth]{figs/constrainedSearchUnconstrained}&\includegraphics[width=.475\linewidth]{figs/constrainedSearchConstrained}\\
 Unconstrained sampling&Constrained sampling\\
@@ -38,24 +54,10 @@ Unconstrained sampling&Constrained sampling\\
 \vspace{-1.0em}
 \end{figure*}
 
-\paragraph{Hard color constraints}
-
 A user coloring a pattern may be confident about the colors he wants to see in some regions but uncertain about others. Our model can assist users in this situation by fixing the color of certain pattern regions and using conditional inference to sample values for the remaining unconstrained color variables. Figure~\ref{fig:constrainedInference} shows an example, in which the model samples from the highest-scoring patterns subject to the constraint that the plant stem must be a specific shade of green.
 
-\begin{figure}[ht]
-\begin{tabular}{cc}
-\raisebox{2em}{\includegraphics[width=.22\columnwidth]{figs/guidedSearch1Original}}&\includegraphics[width=.7\columnwidth]{figs/guidedSearch1MMR}\vspace{0.5em}\\
-\raisebox{2em}{\includegraphics[width=.22\columnwidth]{figs/guidedSearch0Original}}&\includegraphics[width=.7\columnwidth]{figs/guidedSearch0MMR}\vspace{0.5em}\\
-%\raisebox{2em}{\includegraphics[width=.22\columnwidth]{figs/guidedSearch2Original}}%&\includegraphics[width=.7\columnwidth]{figs/guidedSearch2MMR}\\
-Suggestion&Results\\
-\end{tabular}
-
-\caption{An artist provides an initial color assignment and asks for patterns that are similar. We incorporate this request by adding an additional factor to our model, showing eight samples drawn from the new model for each of the suggested images.~\remark{D: It might also be cool to have a version of this that uses a photograph as the target...}}
-\label{fig:nearbySuggestions}
-\vspace{-1.0em}
-\end{figure}
-
 \paragraph{Soft color constraints}
+
 In another use case, a user might manually color a pattern and then wish to see variations upon this theme, hoping to find better-looking alternatives nearby in the space of colorings. Our model can support this type of query by incorporating an additional soft constraint factor on color variable, constraining it ot be close to a target color:
 %%
 \begin{equation}
@@ -71,9 +73,23 @@ Here, $\textrm{targetColor}(\group)$ is the desired color of group $\group$ and 
 %\termStats(\colors | \pattern) = \sum_{\group \in \groups}{\ln \mathcal{N}(||\colors_\group - \textrm{targetColor}(\group)||, \sigma_\textrm{user})}
 %\end{equation*}
 %%%
-Figure~\ref{fig:nearbySuggestions} shows example scenarios where a proposed coloring is given, and the model returns similar colorings.%\remark{Discussion on hold since the results will likely change}
 
-\begin{figure}[ht]
+\begin{figure}[ht!]
+\begin{tabular}{cc}
+\raisebox{2em}{\includegraphics[width=.22\columnwidth]{figs/guidedSearch1Original}}&\includegraphics[width=.7\columnwidth]{figs/guidedSearch1MMR}\vspace{0.5em}\\
+\raisebox{2em}{\includegraphics[width=.22\columnwidth]{figs/guidedSearch0Original}}&\includegraphics[width=.7\columnwidth]{figs/guidedSearch0MMR}\vspace{0.5em}\\
+%\raisebox{2em}{\includegraphics[width=.22\columnwidth]{figs/guidedSearch2Original}}%&\includegraphics[width=.7\columnwidth]{figs/guidedSearch2MMR}\\
+Suggestion&Results\\
+\end{tabular}
+
+\caption{An artist provides an initial color assignment and asks for patterns that are similar. We incorporate this request by adding an additional factor to our model, showing eight samples drawn from the new model for each of the suggested images.}
+\label{fig:nearbySuggestions}
+\vspace{-1.0em}
+\end{figure}
+
+Figure~\ref{fig:nearbySuggestions} shows example scenarios where a proposed coloring is given, and the model returns similar colorings.
+
+\begin{figure}[ht!]
 \begin{tabular}{ccc} 
 Style&Example&Results\\ %\hline
 \raisebox{1.55em}{\emph{Light}}&\includegraphics[width=.148\columnwidth]{figs/styleResultsLightExample}&\includegraphics[width=.62\columnwidth]{figs/styleResultsLight}\vspace{0.5em}\\
@@ -87,7 +103,7 @@ Style&Example&Results\\ %\hline
 \vspace{-1.0em}
 \end{figure}
 
-\begin{figure*}[ht]
+\begin{figure*}[ht!]
 \begin{tabular}{cc} 
 \includegraphics[width=.48\linewidth]{figs/styleSugarExamples}&\includegraphics[width=.48\linewidth]{figs/styleAlbenajExamples}\vspace{1.0em}\\
 \includegraphics[width=.48\linewidth]{figs/styleSugar}&\includegraphics[width=.48\linewidth]{figs/styleAlbenaj}\\
@@ -120,7 +136,7 @@ We also add a factor to the pattern's background color group (assumed to be the 
 Incoporating this term ensures that the body of the page stands out from the rest of the page. A more sophisticated approach would consider the entire web page to be a pattern and perform joint recoloring; we leave this extension to future work.
 
 
-\begin{figure}
+\begin{figure}[ht!]
 \centering
 \includegraphics[width=\columnwidth]{figs/webpageRecoloring}
 \caption{With a few additional factors, our model can recolor the background of a web page in concert with the colors in the page body. (Top) A Spring-themed seasonal recoloring. (Middle) A Summer-themed recoloring. (Bottom) A Winter-themed recoloring. Design adapted from \url{www.thedesigncubicle.com}}
@@ -130,7 +146,7 @@ Incoporating this term ensures that the body of the page stands out from the res
 \paragraph{3D scene design}
 Color-coordinating a virtual scene is another creative task that can benefit from computatational support. While repositories such as the 3D Warehouse provide a wealth of object models with which to build scenes, and prior research has investigated computational support for arranging those objects~\cite{SceneSynth}, coloring them in a consistent and pleasing way remains challenging. Figure~\ref{fig:sceneRecoloring} shows how our model can make this task easier. In this example, the original scene is composed of models whose material colors are internally consistent but do not harmonize with each other; this is a common problem when constructing scenes from repository models. We can treat this scene as a recolorable pattern by rendering its material coefficients to an image. The user then provides a few additional annotations to specify which object components should take the same color; in this example, all cushions, pillows, and wooden objects must take the same color. Finally, we add a factor to our model to enforce that the colors assigned to each component are similar to their original colors (see Equation~\ref{eq:targetFactor}). The resulting model, when sampled, suggests plausible, improved recolorings of the scene. Our model's applicability to this task, despite it being trained only on \emph{2D} patterns, suggests that it captures some simple cross-domain aesthetic principles.
 
-\begin{figure*}[t]
+\begin{figure*}[ht!]
 \begin{tabular}{c|ccc} 
 Original&Recoloring 1&Recoloring 2&Recoloring 3\vspace{0.4em}\\
 \includegraphics[width=.23\linewidth]{figs/3dscene/original}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_00}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_01}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_05}\vspace{0.4em}\\
@@ -147,6 +163,6 @@ Original&Recoloring 1&Recoloring 2&Recoloring 3\vspace{0.4em}\\
 
 \subsection{Performance}
 
-The time required to generate coloring suggestions varies depending on the visual complexity of the pattern, but on average takes X time in our experiments. We gather timing measurements on a machine with X specs. We run parallel tempering with M chains for N iterations and retrieve the top 20 samples using MMR with $\lambda = 0.5$. The running time is dominated by the probabilistic inference phase.~\remark{Get real numbers from Matt's machine.}
+The time required to generate coloring suggestions varies depending on the visual complexity of the pattern. Using the parallel tempering parameters described at the beginning of this section, the average sampling time was 73.0s to retrieve 20 MMR-diversified results for a single input pattern on a 2.67GHz Intel Core i7. Sampling is dominated by the probabilistic inference phase, which on average accounts for 83\% of the total running time.
 
 There are many avenues for improving the performance of our unoptimized prototype. We could leverage the massive parallelism of graphics hardware to speed up parallel tempering, as was done in related work on automatic furniture layout~\cite{MerrellFurnitureLayout}. We could also improve the convergence of the individual MCMC chains via gradient-based proposals, as in Hamiltonian MCMC~\cite{HamiltonianMCMC}. Prior work has shown the feasibility of computing the gradients of programmatically-expressed distributions using automatic differentation~\cite{AutoDiff}. 
