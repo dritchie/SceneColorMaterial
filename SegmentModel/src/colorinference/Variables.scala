@@ -20,6 +20,7 @@ trait ColorVariable extends Variable with Copyable[ColorVariable]
     // Set this to true in order to condition on this variable as observed
     var fixed = false
 
+    var overrideColor:Color = null
     def group:SegmentGroup
     def observedColor:Color
     def setColor(color:Color)

@@ -10,6 +10,7 @@ package colorinference
 
 import java.io.{FileWriter, File}
 import cc.factorie.{Model, Family, SamplingMaximizer}
+import compat.Platform.currentTime
 
 object MMRTest
 {
@@ -18,7 +19,7 @@ object MMRTest
     val inputDir = "../PatternColorizer/out/mesh"
     val randVisDir = "../PatternColorizer/out/vis_rand"
     val mmrVisDir = "../PatternColorizer/out/vis_mmr"
-    val lambdas = Array(0.25, 0.5, 0.75)
+    val lambdas = Array(0.5)
     val numSamplesToOutput = 20
 
     // Maximization parameters
@@ -106,6 +107,8 @@ object MMRTest
         println("Training on " + trainingMeshes.length + " meshes")
         val model = ModelTraining(trainingMeshes, params)
 
+        println("Training on " + trainingMeshes.length + " meshes")
+
         for (i <- meshes.indices if (pids.contains(patterns(i).name.replace(".txt","").toInt)))
         {
             val pattern = patterns(i)
@@ -139,11 +142,17 @@ object MMRTest
 //        mesh.groups(0).color.setColor(Color.RGBColor(0.28, 0.03, 0.23))
 //        mesh.groups(0).color.fixed = true
 
+        val samplingStartTime = currentTime
+
         model.conditionOn(mesh)
         val samplerGenerator = () => { new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable] }
         val maximizer = new ParallelTemperingMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, chainTemps)
 
         maximizer.maximize(mesh, iterations, itersBetweenSwaps)
+
+        println("Sampling time: " + (currentTime - samplingStartTime))
+
+        val mmrStartTime = currentTime
 
         // Convert sampled values to LAB first, since our similarity metric operates in LAB space
         maximizer.samples.foreach(_.values.foreach(_.convertTo(LABColorSpace)))
@@ -163,6 +172,8 @@ object MMRTest
             val rankedSamples = mmr.getRankedSamples(numSamplesToOutput, lambda)
             savePatterns(mesh, rankedSamples, dirName, pattern)
         }
+
+        println("MMR time: " + (currentTime - mmrStartTime))
     }
 
     def savePatterns(mesh:SegmentMesh, rankedPatterns:IndexedSeq[ScoredValue[IndexedSeq[Color]]], dir:String, pattern:PatternItem)
