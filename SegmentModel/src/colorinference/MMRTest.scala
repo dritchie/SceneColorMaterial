@@ -19,18 +19,20 @@ object MMRTest
     val inputDir = "../PatternColorizer/out/mesh"
     val randVisDir = "../PatternColorizer/out/vis_rand"
     val mmrVisDir = "../PatternColorizer/out/vis_mmr"
-    val lambdas = Array(0.5)
+    val lambdas = Array(0.4, 0.5, 0.6, 0.7)
     val numSamplesToOutput = 20
 
     // Maximization parameters
     val numParallelChains = 5
     val iterations = 2000
+    //val iterations = 4000
     val initTemp = 1.0
     val finalTemp = 0.01
     val rounds = 40
 
     // Parallel tempering parameters
     val chainTemps = Array(1.0, 0.5, 0.2, 0.05, 0.01)
+    //val chainTemps = Array(2.0, 1.0, 0.5, 0.1, 0.01)
     val itersBetweenSwaps = 50
 
     def main(args:Array[String])
@@ -43,8 +45,8 @@ object MMRTest
         if (!visDirTestFile.exists)
             visDirTestFile.mkdir
 
-        val allArtists = Set("sugar!", "davidgav")
-        val trainingArtists = Set("davidgav")
+        val allArtists = Set("sugar!", "davidgav", "a peace of mind")
+        val trainingArtists = Set("davidgav", "a peace of mind")
         val patterns = PatternIO.getPatterns(inputDir).filter(p=>(allArtists.contains(p.directory))).toArray
 
         if (patterns.length == 0)
@@ -65,39 +67,39 @@ object MMRTest
             loadRegressorsIfPossible = true
             loadWeightsIfPossible = true
 
-            includeColorCompatibilityTerm = true
-//            includeUnaryTerms = false
-//            includeBinaryTerms = false
-//            includeGroupTerms = false
-
             crossValidateHistogramParams = false
-            saveCrossValidationLog = false
+            saveCrossValidationLog = true
 
-            cdK = 10
-            normalizeWeights = true
+            enforceMinimumWeight = true
+            minWeight = 0.0
 
-            weightGroups = true
+            includeColorChoiceTerms = true
+            colorChoiceType = ModelTraining.ColorChoiceType.NamesConditional
         }
 
         val meshes = for (p <- patterns) yield new SegmentMesh(params.colorVarParams.variableGenerator, p.fullpath)
 
         // These are the ids of the patterns we will test on
         val pids = Array(
-            296605,
-            244833,
-            231386,
+//            296605,
+//            244833,
+//            231386,
+//            447439,
+//            499194,
+//            506633,
+//            789577,
+//            304986,
+//            243893,
+//            220077,
+//            500393,
+//            508162,
+//            515691,
+//            798455)
+            220077,
+            243893,
             447439,
             499194,
-            506633,
-            789577,
-            304986,
-            243893,
-            220077,
-            500393,
-            508162,
-            515691,
-            798455)
-//            508162)
+            515691)
 
 
         val testingMeshes = {for (idx<-meshes.indices if (pids.contains(patterns(idx).name.replace(".txt","").toInt))) yield meshes(idx)}

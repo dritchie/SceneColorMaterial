@@ -56,17 +56,17 @@ where $\expectation_\weights$ denotes an expectation under the model with weight
 This computational intractability has motivated the development of alternative, `biased' parameter estimation schemes which do not directly maximize the likelihood function but nevertheless yield parameters that give high likelihoods~\cite{NonMLEParameterEstimation}. We use one such method, called \emph{Contrastive Divergence} (CD)~\cite{ContrastiveDivergence}. CD uses the following approximation to the likelihood gradient:
 %% CD gradient
 \begin{equation*}
-CD(\weights : \dataset) = 
+CD_k(\weights : \dataset) = 
 	\sum_{(\pattern, \colors) \in \dataset}
 			\termStats(\colors, \pattern)
 		 -\termStats(\hat{\colors}, \pattern)
 \end{equation*}
 %%
-where $\hat{\colors}$ is the coloring state obtained by running an MCMC chain for one step from the initial state $\colors$. CD essentially forms a local approximation to the likelihood gradient around the neighborhood of state $\colors$.
-We initialize the weights uniformly and enforce that they remain normalized throughout CD. In our experiments, we terminate the learning process once the gap between the average scores of the training set and a held-out validation set has increased by 2.5\%. Tracking this `overfitting gap' is a common termination criterion in CD learning~\cite{CDTipsAndTricks}.
+where $\hat{\colors}$ is the coloring state obtained by running an MCMC chain for $k$ steps from the initial state $\colors$. CD essentially forms a local approximation to the likelihood gradient around the neighborhood of state $\colors$. Larger $k$ yields more accurate approximations at additional cost; we use $k = 10$ in our experiments. We initialize the weights uniformly to 1 and constrain them to be nonnegative, since all terms in the model are log-probabilities.
 
 While the exact weights learned depend on the training dataset, there are several strong general trends.
-Perceptual difference typically has the most weight, reflecting the intuitive notion that adjacent regions should have sufficient contrast. The terms for colorfulness and relative colorfulness also receive relatively high weight, which indicates that it is important for some regions to `pop' out of the background while others should remain muted. The color compatibility term has higher weight than several other terms, but not as high a weight as one might expect, given the seeming importance of overall color coordination. This might be explained by the fact that other terms redundantly encode some of the same properties that the O'Donovan color compatibilility model uses as predictive features. The lowest weight belongs to the name similarity term, which suggests that the similarity in how two colors are named is not strongly predictive of their compatibility as an adjacent color pair.
+Perceptual difference typically has the most weight, reflecting the intuitive notion that adjacent regions should have sufficient contrast.
+The terms for colorfulness and relative colorfulness also receive relatively high weight, which indicates that it is important for some regions to `pop' out of the background while others should remain muted. The color compatibility term has higher weight than several other terms, but not as high a weight as one might expect, given the seeming importance of overall color coordination. This might be explained by the fact that other terms redundantly encode some of the same properties that the O'Donovan color compatibilility model uses as predictive features. The lowest weight belongs to the name similarity term, which suggests that the similarity in how two colors are named is not strongly predictive of their compatibility as an adjacent color pair.
 
 ~\remark{Rather than in future work, this might be the best place to talk about how we've only touched the tip of the iceberg in terms of getting the right properties and understanding why they work.}
 

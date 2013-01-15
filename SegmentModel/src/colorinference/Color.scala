@@ -205,7 +205,7 @@ object Color
     {
         val c1 = col1.copyIfNeededTo(LABColorSpace)
         val c2 = col2.copyIfNeededTo(LABColorSpace)
-        math.abs(c1(0) - c2(0))
+        math.abs(c1(0) - c2(0)) / 100
     }
 
     // Better than relative saturation in HSV space

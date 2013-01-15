@@ -1,20 +1,20 @@
 \section*{Appendix}
 \label{sec:appendix}
 
-We provide more precise definitions for some of the color properties and features used in our model (Section ~\ref{sec:spatialCompat}).
+Here we provide a complete listing of features and precise definitions for some of the color properties used in our model (Section ~\ref{sec:spatialCompat}).
 
 \subsection*{Color Properties}
 
 \begin{description}
 
 \item[Unary] \hfill
-	\begin{description}
+	\begin{description}[leftmargin=*]
 	  \item[Colorfulness] measures saturation of a color in \lab space: $\frac{\sqrt{a^2+b^2}}{\sqrt{a^2+b^2+L^2}}$
 	  %\item[Name Saliency and Name Counts] measure how uniquely a color is named and the distribution of names given to a color, as described in Heer and Stone ~\shortcite{ColorNamingModels}
 	\end{description}
 	
 \item[Binary] \hfill
-	\begin{description}
+	\begin{description}[leftmargin=*]
 	  \item[Chroma Difference] measures the squared fraction of perceptual distance due to the chroma channels: $\frac{\delta a^2+\delta b^2}{\delta a^2+\delta b^2+\delta L^2}$
 	\end{description}
 	
@@ -25,7 +25,7 @@ We provide more precise definitions for some of the color properties and feature
 \begin{description}
 
 \item[Group Features] \hfill
-	\begin{description}
+	\begin{description}[leftmargin=*]
 	  \item[Relative Size] The total area of the group over the image area
 	  \item[Segment Spread] 2D covariance matrix of the group's segment centroids
 	  \item[Segment Size Statistics] the min, mean, max, and standard deviation of the group's relative segment sizes
@@ -33,7 +33,7 @@ We provide more precise definitions for some of the color properties and feature
 	\end{description}
 	
 \item[Segment Features] \hfill
-	\begin{description}
+	\begin{description}[leftmargin=*]
 	  \item[Relative Size] The total area of the segment over the image area
 	  \item[Normalized Discrete Compactness] measures compactness based on the relationship between the segment's boundary edges and its area ~\cite{NormalizedDiscreteCompactness}
 	  \item[Elongation] measures the relative narrowness of a segment according to the width and height of its minimum area bounding box: $1-\frac{boxWidth}{boxHeight}$. A square is the least elongated.
@@ -42,7 +42,7 @@ We provide more precise definitions for some of the color properties and feature
 	\end{description}
 
 \item[Adjacency Features] \hfill
-	\begin{description}
+	\begin{description}[leftmargin=*]
 	  \item[Enclosure Strengths] are two values which measure how much one neighbor in the adjacency encloses the other and vice versa. Enclosure strength is defined as the number of pixels of the neighboring segment appearing within a 2-pixel neighborhood outside the segment's boundary, normalized by the area of that neighborhood. Out-of-image pixels are counted as part of the neighborhood area.
 	  \item[Unary Segment Features] The adjacency feature set also includes the segment feature vectors of the participating segments. We concatenate the two vectors, putting the one with the smallest $L_2$ norm first to enforce a consistent ordering.
 	\end{description}

@@ -65,7 +65,7 @@ object HistogramRegressor
     }
 }
 
-abstract class HistogramRegressor(private val metric:MathUtils.DistanceMetric, var bandwithScale:Double)
+abstract class HistogramRegressor(private val metric:MathUtils.DistanceMetric, var bandwidthScale:Double)
 {
     protected var centroids:IndexedSeq[Tensor1] = null
     protected var featureNames:Seq[String] = null
@@ -117,7 +117,7 @@ abstract class HistogramRegressor(private val metric:MathUtils.DistanceMetric, v
     protected def saveBandwithScale(fileBaseName:String)
     {
         val fw = new FileWriter(fileBaseName + ".bandscale")
-        fw.write("%f\n".format(bandwithScale))
+        fw.write("%f\n".format(bandwidthScale))
         fw.close()
     }
     protected def loadBandwidthScale(fileBaseName:String) : Boolean =
@@ -125,7 +125,7 @@ abstract class HistogramRegressor(private val metric:MathUtils.DistanceMetric, v
         print("Attemping to load bandwidth scale...")
         try
         {
-            bandwithScale = Source.fromFile(fileBaseName + ".bandscale").getLines().next().toDouble
+            bandwidthScale = Source.fromFile(fileBaseName + ".bandscale").getLines().next().toDouble
         } catch { case e:FileNotFoundException => println("FAILED"); return false }
         println("SUCCESS")
         true
@@ -171,7 +171,7 @@ abstract class HistogramRegressor(private val metric:MathUtils.DistanceMetric, v
             for (i <- 0 until bins.length) bins(i) /= totalmass
 
         // Construct histogram
-        val hist = new VectorHistogram(metric, bandwithScale)
+        val hist = new VectorHistogram(metric, bandwidthScale)
         hist.setData(centroids, bins)
         hist
     }
@@ -203,11 +203,29 @@ object WekaMultiClassHistogramRegressor extends WekaHistogramRegressor
         new WekaMultiClassHistogramRegressor(classifier, metric, bandwidthScale)
 }
 
-class WekaMultiClassHistogramRegressor(private var classifier:Classifier, metric:MathUtils.DistanceMetric, bandwidthScale:Double)
-    extends HistogramRegressor(metric, bandwidthScale)
+class WekaMultiClassHistogramRegressor(private var classifier:Classifier, metric:MathUtils.DistanceMetric, bandScale:Double)
+    extends HistogramRegressor(metric, bandScale)
 {
     private var attributePrototype:FastVector = null
     private var dummyDataset:Instances = null
+
+    def copy =
+    {
+        val thiscopy = new WekaMultiClassHistogramRegressor(this.classifier, this.metric, this.bandwidthScale)
+        thiscopy.copyFrom(this)
+        thiscopy
+    }
+
+    def copyFrom(other:WekaMultiClassHistogramRegressor)
+    {
+        // Assumes 'metric' is the same
+        this.centroids = other.centroids
+        this.featureNames = other.featureNames
+        this.attributePrototype = other.attributePrototype
+        this.dummyDataset = other.dummyDataset
+        this.bandwidthScale = other.bandwidthScale
+        this.classifier = Classifier.makeCopy(other.classifier)
+    }
 
     def getCoefficients:Array[Array[Double]] =
     {
@@ -324,7 +342,7 @@ class WekaMultiClassHistogramRegressor(private var classifier:Classifier, metric
 
     // Not all misclassifications are equally bad. This measure takes this into account
     // Here, we look at the metric distance between the predicted bin centroid and the target value
-    def avgPredictionError(examples:Seq[HistogramRegressor.RegressionExample]) : Double =
+    def avgResidualSumOfSquaredError(examples:Seq[HistogramRegressor.RegressionExample]) : Double =
     {
         var error = 0.0
         for (i <- 0 until examples.length)
@@ -333,7 +351,8 @@ class WekaMultiClassHistogramRegressor(private var classifier:Classifier, metric
             instance.setDataset(dummyDataset)
             val predictedBin = classifier.classifyInstance(instance).toInt
             val predictedCentroid = centroids(predictedBin)
-            error += metric(predictedCentroid, examples(i).target)
+            val err = metric(predictedCentroid, examples(i).target)
+            error += err*err
         }
         error / examples.length
     }

@@ -68,84 +68,91 @@ object ColorInferenceModel
                                      saveValidationLog:Boolean, cvRanges:HistogramRegressor.CrossValidationRanges,
                                      numBins:Int, bandScale:Double, loadFrom:String = "")
         {
+            val dataIsScalar = examples.head.target.length == 1
+            //def quantizer(binCount:Int) = if (dataIsScalar) new UniformVectorQuantizer(Array(binCount)) else new KMeansVectorQuantizer(binCount)
+            def quantizer(binCount:Int) = new KMeansVectorQuantizer(binCount)
+
+            var bins = numBins
             if (loadFrom.isEmpty || !regressor.load(examples, "%s/%s".format(loadFrom, name)))
             {
-                var bins = numBins
                 if (crossValidate)
                 {
-                    println("Cross-validating...")
+                    // Split data into training and validation
+                    val splitPoint = (0.75*examples.length).toInt
+                    val trainingSet = examples.slice(0, splitPoint)
+                    val validationSet = examples.slice(splitPoint+1, examples.length)
 
                     var log:FileWriter = null
                     if (saveValidationLog)
                     {
-                        val dir = new File("crossValidationLog")
+                        val dir = new File("modelSelectionLog")
                         if (!dir.exists)
                             dir.mkdir
 
-                        log = new FileWriter("%s/%s.crossValidation.csv".format(dir, name))
+                        log = new FileWriter("%s/%s.modelSelection.csv".format(dir, name))
                         // Write headers
-                        log.write("numBins,bandScale,likelihood,classificationAccuracy,predictionError\n")
+                        log.write("numBins,predictionError,HQC\n")
                     }
 
-                    // Split examples into training and test
-                    // We assume that any randomization of examples has already been done.
-                    val splitPoint = (0.75*examples.length).toInt
-                    val trainData = examples.slice(0, splitPoint)
-                    val testData = examples.slice(splitPoint+1, examples.length)
+                    println("Model selection for num bins...")
 
-                    // Find the number of bins that gives the best likelihood after averaging
-                    // over 'all possible' (read: many) bandwidth scales
-
-                    //Find the number of bins and the bandwidth scale that gives the best likelihood
-                    //on cross validation
-                    var bestLL = Double.NegativeInfinity
+                    // Find the number of bins that gives the best prediction error on the validation set
+                    var bestError = Double.PositiveInfinity
                     var bestNumBins = -1
-                    var bestBandScale = bandScale
-                    for (bins <- cvRanges.numBins)
+                    def findOptimalBinCount()
                     {
-                        println("Trying numBins = %d".format(bins))
-                        regressor.train(trainData, new KMeansVectorQuantizer(bins))
-                        var avgLL = 0.0
-                        for (scale <- cvRanges.bandScale)
+                        for (bins <- cvRanges.numBins)
                         {
-                            regressor.bandwithScale = scale
-                            val ll = regressor.avgLogLikelihood(testData)
-                            avgLL += ll
+                            println("Trying numBins = %d".format(bins))
+                            regressor.train(trainingSet, quantizer(bins))
+                            val err = regressor.asInstanceOf[WekaMultiClassHistogramRegressor].avgResidualSumOfSquaredError(validationSet)
+                            val n = validationSet.length
+                            val k = bins
+                            val hqc = n*math.log(err) + 2*k*math.log(math.log(n))
                             if (saveValidationLog)
                             {
-                                val acc = regressor.asInstanceOf[WekaMultiClassHistogramRegressor].classificationAccuracy(testData)
-                                val err = regressor.asInstanceOf[WekaMultiClassHistogramRegressor].avgPredictionError(testData)
-                                log.write("%d,%g,%g,%g,%g\n".format(bins, scale, ll, acc, err))
+                                log.write("%d,%g,%g\n".format(bins, err, hqc))
                                 log.flush()
                             }
-                            if (ll>bestLL)
+                            if (err < bestError)
+                            //if (hqc < bestError)
                             {
-                              bestLL = ll
-                              bestNumBins = bins
-                              bestBandScale = scale
+                                bestError = err
+                                //bestError = hqc
+                                bestNumBins = bins
                             }
-
                         }
-                        avgLL /= cvRanges.bandScale.length
-                       /* if (avgLL > bestLL)
-                        {
-                            bestLL = avgLL
-                            bestNumBins = bins
-                        } */
                     }
+                    findOptimalBinCount()
 
                     println("Best numBins = %d".format(bestNumBins))
                     bins = bestNumBins
-                    // Reset bandwidth scale to original value
-                    //regressor.bandwithScale = bandScale
-                    regressor.bandwithScale = bestBandScale
 
                     if (saveValidationLog)
                         log.close()
+
+                    // Find the bandwidth scale that gives the highest likelihood on the validation set
+                    println("Cross validation for bandwidth scale...")
+                    regressor.train(trainingSet, quantizer(bins))
+                    var bestLL = Double.NegativeInfinity
+                    var bestBandScale = regressor.bandwidthScale
+                    for (scale <- cvRanges.bandScale)
+                    {
+                        regressor.bandwidthScale = scale
+                        val avgValidLL = regressor.avgLogLikelihood(validationSet)
+                        if (avgValidLL > bestLL)
+                        {
+                            bestLL = avgValidLL
+                            bestBandScale = scale
+                        }
+                    }
+                    println("Best bandScale = %g".format(bestBandScale))
+                    regressor.bandwidthScale = bestBandScale
                 }
-                // Final training
-                println("Training...")
-                regressor.train(examples, new KMeansVectorQuantizer(bins))
+
+                // Finalize the regressor
+                println("Final training...")
+                regressor.train(examples, quantizer(numBins))
             }
         }
 
