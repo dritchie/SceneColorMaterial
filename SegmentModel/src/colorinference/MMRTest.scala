@@ -44,10 +44,8 @@ object MMRTest
         if (!visDirTestFile.exists)
             visDirTestFile.mkdir
 
-        //val allArtists = Set("sugar!", "a peace of mind")
-        //val trainingArtists = Set("a peace of mind")
-        val allArtists = Set("sugar!")
-        val trainingArtists = Set("sugar!")
+        val allArtists = Set("sugar!", "davidgav", "a peace of mind")
+        val trainingArtists = Set("davidgav", "a peace of mind")
         val patterns = PatternIO.getPatterns(inputDir).filter(p=>(allArtists.contains(p.directory))).toArray
 
         if (patterns.length == 0)
@@ -74,8 +72,8 @@ object MMRTest
             enforceMinimumWeight = true
             minWeight = 0.0
 
-//            includeColorChoiceTerms = true
-//            colorChoiceType = ModelTraining.ColorChoiceType.NamesConditional
+            includeColorChoiceTerms = true
+            colorChoiceType = ModelTraining.ColorChoiceType.NamesConditional
         }
 
         val meshes = for (p <- patterns) yield new SegmentMesh(params.colorVarParams.variableGenerator, p.fullpath)
