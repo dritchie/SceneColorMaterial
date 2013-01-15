@@ -18,7 +18,7 @@ object MMRTest
     val inputDir = "../PatternColorizer/out/mesh"
     val randVisDir = "../PatternColorizer/out/vis_rand"
     val mmrVisDir = "../PatternColorizer/out/vis_mmr"
-    val lambdas = Array(0.25, 0.5, 0.75)
+    val lambdas = Array(0.4, 0.5, 0.6, 0.7)
     val numSamplesToOutput = 20
 
     // Maximization parameters
@@ -30,8 +30,8 @@ object MMRTest
     val rounds = 40
 
     // Parallel tempering parameters
-    //val chainTemps = Array(1.0, 0.5, 0.2, 0.05, 0.01)
-    val chainTemps = Array(4.0, 2.0, 1.0, 0.5, 0.1, 0.01)
+    val chainTemps = Array(1.0, 0.5, 0.2, 0.05, 0.01)
+    //val chainTemps = Array(2.0, 1.0, 0.5, 0.1, 0.01)
     val itersBetweenSwaps = 50
 
     def main(args:Array[String])
@@ -44,8 +44,10 @@ object MMRTest
         if (!visDirTestFile.exists)
             visDirTestFile.mkdir
 
-        val allArtists = Set("sugar!", "davidgav")
-        val trainingArtists = Set("davidgav")
+        //val allArtists = Set("sugar!", "a peace of mind")
+        //val trainingArtists = Set("a peace of mind")
+        val allArtists = Set("sugar!")
+        val trainingArtists = Set("sugar!")
         val patterns = PatternIO.getPatterns(inputDir).filter(p=>(allArtists.contains(p.directory))).toArray
 
         if (patterns.length == 0)
@@ -66,8 +68,14 @@ object MMRTest
             loadRegressorsIfPossible = true
             loadWeightsIfPossible = true
 
-            crossValidateHistogramParams = true
+            crossValidateHistogramParams = false
             saveCrossValidationLog = true
+
+            enforceMinimumWeight = true
+            minWeight = 0.0
+
+//            includeColorChoiceTerms = true
+//            colorChoiceType = ModelTraining.ColorChoiceType.NamesConditional
         }
 
         val meshes = for (p <- patterns) yield new SegmentMesh(params.colorVarParams.variableGenerator, p.fullpath)

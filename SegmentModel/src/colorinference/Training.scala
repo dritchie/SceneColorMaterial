@@ -32,7 +32,7 @@ abstract class ModelTrainingParams
 
     // Training histogram regressors
     var fixedBandwidthScale = 1.0
-    var fixedNumBins = 7
+    var fixedNumBins = 10
     var crossValidateHistogramParams = false
     var saveCrossValidationLog = false
     import HistogramRegressor.CrossValidationRanges
@@ -70,7 +70,7 @@ abstract class ModelTrainingParams
     var trainerType = TrainerType.ContrastiveDivergence
 
     var cdK = 10
-    var normalizeWeights = true
+    var normalizeWeights = false
 
     // Old stuff
     var numWeightTuningIterations = 10
@@ -166,13 +166,15 @@ object ModelTraining
 
     // Unary
     def colorfulness(c:Color) = Tensor1(c.colorfulness)
-    def lightness(c:Color) = Tensor1(c.copyIfNeededTo(LABColorSpace)(0))
+    private val maxLightness = 100
+    def lightness(c:Color) = Tensor1(c.copyIfNeededTo(LABColorSpace)(0) / maxLightness)
     def nameSaliency(c:Color) = Tensor1(namingModel.saliency(c))
     def labColor(c:Color) = {c.copyIfNeededTo(LABColorSpace)}
     def colorNames(c:Color) = {namingModel.getTermCountsVector(c)}
 
     // Binary
-    def perceptualDifference(c1:Color, c2:Color) = Tensor1(Color.perceptualDifference(c1, c2))
+    private val maxPerceptualDifference = math.sqrt(100*100 + 200*200 + 200*200)
+    def perceptualDifference(c1:Color, c2:Color) = Tensor1(Color.perceptualDifference(c1, c2) / maxPerceptualDifference)
     def chromaDifference(c1:Color, c2:Color) = Tensor1(Color.chromaDifference(c1, c2))
     def relativeColorfulness(c1:Color, c2:Color) = Tensor1(Color.relativeColorfulness(c1, c2))
     def relativeLightness(c1:Color, c2:Color) = Tensor1(Color.relativeLightness(c1, c2))
@@ -264,7 +266,7 @@ class ModelTraining(val params:ModelTrainingParams)
           groupMarginalProps += ColorGroupProperty("LABColor Marginal", ModelTraining.labColor, params.cvRanges, true)
         case ModelTraining.ColorChoiceType.LABConditional =>
           groupProps += ColorGroupProperty("LABColor Conditional", ModelTraining.labColor, params.cvRanges, false)
-          unarySegProps += UnarySegmentProperty("LABColor Conditional", ModelTraining.labColor, params.cvRanges, MathUtils.cosineDistance)
+          unarySegProps += UnarySegmentProperty("LABColor Conditional", ModelTraining.labColor, params.cvRanges)
         case ModelTraining.ColorChoiceType.NamesMarginal =>
           groupMarginalProps += ColorGroupProperty("ColorNames Marginal", ModelTraining.colorNames, params.cvRanges, true, MathUtils.cosineDistance)
         case ModelTraining.ColorChoiceType.NamesConditional =>
@@ -573,6 +575,8 @@ class ModelTraining(val params:ModelTrainingParams)
 
             if (params.normalizeWeights)
                 model.normalizeWeights()
+            if (params.enforceMinimumWeight)
+                model.enforceMinimumWeight(params.minWeight)
 
             println("Weights delta: %g".format((newweights - model.getWeights).twoNorm))
             println("Weights:")

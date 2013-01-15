@@ -342,7 +342,7 @@ class WekaMultiClassHistogramRegressor(private var classifier:Classifier, metric
 
     // Not all misclassifications are equally bad. This measure takes this into account
     // Here, we look at the metric distance between the predicted bin centroid and the target value
-    def avgPredictionError(examples:Seq[HistogramRegressor.RegressionExample]) : Double =
+    def avgResidualSumOfSquaredError(examples:Seq[HistogramRegressor.RegressionExample]) : Double =
     {
         var error = 0.0
         for (i <- 0 until examples.length)
@@ -351,7 +351,8 @@ class WekaMultiClassHistogramRegressor(private var classifier:Classifier, metric
             instance.setDataset(dummyDataset)
             val predictedBin = classifier.classifyInstance(instance).toInt
             val predictedCentroid = centroids(predictedBin)
-            error += metric(predictedCentroid, examples(i).target)
+            val err = metric(predictedCentroid, examples(i).target)
+            error += err*err
         }
         error / examples.length
     }
