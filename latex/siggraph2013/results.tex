@@ -159,7 +159,14 @@ Original&Recoloring 1&Recoloring 2&Recoloring 3\vspace{0.4em}\\
 \end{figure*}
 
 \paragraph{Fashion design}
+Our model can also adapt the colorings of clothing items to fit different people. Figure~\ref{fig:fashion} shows a shirt recolored to match different hair, eye, and skin tones. The hair, skin, eyes, and lips of the 3D person model were manually quantized to a single color; the resulting texture atlas functions as a recolorable pattern template. Fixing the colors of the hair, skin, eyes, and lips constrains the inference process to produce suitable colorings for a person with those physical attributes. It should be possible to apply a similar procedure to photographic images, though those inputs may require an intrinsic image decomposition to separate shading from reflectance~\cite{IntrinsicImages}.
 
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=\columnwidth]{figs/fashion/composite}
+\caption{Using our model to colorize a patterned shirt for different people. The hair, skin, eye, and lip colors are treated as fixed constraints, which encourage the model to produce compatible colorings via adjacencies and long-range dependencies.}
+\label{fig:fashion}
+\end{figure}
 
 \subsection{Performance}
 
