@@ -1,7 +1,7 @@
 
 We formulate the problem of generating colorings for a pattern template as finding high-probability colorings under a probabilistic model. Formally, we define a pattern template as $\pattern = (\segments, \groups, \colorVars, \features)$, where $\groups$ is a set of individual groups $\group$, $\segments$ is a set of individual segments $\segment$, $\colorVars$ is a set of color variables, and $\features$ is a set of features over different groups, segments, and segment adjacencies within the pattern. Each $\group$ and $\segment$ is associated with a color variable ($\colorVars_\group$ and $\colorVars_\segment$, respectively). All segments within a color group have the same color by definition, so $\colorVars_{\text{group}(\segment)} = \colorVars_\segment$. A coloring $\colors$ is an assignment of colors to color variables.
 
-We define the probability of a coloring for a particular pattern template as a log-linear model~\cite{LogLinearModels}:  
+We define the probability of a coloring for a particular pattern template as a log-linear model:  
 \begin{equation*}
  p(\colors | \pattern : \weights) = \frac{1}{Z_\pattern(\weights)} \prod_{\term \in \model} \exp(\weights_\term \cdot \termStats(\colors, \pattern))
 \end{equation*}

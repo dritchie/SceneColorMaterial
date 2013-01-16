@@ -13,7 +13,7 @@ The results shown below are rendered using the COLOURlovers interface, using col
 
 \paragraph{Automatic pattern coloring} In the most direct application of our framework, we can sample from our model to produce colorings for a pattern template that are similar to the colorings used for training. Figure~\ref{fig:teaser} shows two examples of this process. The sampled patterns exhibit a range of colors and styles employed by the Colourlover artists. For comparison, the same patterns colored with palettes randomly sampled from RGB-space are shown on the right. These patterns exhibit significant problems, such as low color harmony and adjacent regions with equi-limuinant colors.
 
-\begin{figure*}[ht!]
+\begin{figure*}[ht]
 \begin{tabular}{ccc}
 \includegraphics[width=.15\linewidth]{figs/permutationTemplatePalette} & \includegraphics[width=.4\linewidth]{figs/permutationBest8} & \includegraphics[width=.4\linewidth]{figs/permutationWorst8} %& \includegraphics[width=.12\linewidth]{figs/permutationArtist}
   \\
@@ -26,7 +26,7 @@ The results shown below are rendered using the COLOURlovers interface, using col
 \end{figure*}
 
 
-\begin{figure}[ht!]
+\begin{figure}[ht]
 \begin{tabular}{cccc} 
 \raisebox{0.5em}{\includegraphics[width=.275\columnwidth]{figs/photos/brick}}&
 \includegraphics[width=.65\columnwidth]{figs/photos/brickAll}\\
@@ -43,7 +43,7 @@ The results shown below are rendered using the COLOURlovers interface, using col
 
 \paragraph{Hard color constraints}
 
-\begin{figure*}[ht!]
+\begin{figure*}[ht]
 \begin{tabular}{cc} 
 \includegraphics[width=.475\linewidth]{figs/constrainedSearchUnconstrained}&\includegraphics[width=.475\linewidth]{figs/constrainedSearchConstrained}\\
 Unconstrained sampling&Constrained sampling\\
@@ -74,22 +74,22 @@ Here, $\textrm{targetColor}(\group)$ is the desired color of group $\group$ and 
 %\end{equation*}
 %%%
 
-\begin{figure}[ht!]
+\begin{figure}[ht]
 \begin{tabular}{cc}
-\raisebox{2em}{\includegraphics[width=.22\columnwidth]{figs/guidedSearch1Original}}&\includegraphics[width=.7\columnwidth]{figs/guidedSearch1MMR}\vspace{0.5em}\\
-\raisebox{2em}{\includegraphics[width=.22\columnwidth]{figs/guidedSearch0Original}}&\includegraphics[width=.7\columnwidth]{figs/guidedSearch0MMR}\vspace{0.5em}\\
+{\includegraphics[width=.17\columnwidth]{figs/guidedSearch1Original}}&\includegraphics[width=.7\columnwidth]{figs/guidedSearch1MMR}\vspace{0.5em}\\
+{\includegraphics[width=.17\columnwidth]{figs/guidedSearch0Original}}&\includegraphics[width=.7\columnwidth]{figs/guidedSearch0MMR}\vspace{0.5em}\\
 %\raisebox{2em}{\includegraphics[width=.22\columnwidth]{figs/guidedSearch2Original}}%&\includegraphics[width=.7\columnwidth]{figs/guidedSearch2MMR}\\
-Suggestion&Results\\
+Original&Suggestions\\
 \end{tabular}
 
-\caption{An artist provides an initial color assignment and asks for patterns that are similar. We incorporate this request by adding an additional factor to our model, showing eight samples drawn from the new model for each of the suggested images.}
+\caption{An artist provides an initial color assignment and asks for patterns that are similar. We incorporate this request by adding an additional factor to our model, showing eight samples drawn from the new model for each of the input images.}
 \label{fig:nearbySuggestions}
 \vspace{-1.0em}
 \end{figure}
 
 Figure~\ref{fig:nearbySuggestions} shows example scenarios where a proposed coloring is given, and the model returns similar colorings.
 
-\begin{figure}[ht!]
+\begin{figure}[ht]
 \begin{tabular}{ccc} 
 Style&Example&Results\\ %\hline
 \raisebox{1.55em}{\emph{Light}}&\includegraphics[width=.148\columnwidth]{figs/styleResultsLightExample}&\includegraphics[width=.62\columnwidth]{figs/styleResultsLight}\vspace{0.5em}\\
@@ -103,7 +103,7 @@ Style&Example&Results\\ %\hline
 \vspace{-1.0em}
 \end{figure}
 
-\begin{figure*}[ht!]
+\begin{figure*}[ht]
 \begin{tabular}{cc} 
 \includegraphics[width=.48\linewidth]{figs/styleSugarExamples}&\includegraphics[width=.48\linewidth]{figs/styleAlbenajExamples}\vspace{1.0em}\\
 \includegraphics[width=.48\linewidth]{figs/styleSugar}&\includegraphics[width=.48\linewidth]{figs/styleAlbenaj}\\
@@ -136,7 +136,7 @@ We also add a factor to the pattern's background color group (assumed to be the 
 Incoporating this term ensures that the body of the page stands out from the rest of the page. A more sophisticated approach would consider the entire web page to be a pattern and perform joint recoloring; we leave this extension to future work.
 
 
-\begin{figure}[ht!]
+\begin{figure}[ht]
 \centering
 \includegraphics[width=\columnwidth]{figs/webpageRecoloring}
 \caption{With a few additional factors, our model can recolor the background of a web page in concert with the colors in the page body. (Top) A Spring-themed seasonal recoloring. (Middle) A Summer-themed recoloring. (Bottom) A Winter-themed recoloring. Design adapted from \url{www.thedesigncubicle.com}}
@@ -146,7 +146,7 @@ Incoporating this term ensures that the body of the page stands out from the res
 \paragraph{3D scene design}
 Color-coordinating a virtual scene is another creative task that can benefit from computatational support. While repositories such as the 3D Warehouse provide a wealth of object models with which to build scenes, and prior research has investigated computational support for arranging those objects~\cite{SceneSynth}, coloring them in a consistent and pleasing way remains challenging. Figure~\ref{fig:sceneRecoloring} shows how our model can make this task easier. In this example, the original scene is composed of models whose material colors are internally consistent but do not harmonize with each other; this is a common problem when constructing scenes from repository models. We can treat this scene as a recolorable pattern by rendering its material coefficients to an image. The user then provides a few additional annotations to specify which object components should take the same color; in this example, all cushions, pillows, and wooden objects must take the same color. Finally, we add a factor to our model to enforce that the colors assigned to each component are similar to their original colors (see Equation~\ref{eq:targetFactor}). The resulting model, when sampled, suggests plausible, improved recolorings of the scene. Our model's applicability to this task, despite it being trained only on \emph{2D} patterns, suggests that it captures some simple cross-domain aesthetic principles.
 
-\begin{figure*}[ht!]
+\begin{figure*}[ht]
 \begin{tabular}{c|ccc} 
 Original&Recoloring 1&Recoloring 2&Recoloring 3\vspace{0.4em}\\
 \includegraphics[width=.23\linewidth]{figs/3dscene/original}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_00}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_01}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_05}\vspace{0.4em}\\
@@ -159,7 +159,14 @@ Original&Recoloring 1&Recoloring 2&Recoloring 3\vspace{0.4em}\\
 \end{figure*}
 
 \paragraph{Fashion design}
+Our model can also adapt the colorings of clothing items to fit different people. Figure~\ref{fig:fashion} shows a shirt recolored to match different hair, eye, and skin tones. The hair, skin, eyes, and lips of the 3D person model were manually quantized to a single color; the resulting texture atlas functions as a recolorable pattern template. Fixing the colors of the hair, skin, eyes, and lips constrains the inference process to produce suitable colorings for a person with those physical attributes. It should be possible to apply a similar procedure to photographic images, though those inputs may require an intrinsic image decomposition to separate shading from reflectance~\cite{IntrinsicImages}.
 
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=\columnwidth]{figs/fashion/composite}
+\caption{Using our model to colorize a patterned shirt for different people. The hair, skin, eye, and lip colors are treated as fixed constraints, which encourage the model to produce compatible colorings via adjacencies and long-range dependencies.}
+\label{fig:fashion}
+\end{figure}
 
 \subsection{Performance}
 
