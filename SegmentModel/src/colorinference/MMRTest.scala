@@ -10,6 +10,7 @@ package colorinference
 
 import java.io.{FileWriter, File}
 import cc.factorie.{Model, Family, SamplingMaximizer}
+import compat.Platform.currentTime
 
 object MMRTest
 {
@@ -18,18 +19,20 @@ object MMRTest
     val inputDir = "../PatternColorizer/out/mesh"
     val randVisDir = "../PatternColorizer/out/vis_rand"
     val mmrVisDir = "../PatternColorizer/out/vis_mmr"
-    val lambdas = Array(0.25, 0.5, 0.75)
+    val lambdas = Array(0.4, 0.5, 0.6, 0.7)
     val numSamplesToOutput = 20
 
     // Maximization parameters
     val numParallelChains = 5
     val iterations = 2000
+    //val iterations = 4000
     val initTemp = 1.0
     val finalTemp = 0.01
     val rounds = 40
 
     // Parallel tempering parameters
     val chainTemps = Array(1.0, 0.5, 0.2, 0.05, 0.01)
+    //val chainTemps = Array(2.0, 1.0, 0.5, 0.1, 0.01)
     val itersBetweenSwaps = 50
 
     def main(args:Array[String])
@@ -42,8 +45,8 @@ object MMRTest
         if (!visDirTestFile.exists)
             visDirTestFile.mkdir
 
-        val allArtists = Set("sugar!", "davidgav")
-        val trainingArtists = Set("davidgav")
+        val allArtists = Set("sugar!", "davidgav", "a peace of mind")
+        val trainingArtists = Set("sugar!", "davidgav", "a peace of mind")
         val patterns = PatternIO.getPatterns(inputDir).filter(p=>(allArtists.contains(p.directory))).toArray
 
         if (patterns.length == 0)
@@ -64,39 +67,39 @@ object MMRTest
             loadRegressorsIfPossible = true
             loadWeightsIfPossible = true
 
-            includeColorCompatibilityTerm = true
-//            includeUnaryTerms = false
-//            includeBinaryTerms = false
-//            includeGroupTerms = false
-
             crossValidateHistogramParams = false
-            saveCrossValidationLog = false
+            saveCrossValidationLog = true
 
-            cdK = 10
-            normalizeWeights = true
+            enforceMinimumWeight = true
+            minWeight = 0.0
 
-            weightGroups = true
+            includeColorChoiceTerms = true
+            colorChoiceType = ModelTraining.ColorChoiceType.NamesConditional
         }
 
         val meshes = for (p <- patterns) yield new SegmentMesh(params.colorVarParams.variableGenerator, p.fullpath)
 
         // These are the ids of the patterns we will test on
         val pids = Array(
-            296605,
-            244833,
-            231386,
+//            296605,
+//            244833,
+//            231386,
+//            447439,
+//            499194,
+//            506633,
+//            789577,
+//            304986,
+//            243893,
+//            220077,
+//            500393,
+//            508162,
+//            515691,
+//            798455)
+            220077,
+            243893,
             447439,
             499194,
-            506633,
-            789577,
-            304986,
-            243893,
-            220077,
-            500393,
-            508162,
-            515691,
-            798455)
-//            508162)
+            515691)
 
 
         val testingMeshes = {for (idx<-meshes.indices if (pids.contains(patterns(idx).name.replace(".txt","").toInt))) yield meshes(idx)}
@@ -105,6 +108,8 @@ object MMRTest
 
         println("Training on " + trainingMeshes.length + " meshes")
         val model = ModelTraining(trainingMeshes, params)
+
+        println("Training on " + trainingMeshes.length + " meshes")
 
         for (i <- meshes.indices if (pids.contains(patterns(i).name.replace(".txt","").toInt)))
         {
@@ -139,11 +144,17 @@ object MMRTest
 //        mesh.groups(0).color.setColor(Color.RGBColor(0.28, 0.03, 0.23))
 //        mesh.groups(0).color.fixed = true
 
+        val samplingStartTime = currentTime
+
         model.conditionOn(mesh)
         val samplerGenerator = () => { new ContinuousColorSampler(model) with MemorizingSampler[ContinuousColorVariable] }
         val maximizer = new ParallelTemperingMAPInferencer[ContinuousColorVariable, SegmentMesh](samplerGenerator, chainTemps)
 
         maximizer.maximize(mesh, iterations, itersBetweenSwaps)
+
+        println("Sampling time: " + (currentTime - samplingStartTime))
+
+        val mmrStartTime = currentTime
 
         // Convert sampled values to LAB first, since our similarity metric operates in LAB space
         maximizer.samples.foreach(_.values.foreach(_.convertTo(LABColorSpace)))
@@ -163,6 +174,8 @@ object MMRTest
             val rankedSamples = mmr.getRankedSamples(numSamplesToOutput, lambda)
             savePatterns(mesh, rankedSamples, dirName, pattern)
         }
+
+        println("MMR time: " + (currentTime - mmrStartTime))
     }
 
     def savePatterns(mesh:SegmentMesh, rankedPatterns:IndexedSeq[ScoredValue[IndexedSeq[Color]]], dir:String, pattern:PatternItem)

@@ -18,8 +18,8 @@ object UserColorContraintTest
     val inputDir = "../PatternColorizer/out/mesh"
     val randVisDir = "../PatternColorizer/out/vis_random_offset"
     val mmrVisDir = "../PatternColorizer/out/vis_constraint"
-    val lambdas = Array(0.45, 0.5, 0.55)
-    val numSamplesToOutput = 8
+    val lambdas = Array(0.3, 0.5, 0.7)
+    val numSamplesToOutput = 30
 
     // Maximization parameters
     val numParallelChains = 5
@@ -85,12 +85,29 @@ object UserColorContraintTest
 
         // These are the ids of the patterns we will test on
         val pids = Array(
+            2991717,
+            2840695,
+            2733843,
+            2740524,
+            2733830,
+            2439705,
+            2439487,
+            2441582,
+            2991721,
+            296605,
+            244833,
+            231386,
+            447439,
+            499194,
+            506633,
             789577,
+            304986,
+            243893,
+            220077,
+            500393,
+            508162,
             515691,
-            1760884,
-            1468857,
-            1897867,
-            2007304)
+            798455)
 //            515691)
 
 
@@ -105,8 +122,8 @@ object UserColorContraintTest
             val pattern = patterns(i)
             println("Generating patterns for mesh %s...".format(pattern.name))
             val mesh = meshes(i)
-            outputRandomPatterns(mesh, pattern)
-            //outputOptimizedPatterns(mesh, pattern, model)
+            //outputRandomPatterns(mesh, pattern)
+            outputOptimizedPatterns(mesh, pattern, model)
         }
         println("Done generating patterns")
     }
@@ -151,6 +168,17 @@ object UserColorContraintTest
 //        // TEST: Fix one of the colors for conditional inference.
 //        mesh.groups(0).color.setColor(Color.RGBColor(0.28, 0.03, 0.23))
 //        mesh.groups(0).color.fixed = true
+
+        //89,45,46 50,35,64 173,190,174 94,107,116 166,119,99
+        //
+        // Snow palette
+        //
+        mesh.groups(0).color.overrideColor = Color.RGBColor(89.0 / 255.0, 45.0 / 255.0, 46.0 / 255.0)
+        mesh.groups(1).color.overrideColor = Color.RGBColor(50.0 / 255.0, 35.0 / 255.0, 64.0 / 255.0)
+        mesh.groups(2).color.overrideColor = Color.RGBColor(220.0 / 255.0, 220.0 / 255.0, 220.0 / 255.0)
+        mesh.groups(3).color.overrideColor = Color.RGBColor(94.0 / 255.0, 107.0 / 255.0, 116.0 / 255.0)
+        mesh.groups(4).color.overrideColor = Color.RGBColor(166.0 / 255.0, 119.0 / 255.0, 99.0 / 255.0)
+
         val constraintTemplate = new UserColorConstraintGroupTemplate("userLABConstraint", ModelTraining.labColor, deviationBandwidth)
         constraintTemplate.setWeight(model.getWeights.sum * constraintFactorWeight)
         model += constraintTemplate
