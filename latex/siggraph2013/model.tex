@@ -30,7 +30,7 @@ Finally, we use maximimum marginal relevance (MMR) to enforce diversity in the s
 
 The model defined thus far has several terms $\term$, and each has a weight parameter $\weights_\term$. These weights control the relative importance of the different terms in the model---so how should they be set?
 
-Ideally, we'd like to set the weights such that the resulting model is highly likely to generate the training examples. In other words, we would like the training examples---the patterns whose style we want to reproduce---have high probability under the model. This weight-tuning problem is an instance of maximum-likelihood parameter estimation~\cite{PGMBook}. The log-likelihood function of our model is
+Ideally, weights should be set such that the resulting model is highly likely to generate the training examples. In other words, the training examples---the patterns whose style we want to reproduce---should have high probability under the model. This weight-tuning problem is an instance of maximum-likelihood parameter estimation~\cite{PGMBook}. The log-likelihood function of our model is
 %% log-likelihood function
 \begin{equation*}
 \ell(\weights : \dataset) =
