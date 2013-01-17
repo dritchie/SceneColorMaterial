@@ -86,14 +86,12 @@ CD_k(\weights : \dataset) =
 		 -\termStats(\hat{\colors}, \pattern)
 \end{equation*}
 %%
-where $\hat{\colors}$ is the coloring state obtained by running an MCMC chain for $k$ steps from the initial state $\colors$. CD essentially forms a local approximation to the likelihood gradient around the neighborhood of state $\colors$. Larger $k$ yields more accurate approximations at additional cost; we use $k = 10$ in our experiments. We initialize the weights uniformly to 1 and constrain them to be nonnegative, since all terms in the model are log-probabilities.
+where $\hat{\colors}$ is the coloring state obtained by running an MCMC chain for $k$ steps from the initial state $\colors$. CD essentially forms a local approximation to the likelihood gradient around the neighborhood of state $\colors$. Larger $k$ yields more accurate approximations at additional cost; we use $k = 10$ in our experiments. We initialize the weights uniformly to 1 and constrain them to be non-negative, since all terms in the model are log-probabilities.
 
 While the exact weights learned depend on the training dataset, there are several persistent trends.
 The perceptual difference, color compatibility, and color name count terms receive the highest weights. These trends coincide well with our intuition that colors should be harmonious, adjacent regions should have sufficient contrast, and colors should be categorically similar to those in the training set.
 The lowest weight belongs to the color name similarity term, which suggests that the similarity in how two colors are named is not strongly predictive of their compatibility as an adjacent color pair.
-
-%Perceptual difference typically has the most weight, reflecting the intuitive notion that adjacent regions should have sufficient contrast.
-%The terms for colorfulness and relative colorfulness also receive relatively high weight, which indicates that it is important for some regions to `pop' out of the background while others should remain muted. The color compatibility term has higher weight than several other terms, but not as high a weight as one might expect, given the seeming importance of overall color coordination. This might be explained by the fact that other terms redundantly encode some of the same properties that the O'Donovan color compatibilility model uses as predictive features. The lowest weight belongs to the name similarity term, which suggests that the similarity in how two colors are named is not strongly predictive of their compatibility as an adjacent color pair.
+%The information conveyed by this property may be partially redundant with the perceptual difference term. Also, as this property computes the cosine similarity between two 179-dimensional color name count vectors, the dimensionality of the color name space may simply be too high to provide sufficient discrimination for pattern coloring.
 
 \subsection{Implementation}
 \label{sec:implementation}
