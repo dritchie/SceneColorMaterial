@@ -12,7 +12,7 @@ Many different color properties can contribute to the appearance of a pattern co
 %%%
 %\begin{description}[leftmargin=*]
 \begin{description}
-	\item[Lightness] is the L component of a color in the \lab color space.~\remark{Comments about how Lab is good because it's perceptually-based, and how the overall lightness/intensity of a color has a strong impact on its appearance (cite something?)}
+	\item[Lightness] is the L component of a color in the \lab color space. This value affects the `achromatic luminance' of a color, or how bright the color appears to an observer.
 	\item[Saturation] is the difference between a color and a neutral gray, and affects how vivid the color appears. The S component of the popular HSV color space is an approximate notion of saturation based on a cylindrical transformation of RGB space. Instead, we use a more perceptually-based formula that operates in \lab space: $\frac{\sqrt{a^2+b^2}}{\sqrt{a^2+b^2+L^2}}$ ~\cite{ColorfulnessReference}
 	\item[Color Name Counts] is a vector of counts that summarizes how frequently a color is referred to using different names. The typical names for a color often convey higher-level stylistic information about the color. These vectors were derived in previous work from data collected in a large online color naming survey~\cite{ColorNamingModels}.
 	\item[Color Name Saliency] is a measure of how reliably a color is named~\cite{ColorNamingModels}. It is derived through an entropy-based formulation and conveys information about how `instantly recognizable' a color is likely to be.
