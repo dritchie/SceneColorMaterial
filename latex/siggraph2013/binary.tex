@@ -10,7 +10,7 @@ As with individual pattern regions, there are many possible properties of the co
 %%%
 %\begin{description}[leftmargin=*]
 \begin{description}
-	\item[Perceptual Difference] is the Euclidean distance between two colors in \lab space and is the primary descriptor of `contrast' between two colors that we use in our model.~\remark{Acknowledge that there are better perceptual difference models; we just use this one for simplicity?}
+	\item[Perceptual Difference] is the Euclidean distance between two colors in \lab space and is the primary descriptor of `contrast' between two colors that we use in our model. This distance is a simple and efficient-to-evaluate approximation to perceptual distance; more sophisticated formulae have also been proposed~\cite{CIEDE2000}.
 	\item[Relative Lightness] is the absolute difference between the L values of two colors in \lab space. This `difference of intensities' captures another important type of contrast between two colors.
 	\item[Relative Colorfulness] is the absolute difference between the colorfulness values of two two colors, using the definition of colorfulness from Section~\ref{sec:unary}. This property helps capture whether or not two colors should be mutually saturated/desaturated
 	\item[Chroma Difference] measures the squared fraction of perceptual distance due to the \lab chroma channels: $\frac{\delta a^2+\delta b^2}{\delta a^2+\delta b^2+\delta L^2}$. This value can be interpreted as a more perceptually-grounded version of the `hue angle' between two colors on a color wheel.
