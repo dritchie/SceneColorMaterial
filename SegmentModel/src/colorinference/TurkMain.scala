@@ -41,11 +41,12 @@ object TurkMain {
     type VariableType = ContinuousColorVariable
     val colorVarParams = ContinuousColorVariableParams
     includeColorCompatibilityTerm = true
-    saveRegressorsIfPossible = false
-    saveWeightsIfPossible = false
-    loadRegressorsIfPossible = false
-    loadWeightsIfPossible = false
-    modelSaveDirectory = "savedModel-turkModel-final"
+
+    saveRegressorsIfPossible = true
+    saveWeightsIfPossible = true
+    loadRegressorsIfPossible = true
+    loadWeightsIfPossible = true
+    modelSaveDirectory = "savedModel-turkModel-4"
 
     initialLearningRate = 0.2
     numWeightTuningIterations = 20
@@ -97,7 +98,7 @@ object TurkMain {
       2531192,
       2539244,
       2737168,
-      2644367,
+      2644367/*,
         535217,
         591717,
         798455,
@@ -108,11 +109,13 @@ object TurkMain {
         2840695,
         2991717,
         2991721,
-        2263667
+        2263667*/
     )
 
     //TODO: determine n, or re-use trained model from elsewhere
-   /* val trainingSet = PatternIO.getTopNArtistPatterns(meshDir, 12, pids)
+    //val trainingSet = PatternIO.getTopNArtistPatterns(meshDir, 12, pids)
+    val artists = Array("davidgav", "sugary", "Aurelliana", "Chi", "AlineDam", "southpaws", "wondercake", "Twinklemittens", "sunmeadow", "eighteyed")
+    val trainingSet = PatternIO.filterTrainingSet(PatternIO.getPatterns(meshDir).filter(p => artists.contains(p.directory)), pids)
     val testSet = PatternIO.getPatterns(meshDir).filter(p => pids.contains(p.pid))
 
     val trainingMeshes = trainingSet.map(p => new SegmentMesh(params.colorVarParams.variableGenerator, p.fullpath)).toArray
