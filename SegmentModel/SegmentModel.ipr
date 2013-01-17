@@ -212,11 +212,11 @@
     </library>
     <library name="matlabcontrol-4.0.0">
       <CLASSES>
-        <root url="jar://$MATLABCONTROL_HOME$/matlabcontrol-4.0.0.jar!/" />
+        <root url="jar://$FACTORIE_HOME$/matlabcontrol-4.0.0.jar!/" />
       </CLASSES>
       <JAVADOC />
       <SOURCES>
-        <root url="jar://$MATLABCONTROL_HOME$/matlabcontrol-4.0.0.jar!/" />
+        <root url="jar://$FACTORIE_HOME$/matlabcontrol-4.0.0.jar!/" />
       </SOURCES>
     </library>
     <library name="scala-compiler">
