@@ -1,26 +1,9 @@
 \section{Probabilistic Model}
 \label{sec:model}
 
-\remark{Introduction (We have all of these predictive functions; now we need to combine them into one function that can tell us the overall quality of a coloring. Factor graphs to the rescue!)}
+We have defined unary, binary, and global scoring functions for pattern color properties; we now need a way to combine them all into one unified scoring function that evaluates the overall quality of a pattern coloring.
 
-\remark{Give the graphical definition of the model first, with the picture. Then give the math for each factor.}
-
-\remark{Finally, give the algebraic definition of the model (``this is the distribution encoded by this model''), with the math for unary, binary, and higher-order terms.}
-
-\remark{Sampling, Weight Learning, and Implementation sections remain largely unchanged.}
-
-We formulate the problem of generating colorings for a pattern template as finding high-probability colorings under a probabilistic model.
-
-We define the probability of a coloring for a particular pattern template as a log-linear model:  
-\begin{equation*}
- p(\colors | \pattern : \weights) = \frac{1}{Z_\pattern(\weights)} \prod_{\term \in \model} \exp(\termWeight \cdot \termStats(\colors, \pattern))
-\end{equation*}
-The model $\model$ is comprised of a number of different terms $\term$, where each term scores the goodness of a color assignment based on a term-dependent statistic $\termStats(\colors,\pattern)$. $Z_\pattern(\weights)$ is the pattern-dependent partition function that normalizes the distribution. Each term also has a weight $\termWeight$ which determines its relative contribution to the model; the method used for setting these weights is detailed in Section~\ref{sec:weights}. Bolded symbols are vector-valued while non-bolded symbols are scalar.
-
-This type of model is well-suited to the coloring-generation problem. It is very flexible; in principle, the individual term statistics $\termStats$ can be any real-valued function. In our model, we include terms both for color compatibility as well as for spatial properties defined over groups, segments, and segment adjacencies. Users can also guide the model via additional soft constraint terms (Section~\ref{sec:results}). In addition, it is very easy to compare the relative importance of each term by comparing their weights, which we will do in Section~\ref{sec:weights} to gain some insight into which terms contribute the most to producing attractive colorings. 
-
-The model can also be interpreted graphically as a factor graph (Yeh et al.~\shortcite{YiTingTiledPatterns} provides an accessible introduction for the graphics community). Each type of term contributes different factors $\factor$ to the graph. For example, our color compatibility term contributes a factor over at most five color variables that scores the compatibility of those colors. The spatial terms contribute a unary factor for each color variable and binary factors for color variables that are adjacent in the pattern. Figure~\ref{fig:FactorGraph} shows an example of such a factor graph. Circles denote the color variables, while squares denote the different factors $\factor$, and edges connect each factor to the variables within their scope. 
-
+To do this, we turn to the language of \emph{probabilistic factor graphs}. A factor graph is a type of probabilistic graphical model that decomposes a complex probability distribution over multiple variables into a set of smaller \emph{factors} over smaller subsets of the variables. In our case, the variables $\colorVars$ are the colors of each color group in a pattern, and the factors $\factor$ are derived from the scoring functions defined in the previous sections. Figure~\ref{fig:FactorGraph} shows an example of a factor graph for one simple pattern. The circles denote color variables, while squares denote different factors $\factor$. Edges in the graph connect each factor to the variables within its scope.
 
 \begin{figure}[ht]
 \begin{tabular}{cc}
@@ -30,6 +13,58 @@ The model can also be interpreted graphically as a factor graph (Yeh et al.~\sho
 \caption{A factor graph for an example pattern template. Factors correspond with the color compatibility and spatial terms from our model. In the figure, nodes are colored according to their corresponding color group in the pattern\remark{Rough figure.}}
 \label{fig:FactorGraph}
 \end{figure}
+
+The factors connected to single variables are derived from our unary scoring functions; they combine the score for the color group with the scores for all segments in the group:
+%%
+\begin{equation*}
+ \factor^{\textrm{Unary}}_\prop(\colors_\group) =
+ 		\exp( \groupTermWeight \cdot \groupInstStats(\colors_\group)  \\
+ 		     + \segTermWeight \cdot \sum_{\segment \in \group} \segInstStats(\colors_\group)) 
+\end{equation*}
+%%
+The $w$ terms are weights that control the relative importance of each function; we will see how to set them later in this section.
+
+The factors connected to two variables come from our binary scoring functions and combine the scores for all adjacencies which involve segments from two different color groups:
+\begin{equation*}
+\factor^{\textrm{Binary}}_\prop(\colors_\group, \colors_\groupprime) =
+	\exp( \adjTermWeight \cdot \sum_{\mathclap{(\segment, \segprime) \in \adj(\group, \groupprime)}} \adjInstStats( \colors_\group, \colors_\groupprime))
+\end{equation*}
+%%
+Finally, the factor connected to all five color variables enforces color compatibility:
+%%
+\begin{equation*}
+\factor(\colors_1 \ldots \colors_5) = \exp(\colorCompatWeight \cdot \colorCompatInstStats(\colors_1 \ldots \colors_5))
+\end{equation*}
+%%
+The probability distribution encoded by this factor graph is the normalized product of all of these factors:
+%%
+\begin{equation*}
+p(\colors | \pattern : \weights) = \frac{1}{Z(\pattern : \weights)} \prod_{\factor} \factor(\textit{Scope}_\factor(\colors))
+\end{equation*}
+%%
+Here, $\textit{Scope}_\factor$ selects the color variables connected to the factor $\factor$ and $Z(\pattern : \weights)$ is the pattern-dependent partition function that normalizes the distribution. The distribution is parameterized by the vector of factor weights $\weights$.
+
+%We formulate the problem of generating colorings for a pattern template as finding high-probability colorings under a probabilistic model.
+%
+%We define the probability of a coloring for a particular pattern template as a log-linear model:  
+%\begin{equation*}
+% p(\colors | \pattern : \weights) = \frac{1}{Z_\pattern(\weights)} \prod_{\term \in \model} \exp(\termWeight \cdot \termStats(\colors, \pattern))
+%\end{equation*}
+%The model $\model$ is comprised of a number of different terms $\term$, where each term scores the goodness of a color assignment based on a term-dependent statistic $\termStats(\colors,\pattern)$. $Z_\pattern(\weights)$ is the pattern-dependent partition function that normalizes the distribution. Each term also has a weight $\termWeight$ which determines its relative contribution to the model; the method used for setting these weights is detailed in Section~\ref{sec:weights}. Bolded symbols are vector-valued while non-bolded symbols are scalar.
+%
+%This type of model is well-suited to the coloring-generation problem. It is very flexible; in principle, the individual term statistics $\termStats$ can be any real-valued function. In our model, we include terms both for color compatibility as well as for spatial properties defined over groups, segments, and segment adjacencies. Users can also guide the model via additional soft constraint terms (Section~\ref{sec:results}). In addition, it is very easy to compare the relative importance of each term by comparing their weights, which we will do in Section~\ref{sec:weights} to gain some insight into which terms contribute the most to producing attractive colorings. 
+%
+%The model can also be interpreted graphically as a factor graph (Yeh et al.~\shortcite{YiTingTiledPatterns} provides an accessible introduction for the graphics community). Each type of term contributes different factors $\factor$ to the graph. For example, our color compatibility term contributes a factor over at most five color variables that scores the compatibility of those colors. The spatial terms contribute a unary factor for each color variable and binary factors for color variables that are adjacent in the pattern. Figure~\ref{fig:FactorGraph} shows an example of such a factor graph. Circles denote the color variables, while squares denote the different factors $\factor$, and edges connect each factor to the variables within their scope. 
+%
+%
+%\begin{figure}[ht]
+%\begin{tabular}{cc}
+%\raisebox{4em}{\includegraphics[width=.2\columnwidth]{figs/factorGraphPattern}} &
+%\includegraphics[width=.7\columnwidth]{figs/factorGraph} \\
+%\end{tabular} 
+%\caption{A factor graph for an example pattern template. Factors correspond with the color compatibility and spatial terms from our model. In the figure, nodes are colored according to their corresponding color group in the pattern\remark{Rough figure.}}
+%\label{fig:FactorGraph}
+%\end{figure}
 
 
 \subsection{Sampling}
@@ -47,43 +82,49 @@ Asymptotically, MCMC samples states with a frequency proportional to their proba
 
 To accelerate sampling, we use parallel tempering, a technique that runs multiple MCMC chains in parallel at different temperatures and swaps their states periodically~\cite{ParallelTempering}. Large values of $t$ yield flatter probability landscapes, so these `hot' chains are more likely to take large jumps across the state space. `Cool' chains, on the other hand, reject almost all proposed states that do not lead to higher probabilities, thus behaving like local hill-climbing optimizers. Running multiple chains in parallel allows the total system to alternatively explore and refine different coloring configurations.
 
-Finally, we use maximimum marginal relevance (MMR) to enforce diversity in the set of suggestions returned by the sampler~\cite{MMR}. MMR is a technique from information retrieval that re-ranks every item in a list according to a linear combination of relevance (model score, in our case) and similarity to the items preceding it. The similarity metric we use for two colorings $\colors$ and $\tilde{\colors}$ of a pattern $- \sum_{\group \in \groups} {\size_\group \cdot ||\colors_\group - \tilde{\colors}_\group||}$, which is the area-weighted sum of \lab distances between the corresponding colors in each coloring.
+Finally, we use maximimum marginal relevance (MMR) to enforce diversity in the set of suggestions returned by the sampler~\cite{MMR}. MMR is a technique from information retrieval that re-ranks every item in a list according to a linear combination of relevance (model score, in our case) and similarity to the items preceding it. The similarity metric we use for two colorings $\colors$ and $\tilde{\colors}$ of a pattern is $- \sum_{\group \in \groups} {\size_\group \cdot ||\colors_\group - \tilde{\colors}_\group||}$, which is the area-weighted sum of \lab distances between the corresponding colors in each coloring.
 
 \subsection{Weight Learning}
 \label{sec:weights}
 
-The model defined thus far has several terms $\term$, and each has a weight parameter $\weights_\term$. These weights control the relative importance of the different terms in the model---so how should they be set?
+The factor graph model we have defined is parameterized by a vector of weights $\weights$. Setting these weights manually proves challenging, as it is not obvious which color properties matter most to the quality of a pattern coloring. Instead, we would like to set them automatically, using our training dataset as a guide.
 
-Ideally, weights should be set such that the resulting model is highly likely to generate the training examples. In other words, the training examples---the patterns whose style we want to reproduce---should have high probability under the model. This weight-tuning problem is an instance of maximum-likelihood parameter estimation~\cite{PGMBook}. The log-likelihood function of our model is
-%% log-likelihood function
+We formualate the weight-tuning problem as one of \emph{maximum likelihood parameter estimation}. That is, we would like to set the weights such that the training examples have high probability under the resulting model. We first rewrite the probability distribution encoded by our model from a weight-centric view
+%%
+\begin{equation*}
+p(\colors | \pattern : \weights) = \frac{1}{Z(\pattern : \weights)} \prod_{w \in \weights} \exp(w \cdot \weightStats(\colors, \pattern))
+\end{equation*}
+%%
+where $\weightStats(\colors, \pattern)$ simply sums all the scoring functions $\phi$ that share the weight $w$. We can then easily express the log-likelihood of the the weights given a dataset $\dataset$ of pattern colorings:
+%%
 \begin{equation*}
 \ell(\weights : \dataset) =
 	\sum_{(\pattern, \colors) \in \dataset}
 	(
-		\sum_{\term \in \model}
-			\weights_\term \cdot \termStats(\colors, \pattern)
+		\sum_{w \in \weights}
+			w \cdot \weightStats(\colors, \pattern)
 	)			
-		- \ln{Z_\pattern(\weights)}
+		- \ln{Z(\pattern : \weights)}
 \end{equation*}
 %%
-whre $\dataset$ is the dataset of example pattern colorings. Convex log-likelihoods such as this one are typically maximized via gradient ascent. The partial derivatives of this function with respect to the weights are given by
+Convex log-likelihoods such as this one are typically maximized via gradient ascent. The partial derivatives of this function with respect to the weights are
 %% Partial derivatives
 \begin{equation*}
-\frac{\partial}{\partial \weights_\term} \ell(\weights : \dataset) = 
+\frac{\partial}{\partial w} \ell(\weights : \dataset) = 
 	\sum_{(\pattern, \colors) \in \dataset}
-			\termStats(\colors, \pattern)
-		- \expectation_\weights[\termStats(\colorVars, \pattern)]
+			\weightStats(\colors, \pattern)
+		- \expectation_\weights[\weightStats(\colorVars, \pattern)]
 \end{equation*}
 %%
 where $\expectation_\weights$ denotes an expectation under the model with weights $\weights$. Unfortunately, these quantities are extremely expensive to compute. The expectation term requires probabilistic inference---an NP-complete problem---for every training pattern, for every iteration of gradient ascent.
 
-This computational intractability has motivated the development of alternative, `biased' parameter estimation schemes which do not directly maximize the likelihood function but nevertheless yield parameters that give high likelihoods~\cite{NonMLEParameterEstimation}. We use one such method, called \emph{Contrastive Divergence} (CD)~\cite{ContrastiveDivergence}. CD uses the following approximation to the likelihood gradient:
+This computational intractability has motivated the development of alternative, `biased' parameter estimation schemes which do not directly maximize the likelihood function but nevertheless yield parameters that give high likelihoods. We use one such method, called \emph{Contrastive Divergence} (CD)~\cite{ContrastiveDivergence}. CD uses the following approximation to the likelihood gradient:
 %% CD gradient
 \begin{equation*}
-CD_k(\weights : \dataset) = 
+CD^k_w(\weights : \dataset) = 
 	\sum_{(\pattern, \colors) \in \dataset}
-			\termStats(\colors, \pattern)
-		 -\termStats(\hat{\colors}, \pattern)
+			\weightStats(\colors, \pattern)
+		 -\weightStats(\hat{\colors}, \pattern)
 \end{equation*}
 %%
 where $\hat{\colors}$ is the coloring state obtained by running an MCMC chain for $k$ steps from the initial state $\colors$. CD essentially forms a local approximation to the likelihood gradient around the neighborhood of state $\colors$. Larger $k$ yields more accurate approximations at additional cost; we use $k = 10$ in our experiments. We initialize the weights uniformly to 1 and constrain them to be non-negative, since all terms in the model are log-probabilities.
