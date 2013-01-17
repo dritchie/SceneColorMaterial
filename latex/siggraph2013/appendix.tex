@@ -6,12 +6,6 @@ Here we provide a complete listing of features and precise definitions for some 
 \subsection*{Color Properties}
 
 \begin{description}
-
-\item[Unary] \hfill
-	\begin{description}[leftmargin=*]
-	  \item[Colorfulness] measures saturation of a color in \lab space: $\frac{\sqrt{a^2+b^2}}{\sqrt{a^2+b^2+L^2}}$
-	  %\item[Name Saliency and Name Counts] measure how uniquely a color is named and the distribution of names given to a color, as described in Heer and Stone ~\shortcite{ColorNamingModels}
-	\end{description}
 	
 \item[Binary] \hfill
 	\begin{description}[leftmargin=*]
@@ -23,23 +17,6 @@ Here we provide a complete listing of features and precise definitions for some 
 \subsection*{Features}
 
 \begin{description}
-
-\item[Group Features] \hfill
-	\begin{description}[leftmargin=*]
-	  \item[Relative Size] The total area of the group over the image area
-	  \item[Segment Spread] 2D covariance matrix of the group's segment centroids
-	  \item[Segment Size Statistics] the min, mean, max, and standard deviation of the group's relative segment sizes
-	  \item[Number of Segments] The fraction of segments in the group out of the total number of segments in the image
-	\end{description}
-	
-\item[Segment Features] \hfill
-	\begin{description}[leftmargin=*]
-	  \item[Relative Size] The total area of the segment over the image area
-	  \item[Normalized Discrete Compactness] measures compactness based on the relationship between the segment's boundary edges and its area ~\cite{NormalizedDiscreteCompactness}
-	  \item[Elongation] measures the relative narrowness of a segment according to the width and height of its minimum area bounding box: $1-\frac{boxWidth}{boxHeight}$. A square is the least elongated.
-	  \item[Label] A set of three binary values: {\emph{Noise}, \emph{Background}, \emph{Foreground}}. The \emph{Noise} variable indicates if the segment is a `noise' segment composed of small connected components. The \emph{Background} variable indicates if a segment belongs to the group with the largest connected component and is not `noise'. All other segments are labeled \emph{Foreground}.
-	  \item[Radial Distance] measures Euclidean distance from the centroid to the center of the image
-	\end{description}
 
 \item[Adjacency Features] \hfill
 	\begin{description}[leftmargin=*]
