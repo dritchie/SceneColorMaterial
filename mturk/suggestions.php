@@ -104,7 +104,7 @@ h3 {
 
 .delete {
 	position: relative;
-	top: -80px;
+	top: -110px;
 	left:-20px;
 	cursor: pointer;
 	width:20px;
@@ -127,20 +127,19 @@ h3 {
 }
 
 #interface {
-	width: 800px;
+	width: 900px;
 	margin-left: auto;
 	margin-right: auto;
 }
 
 #grid {
-	width: 500px;
-	height: 500px;
+	width: 590px;
 	clear: both;
 }
 
 #target
 {	
-	width:110px;
+	width:130px;
 	float:left;
 }
 #target img
@@ -151,8 +150,7 @@ h3 {
 #suggestionGrid
 {
 	float:left;
-	width: 500px;
-	height: 500px;
+	width: 590px;
 }
 
 #display
@@ -162,13 +160,15 @@ h3 {
 
 #answers
 {
-	clear:both;
+	float: left;
+	clear: right;
 }
 
 #next_button
 {
 	margin: 5px;
 	float:right;
+	clear:left;
 }
 
 
@@ -185,14 +185,14 @@ h3 {
 }
 
 .simage{
-	width: 100px;
-	height: 100px;
+	width: 130px;
+	height: 130px;
 }
 
 .answerbox
 {
-	width: 500px;
-	min-height: 110px;
+	width: 300px;
+	min-height: 270px;
 	margin-top: 10px;
 }
 
@@ -213,7 +213,7 @@ h3 {
 
 var srcUrl = "";
 var userId = -1;
-var numStates = 10;
+var numStates = 7;
 var curState = 0;
 var paletteString = "";
 var pid = -1;
@@ -329,7 +329,7 @@ function getState()
 		//set a default pid	
 		pid = 786134;
 		curState = 0;
-		numStates = 15;
+		numStates = 6;
 		onLoad();
 		
 	} else 
@@ -409,6 +409,12 @@ function loadGrid()
 
 function onNextClick(e)
 {
+	if (previewing)
+	{
+		alert("You are previewing this HIT. Please accept it to continue");
+		return false;
+	}
+
 	//validate the number of answers
 	var best4 = $("#best4").find(".answeritem")
 	var worst4 = $("#worst4").find(".answeritem")
@@ -436,13 +442,21 @@ function onNextClick(e)
 
 function onFinish()
 {
+	//check if the user typed a number
+	if ($("#valid_field").val()=="")
+	{
+		alert("Please enter the number shown in the image, or type 'none' if there is no number");
+		return false;
+	}
+
 	var good = false;
+	var num = parseInt($("#valid_field").val().trim());
 	//finish the experiment
 	$.ajax({
 	  type: 'POST',
 	  async: false,
 	  url: "finish.php",
-	  data: {id: userId},
+	  data: {workerId: userId, number:num},
 	  success: function(data) { good = true;}
 	});
 	return good;
@@ -467,9 +481,9 @@ function updateProgress()
 	<span id="progress"></span>
 
 	<h3> Instructions:</h3>
-	<p>Imagine you want to color in this pattern. Please pick the <b>4 colorings you like the most</b> and the <b>4 colorings you like the least</b> from the suggestions below. 
-	You can pick colorings by dragging them from the grid and into the respective "Favorite 4" or "Least Favorite 4" box.
-	There are 6 pages total in this HIT.</p>
+	<p>Imagine you want to color in this pattern. Please select the <b>4 colorings other people would like the most</b> and the <b>4 colorings other people would like the least</b> from the suggestions below. 
+	You can select colorings by dragging them from the grid and into the respective "Colorings Others Would Like the Most" or "Colorings Others Would Like the Least" box.</p>
+	<p>There are 6 pages total in this HIT and one exit question. You may see the same pattern twice. </p>
 
 	<div id="previewnotice"></div>
 
@@ -481,21 +495,27 @@ function updateProgress()
 	</div>
 	
 	<div id="answers">
-		Favorite 4: <div id="best4" class="answerbox selected"></div>
-		Least Favorite 4: <div id="worst4" class="answerbox selected"></div>
+		Colorings Others Would Like the Most (4): <div id="best4" class="answerbox selected"></div>
+		<br />
+		Colorings Others Would Like the Least (4): <div id="worst4" class="answerbox selected"></div>
 	</div>
-	
-	<form>			
-		<input type="button" value="Next" name="next" id="next_button" />
-	</form>
+	<div id="nextarea">
+		<form>			
+			<input type="button" value="Next" name="next" id="next_button" />
+		</form>
+	</div>
 
 </div>
 <div id="thankyou" >
 	<!-- https://www.mturk.com/mturk/externalSubmit -->
 			<!-- https://workersandbox.mturk.com/mturk/externalSubmit; use https? -->
-	Thank you for your participation!
-	<form id="answerform" action="https://www.mturk.com/mturk/externalSubmit" method="POST" onsubmit="" > 
-			<!--<input type="submit" name="send" id="finish_button" value="Finish" />-->
+	Thank you for your participation! Please enter the number you see in the image below, or type "None" if there is no number.
+	<!--https://www.mturk.com/mturk/externalSubmit-->
+	<form id="answerform" action="https://www.mturk.com/mturk/externalSubmit" method="POST" onsubmit="onFinish()" > 
+			<img src="plate2.png" />
+			<br />
+			<input type="text" name="validation" id="valid_field" value="" />
+			<input type="submit" name="send" id="finish_button" value="Finish" />
 			<input type="hidden" name="screenWidth" id="sw_field" value="-1" />
 			<input type="hidden" name="screenHeight" id="sh_field" value="-1" />
 			<input type="hidden" name="colorDepth" id="cd_field" value="-1" />
