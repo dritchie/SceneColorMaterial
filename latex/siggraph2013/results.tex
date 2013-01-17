@@ -76,18 +76,18 @@ Here, $\textrm{targetColor}(\group)$ is the desired color of group $\group$ and 
 
 \begin{figure}[ht]
 \begin{tabular}{cc}
-{\includegraphics[width=.17\columnwidth]{figs/guidedSearch1Original}}&\includegraphics[width=.7\columnwidth]{figs/guidedSearch1MMR}\vspace{0.5em}\\
-{\includegraphics[width=.17\columnwidth]{figs/guidedSearch0Original}}&\includegraphics[width=.7\columnwidth]{figs/guidedSearch0MMR}\vspace{0.5em}\\
+{\includegraphics[width=.1785\columnwidth]{figs/guidedSearch1Original}}&\includegraphics[width=.735\columnwidth]{figs/guidedSearch1MMR}\vspace{0.5em}\\
+{\includegraphics[width=.1785\columnwidth]{figs/guidedSearch0Original}}&\includegraphics[width=.735\columnwidth]{figs/guidedSearch0MMR}\vspace{0.5em}\\
 %\raisebox{2em}{\includegraphics[width=.22\columnwidth]{figs/guidedSearch2Original}}%&\includegraphics[width=.7\columnwidth]{figs/guidedSearch2MMR}\\
 Original&Suggestions\\
 \end{tabular}
 
-\caption{An artist provides an initial color assignment and asks for patterns that are similar. We incorporate this request by adding an additional factor to our model, showing eight samples drawn from the new model for each of the input images.}
+\caption{An artist provides an initial color assignment and asks for patterns that are similar. We incorporate this request by adding an additional factor to our model, showing four samples drawn from the new model for each of the input images.}
 \label{fig:nearbySuggestions}
 \vspace{-1.0em}
 \end{figure}
 
-Figure~\ref{fig:nearbySuggestions} shows example scenarios where a proposed coloring is given, and the model returns similar colorings.
+Figure~\ref{fig:nearbySuggestions} shows example scenarios where a proposed coloring is given, and the model returns similar colorings. Our model is able to make significant variations to the input colors while still preserving desirable properties of the results.
 
 \begin{figure}[ht]
 \begin{tabular}{ccc} 
@@ -120,7 +120,7 @@ Artist A&Artist B\\
 \subsection{Applications}
 
 \paragraph{Web design}
-Our model can assist web designers by suggesting recolorings for web page pattern elements. In Figure~\ref{fig:webpageRecoloring}, the blog author has set the text and body background colors to rotate according to different seasons. Our model then recolors the background pattern of the blog to match the rest of the page. We generate these recolorings by adding new factors to the model. First, we add a unary factor to each color variable that encourages similarity to a color that occurs in the web page body:
+A web designer may want to change a web page's color theme to fit the season, a special event, or even the time of day. Our model can support these tasks by suggesting recolorings for web page pattern elements. In Figure~\ref{fig:webpageRecoloring}, the background pattern of a blog is automatically recolored in three distinct styles. Each style is defined by a manually-specified page body color and header text color. We generate these recolorings by adding new factors to the model. First, we add a unary factor to each color variable that encourages it to be similar to a color that occurs in the web page body:
 %%
 \begin{equation*}
 \factor^\textrm{WebSim}(\colorVars_\group | \webpage) = p(\colorVars_\group | \webpage)
@@ -139,7 +139,7 @@ Incoporating this term ensures that the body of the page stands out from the res
 \begin{figure}[ht]
 \centering
 \includegraphics[width=\columnwidth]{figs/webpageRecoloring}
-\caption{With a few additional factors, our model can recolor the background of a web page in concert with the colors in the page body. (Top) A Spring-themed seasonal recoloring. (Middle) A Summer-themed recoloring. (Bottom) A Winter-themed recoloring. Design adapted from \url{www.thedesigncubicle.com}}
+\caption{With a few additional factors, our model can recolor the background pattern of a web page to match the colors in the page body.}
 \label{fig:webpageRecoloring}
 \end{figure}
 
@@ -149,11 +149,11 @@ Color-coordinating a virtual scene is another creative task that can benefit fro
 \begin{figure*}[ht]
 \begin{tabular}{c|ccc} 
 Original&Recoloring 1&Recoloring 2&Recoloring 3\vspace{0.4em}\\
-\includegraphics[width=.23\linewidth]{figs/3dscene/original}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_00}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_01}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_05}\vspace{0.4em}\\
-\includegraphics[width=.23\linewidth]{figs/3dscene/original_pbrt}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_00_pbrt}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_01_pbrt}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_05_pbrt}\vspace{0.4em}\\
+\includegraphics[width=.23\linewidth]{figs/3dscene/original}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_17}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_03}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_15}\vspace{0.4em}\\
+\includegraphics[width=.23\linewidth]{figs/3dscene/original_pbrt}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_17_pbrt}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_03_pbrt}&\includegraphics[width=.23\linewidth]{figs/3dscene/recolored_15_pbrt}\vspace{0.4em}\\
 \end{tabular}
 
-\caption{A poorly color-coordinated 3D scene is recolored using our model. Using the original coloring as a soft constraint, our model suggests multiple novel recolorings; here we show the top three suggestions. (Top) Diffuse material coefficients for each object. (Bottom) Final renderings of each scene.}
+\caption{A poorly color-coordinated 3D scene is recolored using our model. Using the original coloring as a soft constraint, our model suggests multiple novel recolorings. (Top) Diffuse material coefficients for each object. (Bottom) Final renderings of each scene.}
 \label{fig:sceneRecoloring}
 \vspace{-1.0em}
 \end{figure*}
