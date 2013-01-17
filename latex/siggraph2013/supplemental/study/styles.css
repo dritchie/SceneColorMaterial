@@ -1,0 +1,12 @@
+.suggestion {
+	float: left;
+	margin: 10px;
+}
+
+.source {
+	clear: both;
+}
+
+.pattern {
+	clear:both;
+}
