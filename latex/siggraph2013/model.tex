@@ -1,7 +1,15 @@
 \section{Probabilistic Model}
 \label{sec:model}
 
-We formulate the problem of generating colorings for a pattern template as finding high-probability colorings under a probabilistic model. Formally, we define a pattern template as $\pattern = (\groups, \segments, \colorVars, \features)$, where $\groups$ is a set of individual groups $\group$, $\segments$ is a set of individual segments $\segment$, $\colorVars$ is a set of color variables, and $\features$ is a set of features over different groups, segments, and segment adjacencies within the pattern. Each group $\group$ and segment $\segment$ is associated with a color variable ($\colorVars_\group$ and $\colorVars_\segment$, respectively). All segments within a color group have the same color by definition, so $\colorVars_{\text{group}(\segment)} = \colorVars_\segment$. A coloring $\colors$ is an assignment of colors to color variables.
+\remark{Introduction (We have all of these predictive functions; now we need to combine them into one function that can tell us the overall quality of a coloring. Factor graphs to the rescue!)}
+
+\remark{Give the graphical definition of the model first, with the picture. Then give the math for each factor.}
+
+\remark{Finally, give the algebraic definition of the model (``this is the distribution encoded by this model''), with the math for unary, binary, and higher-order terms.}
+
+\remark{Sampling, Weight Learning, and Implementation sections remain largely unchanged.}
+
+We formulate the problem of generating colorings for a pattern template as finding high-probability colorings under a probabilistic model.
 
 We define the probability of a coloring for a particular pattern template as a log-linear model:  
 \begin{equation*}

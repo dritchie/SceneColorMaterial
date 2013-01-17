@@ -1,6 +1,16 @@
 \section{Binary Color Properties}
 \label{sec:binary}
 
+\remark{Introduction (why do we also need these terms?)}
+
+\remark{List all the properties we model, giving rationale for including each one}
+
+\remark{List all the predictive features we use (easy, just concatenation + enclosure)}
+
+\remark{Give the form of the function phi for a single adjacent pair}
+
+\remark{Show an example of two adjacencies that have different feature vectors \& different predicted CPDs for some property (Perhaps show adjacency between foreground-outline is different than for outline-background?)}
+
 While group and segment terms model the dependency of color assignments on features of same-color regions, they do not capture relationships between different-color regions. In particular, adjacent color regions can have strong effects on their neighbor's perceived color, making colors seem more or less saturated or causing vibrating boundaries if adjacent lightness and colorfulness are too similar~\cite{AlbersInteractionOfColor}. Thus, we also add segment adjacency terms to the model.
 
 Good color assignments to adjacent segments may depend on the nature of their adjacency. For example, a square enclosed by a thin border appears different from a square enclosed by a thick border, and different again from a square side-by-side with another square (Figure~\ref{fig:surround}). Thus, when computing features of an adjacency we include the features of the segments involved as well as how much one neighbor encloses another.

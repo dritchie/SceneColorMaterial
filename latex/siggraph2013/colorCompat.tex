@@ -1,9 +1,11 @@
 \section{Higher-Order Color Compatibility}
 \label{sec:colorCompat}
 
-Previous work has shown that the aesthetic appeal of an image can be improved by increasing the compatibility or harmony of image colors ~\cite{CohenOrHarmonization,DressUp,ColorizationUsingHarmony,ODonovan}. Our model includes a color compatibility term to score the general appeal of the colors in an assignment, based on the compatibility model introduced by O'Donovan et al.~\shortcite{ODonovan}. This compatibility model predicts 0-5 numeric aesthetic ratings for five-color `color themes,' which are ordered rows of five colors. 
+\remark{Reword introduction} Previous work has shown that the aesthetic appeal of an image can be improved by increasing the compatibility or harmony of image colors ~\cite{CohenOrHarmonization,DressUp,ColorizationUsingHarmony,ODonovan}. Our model includes a color compatibility term to score the general appeal of the colors in an assignment, based on the compatibility model introduced by O'Donovan et al.~\shortcite{ODonovan}. This compatibility model predicts 0-5 numeric aesthetic ratings for five-color `color themes,' which are ordered rows of five colors. 
 
 We extract such a color theme from a pattern by taking the colors of the five largest color groups and ordering them by size. If the pattern contains fewer than five color groups, we repeat colors in order of size to fill the rest of the theme. Inspection of five-color patterns showed that size-ordering of colors tends to produce themes that are, on average, rated higher than random orderings but lower than the optimal ordering. Additionally, ordering has little effect on discriminative power: in general, low-scoring themes are rated lower than high-scoring themes regardless of permutation.
+
+\remark{More plain-english description needed for the below. Only give the phi function, not stats/factors (those come later)}
 
 The term statistic is then defined as the log-normalized theme rating under O'Donovan's compatibility model:
 \begin{equation*}
