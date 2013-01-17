@@ -114,7 +114,7 @@ object TurkMain {
 
     //TODO: determine n, or re-use trained model from elsewhere
     //val trainingSet = PatternIO.getTopNArtistPatterns(meshDir, 12, pids)
-    val artists = Array("davidgav", "sugary", "Aurelliana", "Chi", "AlineDam", "southpaws", "wondercake", "Twinklemittens", "sunmeadow", "eighteyed")
+    /*val artists = Array("davidgav", "sugary", "Aurelliana", "Chi", "AlineDam", "southpaws", "wondercake", "Twinklemittens", "sunmeadow", "eighteyed")
     val trainingSet = PatternIO.filterTrainingSet(PatternIO.getPatterns(meshDir).filter(p => artists.contains(p.directory)), pids)
     val testSet = PatternIO.getPatterns(meshDir).filter(p => pids.contains(p.pid))
 
@@ -126,7 +126,7 @@ object TurkMain {
 
     //color compatibility model onlu
     val ccmodel  = new ColorInferenceModel
-    ccmodel += new ColorCompatibilityTemplate  */
+    ccmodel += new ColorCompatibilityTemplate */
 
     ReformatStudyFile(studyFile)
 
@@ -367,7 +367,7 @@ object TurkMain {
 
     val aggregateWriter = new FileWriter(new File(turkDir, "aggregate.csv"))
     val writer = new FileWriter(new File(turkDir,"perPattern.csv"))
-    val htmlWriter = new FileWriter(new File(turkDir, "index.html"))
+    val htmlWriter = new FileWriter(new File(turkDir, "studyStats.html"))
 
     writer.write("pid,worker,method,numBest,numWorst,total\n")
     aggregateWriter.write("method,numBest,numWorst,total\n")
@@ -387,17 +387,23 @@ object TurkMain {
         val best = pidToAnswers(pid).best
         val worst = pidToAnswers(pid).worst
 
+        best.foreach(b => {
+          if (!suggestionToStats.contains(b))
+            suggestionToStats(b) = new SuggestionTotals(b,0,0,0)
+          suggestionToStats(b).best += 1
+        })
+
+
+        worst.foreach(w => {
+          if (!suggestionToStats.contains(w))
+            suggestionToStats(w) = new SuggestionTotals(w,0,0,0)
+          suggestionToStats(w).worst += 1
+        })
+
         for (m <- methods)
         {
           if (!methodToBest.contains(m))
             methodToBest(m) = 0
-
-          best.foreach(b => {
-            if (!suggestionToStats.contains(b))
-              suggestionToStats(b) = new SuggestionTotals(b,0,0,0)
-            suggestionToStats(b).best += 1
-          })
-
 
           val curBest = best.count(_.contains(m))
 
@@ -405,12 +411,6 @@ object TurkMain {
 
           if (!methodToWorst.contains(m))
             methodToWorst(m) = 0
-
-          worst.foreach(w => {
-            if (!suggestionToStats.contains(w))
-              suggestionToStats(w) = new SuggestionTotals(w,0,0,0)
-            suggestionToStats(w).worst += 1
-          })
 
           val curWorst = worst.count(_.contains(m))
 
@@ -435,9 +435,45 @@ object TurkMain {
     }
 
     //write out the html file
+    htmlWriter.write("<html>\n<head><link rel=\"stylesheet\" type=\"text/css\" href=\"styles.css\"></head>\n<body>")
+    //for each pattern, find the suggestions that match that pattern
+    for (pid <- pidToShown.keys)
+    {
 
+      //group together the artist suggestions
+      htmlWriter.write("<div class='pattern'><hr /><h1>Pattern %d, Shown %d times</h1><br />".format(PatternIO.getTemplateId(pid), pidToShown(pid)))
 
+      for (m <- methods)
+      {
+        htmlWriter.write("<div class='source'>")
 
+       val sourceName = m match {
+                             case "a" => "Artist"
+                             case "m" => "Model"
+                             case "r" => "Random"
+                             case "c" => "Color Compatibility"
+                        }
+
+        htmlWriter.write("<h2>%s</h2>".format(sourceName))
+        for (i <- 0 until 4)
+        {
+          val suggestion =  pid+"_"+m+i
+          val best = {if (suggestionToStats.contains(suggestion)) suggestionToStats(suggestion).best else 0}
+          val worst = {if (suggestionToStats.contains(suggestion)) suggestionToStats(suggestion).worst else 0}
+          val total = pidToShown(pid)
+          val topStyle = {if (best>0) "<b>" else ""}
+          val topEndStyle = {if (best>0) "</b>" else ""}
+          val bottomStyle = {if (worst>0) "<b>" else ""}
+          val bottomEndStyle = {if (worst>0) "</b>" else ""}
+          htmlWriter.write("<div class='suggestion'><img src='images/%s' /><br />".format(suggestion+".png"))
+          htmlWriter.write("%s T: %d (%d %%) %s %s  B: %d (%d %%) %s</div>\n".format(topStyle, best, best*100/total, topEndStyle, bottomStyle, worst, worst*100/total, bottomEndStyle))
+        }
+        htmlWriter.write("</div>")
+      }
+      htmlWriter.write("</div>")
+
+    }
+    htmlWriter.write("</body>\n</html>")
 
     writer.close()
     aggregateWriter.close()

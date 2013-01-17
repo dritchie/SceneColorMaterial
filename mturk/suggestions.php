@@ -483,7 +483,7 @@ function updateProgress()
 	<h3> Instructions:</h3>
 	<p>Imagine you want to color in this pattern. Please select the <b>4 colorings you like the most</b> and the <b>4 colorings you like the least</b> from the suggestions below. 
 	You can select colorings by dragging them from the grid and into the respective "Favorite 4" or "Least Favorite 4" box.</p>
-	<p>There are 6 pages total in this HIT and one exit question. You may see the same pattern twice. </p>
+	<p>There are 6 pages total and one exit question. You may see the same pattern twice. </p>
 
 	<div id="previewnotice"></div>
 
