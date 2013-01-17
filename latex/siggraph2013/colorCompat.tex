@@ -1,0 +1,20 @@
+\section{Higher-Order Color Compatibility}
+\label{sec:colorCompat}
+
+Previous work has shown that the aesthetic appeal of an image can be improved by increasing the compatibility or harmony of image colors ~\cite{CohenOrHarmonization,DressUp,ColorizationUsingHarmony,ODonovan}. Our model includes a color compatibility term to score the general appeal of the colors in an assignment, based on the compatibility model introduced by O'Donovan et al.~\shortcite{ODonovan}. This compatibility model predicts 0-5 numeric aesthetic ratings for five-color `color themes,' which are ordered rows of five colors. 
+
+We extract such a color theme from a pattern by taking the colors of the five largest color groups and ordering them by size. If the pattern contains fewer than five color groups, we repeat colors in order of size to fill the rest of the theme. Inspection of five-color patterns showed that size-ordering of colors tends to produce themes that are, on average, rated higher than random orderings but lower than the optimal ordering. Additionally, ordering has little effect on discriminative power: in general, low-scoring themes are rated lower than high-scoring themes regardless of permutation.
+
+The term statistic is then defined as the log-normalized theme rating under O'Donovan's compatibility model:
+\begin{equation*}
+\colorCompatTerm(\colors| \pattern) = \ln(compat(theme(\colors| \pattern))/5)
+\end{equation*}
+where $\textsl{theme}$ is the ordered theme extracted from the pattern and $\textsl{compat}$ is the predicted rating from the O'Donovan model.
+
+Here we use the O'Donovan model of color compatibility. However, the model is flexible and can accomodate any other color compatibility or harmony model that can score a set of colors.
+
+In the factor graph representation of our model, this term contributes one factor that touches the five color variables belong to the five largest groups (or fewer, if there are less than five groups in the pattern):
+\begin{equation*}
+\factor(\textrm{top}(\colorVars) | \pattern) = \exp(\colorCompatWeight \cdot \colorCompatTerm(\colorVars | \pattern))
+\end{equation*}
+where $\textsl{top}$ are the color variables of the largest five groups in the pattern.

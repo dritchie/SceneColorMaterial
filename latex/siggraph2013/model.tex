@@ -1,12 +1,28 @@
 \section{Probabilistic Model}
 \label{sec:model}
 
-\input{notation.tex}
+We formulate the problem of generating colorings for a pattern template as finding high-probability colorings under a probabilistic model. Formally, we define a pattern template as $\pattern = (\groups, \segments, \colorVars, \features)$, where $\groups$ is a set of individual groups $\group$, $\segments$ is a set of individual segments $\segment$, $\colorVars$ is a set of color variables, and $\features$ is a set of features over different groups, segments, and segment adjacencies within the pattern. Each group $\group$ and segment $\segment$ is associated with a color variable ($\colorVars_\group$ and $\colorVars_\segment$, respectively). All segments within a color group have the same color by definition, so $\colorVars_{\text{group}(\segment)} = \colorVars_\segment$. A coloring $\colors$ is an assignment of colors to color variables.
 
-%\remark{In every subsection, motivate why this particular term is needed. Briefly relate to any relevant algorithmic details from previous work.}
+We define the probability of a coloring for a particular pattern template as a log-linear model:  
+\begin{equation*}
+ p(\colors | \pattern : \weights) = \frac{1}{Z_\pattern(\weights)} \prod_{\term \in \model} \exp(\termWeight \cdot \termStats(\colors, \pattern))
+\end{equation*}
+The model $\model$ is comprised of a number of different terms $\term$, where each term scores the goodness of a color assignment based on a term-dependent statistic $\termStats(\colors,\pattern)$. $Z_\pattern(\weights)$ is the pattern-dependent partition function that normalizes the distribution. Each term also has a weight $\termWeight$ which determines its relative contribution to the model; the method used for setting these weights is detailed in Section~\ref{sec:weights}. Bolded symbols are vector-valued while non-bolded symbols are scalar.
 
-%To be safe, temporarily separating out the spatial arrangement and color compatibility subsection
-\input{spatialcolor.tex}
+This type of model is well-suited to the coloring-generation problem. It is very flexible; in principle, the individual term statistics $\termStats$ can be any real-valued function. In our model, we include terms both for color compatibility as well as for spatial properties defined over groups, segments, and segment adjacencies. Users can also guide the model via additional soft constraint terms (Section~\ref{sec:results}). In addition, it is very easy to compare the relative importance of each term by comparing their weights, which we will do in Section~\ref{sec:weights} to gain some insight into which terms contribute the most to producing attractive colorings. 
+
+The model can also be interpreted graphically as a factor graph (Yeh et al.~\shortcite{YiTingTiledPatterns} provides an accessible introduction for the graphics community). Each type of term contributes different factors $\factor$ to the graph. For example, our color compatibility term contributes a factor over at most five color variables that scores the compatibility of those colors. The spatial terms contribute a unary factor for each color variable and binary factors for color variables that are adjacent in the pattern. Figure~\ref{fig:FactorGraph} shows an example of such a factor graph. Circles denote the color variables, while squares denote the different factors $\factor$, and edges connect each factor to the variables within their scope. 
+
+
+\begin{figure}[ht]
+\begin{tabular}{cc}
+\raisebox{4em}{\includegraphics[width=.2\columnwidth]{figs/factorGraphPattern}} &
+\includegraphics[width=.7\columnwidth]{figs/factorGraph} \\
+\end{tabular} 
+\caption{A factor graph for an example pattern template. Factors correspond with the color compatibility and spatial terms from our model. In the figure, nodes are colored according to their corresponding color group in the pattern\remark{Rough figure.}}
+\label{fig:FactorGraph}
+\end{figure}
+
 
 \subsection{Sampling}
 \label{sec:sampling}

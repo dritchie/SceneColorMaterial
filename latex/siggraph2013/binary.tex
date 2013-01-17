@@ -1,0 +1,28 @@
+\section{Binary Color Properties}
+\label{sec:binary}
+
+While group and segment terms model the dependency of color assignments on features of same-color regions, they do not capture relationships between different-color regions. In particular, adjacent color regions can have strong effects on their neighbor's perceived color, making colors seem more or less saturated or causing vibrating boundaries if adjacent lightness and colorfulness are too similar~\cite{AlbersInteractionOfColor}. Thus, we also add segment adjacency terms to the model.
+
+Good color assignments to adjacent segments may depend on the nature of their adjacency. For example, a square enclosed by a thin border appears different from a square enclosed by a thick border, and different again from a square side-by-side with another square (Figure~\ref{fig:surround}). Thus, when computing features of an adjacency we include the features of the segments involved as well as how much one neighbor encloses another.
+\begin{figure}[ht]
+\centering
+\includegraphics[width=.7\columnwidth]{figs/surround}
+\caption{Color appearance depends on relationships with surrounding regions\remark{Rough figure.}}
+\label{fig:surround}
+\end{figure}
+
+
+Our model has one adjacency term for each of the color properties $ \prop \in \binaryProps$, which are \propName{RelativeLightness}, \propName{RelativeColorfulness}, \propName{PerceptualDifference}, \propName{ChromaDifference}, and \propName{NameSimilarity}.
+As with group and segment terms, \propName{RelativeLightness} and \propName{RelativeColorfulness} are computed in \lab space. \propName{PerceptualDifference} is Euclidean distance in \lab space, and \propName{ChromaDifference} is the percentage of that distance that is due to the chroma channels. Finally, \propName{NameSimilarity} is the color name cosine similarity measure defined by Heer and Stone~\shortcite{ColorNamingModels}.
+
+The sufficient statistics function for each binary property is:
+ \begin{align*}
+ \adjTerm(\colors | \pattern) &= \sum_{(\segment, \segprime) \in \adj(\pattern)} \adjInstStats(\colors_\segment, \colors_\segprime | \pattern, \segment, \segprime) \\
+ \adjInstStats(\colors_\segment, \colors_\segprime | \pattern, \segment, \segprime) &= \ln p( \prop( \colors_\segment, \colors_\segprime ) | \features_{\segment, \segprime} ) \cdot \adjStrength(\segment, \segprime)
+\end{align*}
+where $\adjStrength(\segment,\segprime)$ is the strength of the adjacency $(\segment,\segprime)$. We define adjacency strength as the number of pixels from segments $\segment$ or $\segprime$ that are within a 2-pixel distance from their perimeters. All adjacency strengths are normalized to sum to 1.  
+
+These terms contribute binary factors over each adjacent pair of color variables:
+\begin{equation*}
+ \factor(\colorVars_\group, \colorVars_\groupprime | \pattern) = \prod_{\prop \in \binaryProps} \exp( (\adjTermWeight \cdot \sum_{\mathclap{(\segment, \segprime) \in \adj(\group, \groupprime)}} \adjInstStats( \colorVars_\group, \colorVars_\groupprime | \pattern, \segment, \segprime))) 
+\end{equation*}
