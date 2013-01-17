@@ -19,7 +19,7 @@ object FashionRecoloringMain
     val visDir = "../fashion_recoloring/out/vis_mmr"
 
     // MMR
-    val lambdas = Array(0.25, 0.5, 0.75)
+    val lambdas = Array(0.3, 0.5, 0.7)
     val numSamplesToOutput = 20
 
     // Parallel tempering
@@ -27,13 +27,25 @@ object FashionRecoloringMain
     val iterations = 2000
     val itersBetweenSwaps = 50
 
+    // stuff
+//    val paletteColors = Set(Color.RGBColor(179.0/255, 62.0/255, 80.0/255),
+//                            Color.RGBColor(216.0/255, 111.0/255, 113.0/255),
+//                            Color.RGBColor(216.0/255, 183.0/255, 144.0/255),
+//                            Color.RGBColor(57.0/255, 10.0/255, 30.0/255),
+//                            Color.RGBColor(216.0/255, 183.0/255, 144.0/255))
+    val paletteColors = Set(Color.RGBColor(253.0/255, 230.0/255, 127.0/255),
+                            Color.RGBColor(249.0/255, 163.0/255, 29.0/255),
+                            Color.RGBColor(226.0/255, 178.0/255, 13.0/255),
+                            Color.RGBColor(158.0/255, 120.0/255, 74.0/255),
+                            Color.RGBColor(73.0/255, 22.0/255, 214.0/255))
+
     def main(args:Array[String])
     {
         val visDirTestFile = new File(visDir)
         if (!visDirTestFile.exists)
             visDirTestFile.mkdir
 
-        val allArtists = Set("sugar!", "h&m")
+        val allArtists = Set("sugar!", "mixamo")
         val trainingArtists = Set("sugar!")
         val patterns = PatternIO.getPatterns(inputDir).filter(p=>(allArtists.contains(p.directory))).toArray
 
@@ -48,33 +60,28 @@ object FashionRecoloringMain
 
             modelSaveDirectory = "savedModel"
             doWeightTuning = true
-            saveRegressorsIfPossible = true
-            saveWeightsIfPossible = true
+            saveRegressorsIfPossible = false
+            saveWeightsIfPossible = false
             loadRegressorsIfPossible = true
             loadWeightsIfPossible = true
 
-            includeColorCompatibilityTerm = true
-            //            includeUnaryTerms = false
-            //            includeBinaryTerms = false
-            //            includeGroupTerms = false
-
             crossValidateHistogramParams = false
-            saveCrossValidationLog = false
-
-            initialLearningRate = 0.2
-            numWeightTuningIterations = 20
-            //cdK = 100
+            saveCrossValidationLog = true
 
             enforceMinimumWeight = true
             minWeight = 0.0
+
+            includeColorChoiceTerms = true
+            colorChoiceType = ModelTraining.ColorChoiceType.NamesConditional
         }
 
         val meshes = for (p <- patterns) yield new SegmentMesh(params.colorVarParams.variableGenerator, p.fullpath)
 
         // These are the ids of the patterns we will test on
         val pids = Array(
-            1234567,
-            7654321)
+            4444444,
+            5555555,
+            6666666)
 
 
         val testingMeshes = {for (idx<-meshes.indices if (pids.contains(patterns(idx).name.replace(".txt","").toInt))) yield meshes(idx)}
@@ -83,9 +90,6 @@ object FashionRecoloringMain
 
         println("Training on " + trainingMeshes.length + " meshes")
         val model = ModelTraining(trainingMeshes, params)
-
-        // We don't want to harmonize with the background, since that's kind of an arbitrary fixed color
-        (model.templates.collect{case cc:ColorCompatibilityTemplate => cc}).head.skipTopN = 1
 
         for (i <- meshes.indices if (pids.contains(patterns(i).name.replace(".txt","").toInt)))
         {
@@ -100,12 +104,14 @@ object FashionRecoloringMain
     {
         println("Generating MMR-optimized patterns...")
 
-        // Fix the values of the three largest color groups (these are the background, skin, and hair colors)
-        val sortedGroups = mesh.groups.sortWith(_.size > _.size)
-        for (i <- 0 until 3)
+        // Fix the values of all colors that don't come from the shirt pattern
+        for (c <- mesh.groups.map(_.color))
         {
-            sortedGroups(i).color.setColor(sortedGroups(i).color.observedColor)
-            sortedGroups(i).color.fixed = true
+            if (!paletteColors.exists(col => col.approxEquals(c.observedColor, 1e-6)))
+            {
+                c.setColor(c.observedColor)
+                c.fixed = true
+            }
         }
 
         model.conditionOn(mesh)

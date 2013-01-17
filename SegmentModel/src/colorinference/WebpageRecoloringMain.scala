@@ -24,13 +24,24 @@ object WebpageRecoloringMain
     // Target image
     //val targetImg = "../webpage_recoloring/brianhoff/target_winter.png"
     //val targetImg = "../webpage_recoloring/brianhoff/target_spring.png"
-    val targetImg = "../webpage_recoloring/brianhoff/target_summer.png"
+    //val targetImg = "../webpage_recoloring/brianhoff/target_summer.png"
+    //val targetImg = "../webpage_recoloring/brianhoff/target_goldfish.png"
+    //val targetImg = "../webpage_recoloring/brianhoff/target_melon.png"
+    val targetImg = "../webpage_recoloring/brianhoff/target_lovers.png"
     val doAreaWeighting = false
     val quantization = 20
+
+    //val imgFactorWeight = 1.0
     val imgFactorWeight = 1.0
+
     //val keepBackgroundAwayFrom = Color.RGBColor(229.0/255, 229.0/255, 217.0/255)  // winter
     //val keepBackgroundAwayFrom = Color.RGBColor(213.0/255, 225.0/255, 207.0/255)  // spring
-    val keepBackgroundAwayFrom = Color.RGBColor(232.0/255, 218.0/255, 174.0/255)    // summer
+    //val keepBackgroundAwayFrom = Color.RGBColor(232.0/255, 218.0/255, 174.0/255)    // summer
+    //val keepBackgroundAwayFrom = Color.RGBColor(178.0/255, 211.0/255, 209.0/255)    // goldfish
+    //val keepBackgroundAwayFrom = Color.RGBColor(230.0/255, 179.0/255, 194.0/255)    // melon
+    val keepBackgroundAwayFrom = Color.RGBColor(194.0/255, 171.0/255, 164.0/255)    // lovers
+
+    //val simFactorWeight = 0.05
     val simFactorWeight = 0.05
 
 //    // Web page stuff
@@ -71,25 +82,16 @@ object WebpageRecoloringMain
 
             modelSaveDirectory = "savedModel"
             doWeightTuning = true
-            saveRegressorsIfPossible = true
-            saveWeightsIfPossible = true
+            saveRegressorsIfPossible = false
+            saveWeightsIfPossible = false
             loadRegressorsIfPossible = true
             loadWeightsIfPossible = true
 
-            includeColorCompatibilityTerm = true
-            //            includeUnaryTerms = false
-            //            includeBinaryTerms = false
-            //            includeGroupTerms = false
-
-            crossValidateHistogramParams = false
-            saveCrossValidationLog = false
-
-            initialLearningRate = 0.2
-            numWeightTuningIterations = 20
-            //cdK = 100
-
             enforceMinimumWeight = true
             minWeight = 0.0
+
+            includeColorChoiceTerms = true
+            colorChoiceType = ModelTraining.ColorChoiceType.NamesConditional
         }
 
         val meshes = for (p <- patterns) yield new SegmentMesh(params.colorVarParams.variableGenerator, p.fullpath)

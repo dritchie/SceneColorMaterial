@@ -34,8 +34,8 @@ namespace PatternColorizer
         String outdir;
         String json;
         String weightsDir;
-        bool outputDebugImages = true; //outputting quantization results and connected components
-        bool renderFinal = true; //render the final images using Colourlovers site
+        bool outputDebugImages = false; //outputting quantization results and connected components
+        bool renderFinal = false; //render the final images using Colourlovers site
 
         Dictionary<String, PaletteData> palettes;
         Dictionary<String, String> patternToTemplate;

@@ -20,8 +20,9 @@ object SceneRecoloringMain
     val visDir = "../scene_recoloring/out/vis_mmr"
 
     // Target image
-    val targetImg = "../scene_recoloring/originalColors_awful2.png"
-    val imgFactorWeight = 2.5
+    val targetImg = "../scene_recoloring/originalColors_awful3.png"
+    //val imgFactorWeight = 2.5
+    val imgFactorWeight = 2.0
     val imgFactorBandwidth = 30.0
 
     // MMR
@@ -54,25 +55,16 @@ object SceneRecoloringMain
 
             modelSaveDirectory = "savedModel"
             doWeightTuning = true
-            saveRegressorsIfPossible = true
-            saveWeightsIfPossible = true
+            saveRegressorsIfPossible = false
+            saveWeightsIfPossible = false
             loadRegressorsIfPossible = true
             loadWeightsIfPossible = true
 
-            includeColorCompatibilityTerm = true
-            //            includeUnaryTerms = false
-            //            includeBinaryTerms = false
-            //            includeGroupTerms = false
-
-            crossValidateHistogramParams = false
-            saveCrossValidationLog = false
-
-            initialLearningRate = 0.2
-            numWeightTuningIterations = 20
-            //cdK = 100
-
             enforceMinimumWeight = true
             minWeight = 0.0
+
+            includeColorChoiceTerms = true
+            colorChoiceType = ModelTraining.ColorChoiceType.NamesConditional
         }
 
         val meshes = for (p <- patterns) yield new SegmentMesh(params.colorVarParams.variableGenerator, p.fullpath)

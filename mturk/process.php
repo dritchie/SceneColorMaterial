@@ -25,6 +25,6 @@ if(!$stmt) {
 
 $db->close();
 
-echo "Success!"
+echo "Success!";
 
 ?>

@@ -57,8 +57,6 @@ object MMRTest
         {
             type VariableType = ContinuousColorVariable
             val colorVarParams = ContinuousColorVariableParams
-//            type VariableType = DiscreteColorVariable
-//            val colorVarParams = DiscreteColorVariableParams
 
             modelSaveDirectory = "savedModel-turkModel-3"
             doWeightTuning = true
@@ -66,9 +64,6 @@ object MMRTest
             saveWeightsIfPossible = true
             loadRegressorsIfPossible = true
             loadWeightsIfPossible = true
-
-            crossValidateHistogramParams = false
-            saveCrossValidationLog = true
 
             enforceMinimumWeight = true
             minWeight = 0.0
