@@ -60,7 +60,7 @@ object MMRTest
 //            type VariableType = DiscreteColorVariable
 //            val colorVarParams = DiscreteColorVariableParams
 
-            modelSaveDirectory = "savedModel"
+            modelSaveDirectory = "savedModel-turkModel-3"
             doWeightTuning = true
             saveRegressorsIfPossible = true
             saveWeightsIfPossible = true
@@ -95,6 +95,8 @@ object MMRTest
 //            508162,
 //            515691,
 //            798455)
+            2840695,
+            619698,
             220077,
             243893,
             447439,
