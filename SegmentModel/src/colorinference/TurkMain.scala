@@ -17,7 +17,7 @@ object TurkMain {
   val outDir = "turkImages"
   val meshDir = "../PatternColorizer/out/mesh"
   val logDir = "../PatternColorizer/out/turkLog"
-  val studyFile = "../mturk/data/turk-patterns.csv"
+  val studyFile = "../mturk/data/pilot-all.csv"
   val turkDir = "../mturk/data"
 
   //TODO: sync up with standard parameters
@@ -112,7 +112,7 @@ object TurkMain {
     )
 
     //TODO: determine n, or re-use trained model from elsewhere
-    val trainingSet = PatternIO.getTopNArtistPatterns(meshDir, 12, pids)
+   /* val trainingSet = PatternIO.getTopNArtistPatterns(meshDir, 12, pids)
     val testSet = PatternIO.getPatterns(meshDir).filter(p => pids.contains(p.pid))
 
     val trainingMeshes = trainingSet.map(p => new SegmentMesh(params.colorVarParams.variableGenerator, p.fullpath)).toArray
@@ -123,7 +123,7 @@ object TurkMain {
 
     //color compatibility model onlu
     val ccmodel  = new ColorInferenceModel
-    ccmodel += new ColorCompatibilityTemplate
+    ccmodel += new ColorCompatibilityTemplate  */
 
     ReformatStudyFile(studyFile)
 
@@ -132,8 +132,8 @@ object TurkMain {
     outputModelPatterns(model, ccmodel, testMeshes)
     outputArtistPatterns() */
 
-    model.conditionOn(testMeshes(0))
-    InspectNameCentroids(model)
+    //model.conditionOn(testMeshes(0))
+    //InspectNameCentroids(model)
 
   }
 
@@ -304,6 +304,7 @@ object TurkMain {
 
 
  case class TurkAnswerItem(pattern:Int, best:Set[String], worst:Set[String])
+ case class SuggestionTotals(id:String, var best:Int, var worst:Int, var total:Int)
 
   def ReformatStudyFile(filename:String)
   {
@@ -312,6 +313,8 @@ object TurkMain {
     val methodToWorst = new mutable.HashMap[String, Int]()
 
     val workerToAnswers = new mutable.HashMap[String, mutable.HashMap[Int, TurkAnswerItem]]()
+    val suggestionToStats = new mutable.HashMap[String, SuggestionTotals]()
+    val pidToShown = new mutable.HashMap[Int, Int]()
 
     var total = 0
 
@@ -323,6 +326,7 @@ object TurkMain {
     val methods = Array("a","m","c","r")
 
     val flaggedWorkers = new mutable.HashSet[String]()
+    flaggedWorkers.add("danielr")
 
     while (lineIterator.hasNext)
     {
@@ -360,6 +364,7 @@ object TurkMain {
 
     val aggregateWriter = new FileWriter(new File(turkDir, "aggregate.csv"))
     val writer = new FileWriter(new File(turkDir,"perPattern.csv"))
+    val htmlWriter = new FileWriter(new File(turkDir, "index.html"))
 
     writer.write("pid,worker,method,numBest,numWorst,total\n")
     aggregateWriter.write("method,numBest,numWorst,total\n")
@@ -372,6 +377,10 @@ object TurkMain {
       for (pid <- pidToAnswers.keys)
       {
         total = total+1
+        if (!pidToShown.contains(pid))
+          pidToShown(pid) = 0
+        pidToShown(pid)+=1
+
         val best = pidToAnswers(pid).best
         val worst = pidToAnswers(pid).worst
 
@@ -380,12 +389,25 @@ object TurkMain {
           if (!methodToBest.contains(m))
             methodToBest(m) = 0
 
+          best.foreach(b => {
+            if (!suggestionToStats.contains(b))
+              suggestionToStats(b) = new SuggestionTotals(b,0,0,0)
+            suggestionToStats(b).best += 1
+          })
+
+
           val curBest = best.count(_.contains(m))
 
           methodToBest(m) += curBest
 
           if (!methodToWorst.contains(m))
             methodToWorst(m) = 0
+
+          worst.foreach(w => {
+            if (!suggestionToStats.contains(w))
+              suggestionToStats(w) = new SuggestionTotals(w,0,0,0)
+            suggestionToStats(w).worst += 1
+          })
 
           val curWorst = worst.count(_.contains(m))
 
@@ -409,17 +431,19 @@ object TurkMain {
       aggregateWriter.flush()
     }
 
+    //write out the html file
+
+
+
+
     writer.close()
     aggregateWriter.close()
+    htmlWriter.close()
 
     source.close()
 
 
-    //reformat the study database file into an R-friendly format
-    //aggregate
-    //method, participant, pattern, best, worst
-
-    //also do some binomial test of proportions
+    //
 
 
 

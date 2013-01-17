@@ -481,8 +481,8 @@ function updateProgress()
 	<span id="progress"></span>
 
 	<h3> Instructions:</h3>
-	<p>Imagine you want to color in this pattern. Please select the <b>4 colorings other people would like the most</b> and the <b>4 colorings other people would like the least</b> from the suggestions below. 
-	You can select colorings by dragging them from the grid and into the respective "Colorings Others Would Like the Most" or "Colorings Others Would Like the Least" box.</p>
+	<p>Imagine you want to color in this pattern. Please select the <b>4 colorings you like the most</b> and the <b>4 colorings you like the least</b> from the suggestions below. 
+	You can select colorings by dragging them from the grid and into the respective "Favorite 4" or "Least Favorite 4" box.</p>
 	<p>There are 6 pages total in this HIT and one exit question. You may see the same pattern twice. </p>
 
 	<div id="previewnotice"></div>
@@ -495,9 +495,9 @@ function updateProgress()
 	</div>
 	
 	<div id="answers">
-		Colorings Others Would Like the Most (4): <div id="best4" class="answerbox selected"></div>
+		Favorite 4: <div id="best4" class="answerbox selected"></div>
 		<br />
-		Colorings Others Would Like the Least (4): <div id="worst4" class="answerbox selected"></div>
+		Least Favorite 4: <div id="worst4" class="answerbox selected"></div>
 	</div>
 	<div id="nextarea">
 		<form>			
@@ -511,7 +511,7 @@ function updateProgress()
 			<!-- https://workersandbox.mturk.com/mturk/externalSubmit; use https? -->
 	Thank you for your participation! Please enter the number you see in the image below, or type "None" if there is no number.
 	<!--https://www.mturk.com/mturk/externalSubmit-->
-	<form id="answerform" action="https://www.mturk.com/mturk/externalSubmit" method="POST" onsubmit="onFinish()" > 
+	<form id="answerform" action="thankyou.php" method="POST" onsubmit="return onFinish()" > 
 			<img src="plate2.png" />
 			<br />
 			<input type="text" name="validation" id="valid_field" value="" />
