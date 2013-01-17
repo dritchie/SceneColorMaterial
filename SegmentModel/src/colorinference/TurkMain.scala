@@ -17,6 +17,8 @@ object TurkMain {
   val outDir = "turkImages"
   val meshDir = "../PatternColorizer/out/mesh"
   val logDir = "../PatternColorizer/out/turkLog"
+  val studyFile = "../mturk/data/turk-patterns.csv"
+  val turkDir = "../mturk/data"
 
   //TODO: sync up with standard parameters
   // Maximization parameters
@@ -39,11 +41,11 @@ object TurkMain {
     type VariableType = ContinuousColorVariable
     val colorVarParams = ContinuousColorVariableParams
     includeColorCompatibilityTerm = true
-    saveRegressorsIfPossible = true
-    saveWeightsIfPossible = true
+    saveRegressorsIfPossible = false
+    saveWeightsIfPossible = false
     loadRegressorsIfPossible = true
     loadWeightsIfPossible = true
-    modelSaveDirectory = "savedModel-turkModel-3"
+    modelSaveDirectory = "savedModel-turkModel-final"
 
     initialLearningRate = 0.2
     numWeightTuningIterations = 20
@@ -55,6 +57,13 @@ object TurkMain {
     includeUnaryTerms = true
     includeGroupTerms = true
     includeBinaryTerms = true
+
+
+    //includeUnaryTerms = false
+    //includeGroupTerms = false
+    //includeBinaryTerms = false
+    //includeColorCompatibilityTerm = false
+
 
     weightGroups = true
     crossValidateHistogramParams = false
@@ -68,6 +77,7 @@ object TurkMain {
     //PatternIO.getRandomUniquePatterns(50, "../Colourlovers/turk")
      new File(outDir).mkdir()
     new File(logDir).mkdir()
+    new File(turkDir).mkdir()
 
 
 
@@ -104,10 +114,15 @@ object TurkMain {
     val ccmodel  = new ColorInferenceModel
     ccmodel += new ColorCompatibilityTemplate
 
-    outputRandomPatterns(model, ccmodel, testMeshes)
+    ReformatStudyFile(studyFile)
+
+    /*outputRandomPatterns(model, ccmodel, testMeshes)
     outputCCPatterns(model, ccmodel, testMeshes)
     outputModelPatterns(model, ccmodel, testMeshes)
-    outputArtistPatterns()
+    outputArtistPatterns() */
+
+    model.conditionOn(testMeshes(0))
+    InspectNameCentroids(model)
 
   }
 
@@ -274,6 +289,152 @@ object TurkMain {
     }
 
     metric
+  }
+
+
+ case class TurkAnswerItem(pattern:Int, best:Set[String], worst:Set[String])
+
+  def ReformatStudyFile(filename:String)
+  {
+    //Count number of artist, model, cc, and random are chosen for best and for worst
+    val methodToBest = new mutable.HashMap[String, Int]()
+    val methodToWorst = new mutable.HashMap[String, Int]()
+
+    val workerToAnswers = new mutable.HashMap[String, mutable.HashMap[Int, TurkAnswerItem]]()
+
+    var total = 0
+
+    val source = Source.fromFile(filename)
+    val lineIterator = source.getLines()
+    //skip the headers
+    lineIterator.next()
+
+    val methods = Array("a","m","c","r")
+
+    val flaggedWorkers = new mutable.HashSet[String]()
+
+    while (lineIterator.hasNext)
+    {
+       //don't count replications
+      val line = lineIterator.next().replace("\"","")
+      val tokens = line.split(',')
+      val isRep = tokens(9).contains("1")
+
+      val worker = tokens(0)
+      val pid = tokens(1).toInt
+      val best = tokens(2).split('^').toSet
+      val worst = tokens(3).split('^').toSet
+
+
+      if (!workerToAnswers.contains(worker))
+        workerToAnswers(worker) = new mutable.HashMap[Int, TurkAnswerItem]()
+      if (!workerToAnswers(worker).contains(pid))
+        workerToAnswers(worker)(pid) = new TurkAnswerItem(pid, best, worst)
+      else
+      {
+        //check for consistency
+        //if the worker does not have at least one answer in common in both sets, then not consistent enough...
+         val answer = workerToAnswers(worker)(pid)
+         val bestIntersect = answer.best.intersect(best).size
+         val worstIntersect = answer.worst.intersect(worst).size
+         if (bestIntersect < 1 || worstIntersect < 1)
+         {
+           println("Flagged worker: "+worker)
+           flaggedWorkers.add(worker)
+         }
+
+      }
+
+    }
+
+    val aggregateWriter = new FileWriter(new File(turkDir, "aggregate.csv"))
+    val writer = new FileWriter(new File(turkDir,"perPattern.csv"))
+
+    writer.write("pid,worker,method,numBest,numWorst,total\n")
+    aggregateWriter.write("method,numBest,numWorst,total\n")
+
+    for (worker <- workerToAnswers.keys if !flaggedWorkers.contains(worker))
+    {
+      val pidToAnswers = workerToAnswers(worker)
+      if (pidToAnswers.keys.size != 5)
+        println("Worker %s only did %d patterns".format(worker, pidToAnswers.keys.size))
+      for (pid <- pidToAnswers.keys)
+      {
+        total = total+1
+        val best = pidToAnswers(pid).best
+        val worst = pidToAnswers(pid).worst
+
+        for (m <- methods)
+        {
+          if (!methodToBest.contains(m))
+            methodToBest(m) = 0
+
+          val curBest = best.count(_.contains(m))
+
+          methodToBest(m) += curBest
+
+          if (!methodToWorst.contains(m))
+            methodToWorst(m) = 0
+
+          val curWorst = worst.count(_.contains(m))
+
+          methodToWorst(m) += curWorst
+
+          writer.write("%d,%s,%s,%d,%d,%d\n".format(pid, worker, m, curBest, curWorst, 4))
+          writer.flush()
+
+        }
+      }
+    }
+
+
+    //ok, now go through the loaded answers, and output files
+    //for proportion test and ANOVA
+
+    for (m <- methods)
+    {
+      println("Method %s Best: %d Worst: %d Total: %d".format(m,methodToBest(m), methodToWorst(m), total*4))
+      aggregateWriter.write("%s,%d,%d,%d\n".format(m, methodToBest(m), methodToWorst(m), total*4))
+      aggregateWriter.flush()
+    }
+
+    writer.close()
+    aggregateWriter.close()
+
+    source.close()
+
+
+    //reformat the study database file into an R-friendly format
+    //aggregate
+    //method, participant, pattern, best, worst
+
+    //also do some binomial test of proportions
+
+
+
+  }
+
+
+  def InspectNameCentroids(model:ColorInferenceModel)
+  {
+    val summary = model.summary
+    val terms = ModelTraining.namingModel.getAllTerms
+    var break = false
+    for (s <- summary.histograms if (!break))
+    {
+      if (s.propname.contains("ColorNames"))
+      {
+        //print out the centroids in a readable format, for each centroid, print out the top 5 terms plus counts
+        val centroids = s.hist.getCentroids
+        for (c <- centroids)
+        {
+          val topK = c.top(5)
+          val cTerms = topK.map(i=>(terms(i.index) + ":" + i.score))
+          println(cTerms.mkString(", "))
+          break = true
+        }
+      }
+    }
   }
 
 
