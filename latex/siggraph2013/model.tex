@@ -35,7 +35,7 @@ The factors connected to two variables come from our binary scoring functions an
 Finally, the factor connected to all five color variables enforces color compatibility:
 %%
 \begin{equation*}
-\factor(\colors_1 \ldots \colors_5) = \exp(\colorCompatWeight \cdot \colorCompatInstStats(\colors_1 \ldots \colors_5))
+\factor^{\textrm{Compat}}(\colors_1 \ldots \colors_5) = \exp(\colorCompatWeight \cdot \colorCompatInstStats(\colors_1 \ldots \colors_5))
 \end{equation*}
 %%
 The probability distribution encoded by this factor graph is the normalized product of all of these factors:
