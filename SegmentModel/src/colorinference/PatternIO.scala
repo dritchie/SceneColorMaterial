@@ -36,6 +36,7 @@ object PatternIO {
 
   //build a map from pid to template id
   private val pidToTemplateId = populateTemplateIds()
+  private val templateIdToPid = populatePids()
 
   //build a map from "valid" pids (that don't have multiple same colors), to artists
   //we currently can't recolor those pids properly using Colourlovers, though it is possible
@@ -58,6 +59,25 @@ object PatternIO {
     }
     source.close()
     pToT
+  }
+
+  private def populatePids():mutable.HashMap[Int,mutable.HashSet[Int]] =
+  {
+    val tToP= new mutable.HashMap[Int,mutable.HashSet[Int]]()
+    val source = Source.fromFile(templatesFile)
+    val lineIterator = source.getLines()
+    while (lineIterator.hasNext)
+    {
+      val line = lineIterator.next()
+      val tokens = line.split(',')
+      val pid:Int = tokens(1).toInt
+      val tid:Int = {if (tokens(4)=="none") -1 else tokens(4).toInt} //we'll treat all patterns without a template as the same...
+      if (!tToP.contains(tid))
+        tToP(tid) = new mutable.HashSet[Int]()
+      tToP(tid) += pid
+    }
+    source.close()
+    tToP
   }
 
   private def populateArtistsForTurk():mutable.HashMap[Int,String] =
@@ -138,6 +158,14 @@ object PatternIO {
     val topArtists = artists.take(n)
     val unfilteredTrainingSet = getPatterns(meshDir).filter(p => topArtists.contains(p.directory))
     filterTrainingSet(unfilteredTrainingSet, pids)
+  }
+
+  def PatternsWithTemplate(tid:Int):HashSet[Int] =
+  {
+    if (templateIdToPid.contains(tid))
+      templateIdToPid(tid)
+    else
+      new HashSet()
   }
 
 

@@ -17,13 +17,13 @@ object TurkMain {
   val outDir = "turkImages"
   val meshDir = "../PatternColorizer/out/mesh"
   val logDir = "../PatternColorizer/out/turkLog"
-  val studyFile = "../mturk/data/pilot-all.csv"
+  val studyFile = "../mturk/data/pilot-all-1-17.csv"
   val turkDir = "../mturk/data"
 
   //TODO: sync up with standard parameters
   // Maximization parameters
   val numParallelChains = 5
-  val iterations = 2000
+  val iterations = 100//2000
   val cciterations = 2000//20000 //use different number of iterations for color compatibility model? TODO: in interest of time, currently setting this lower
   val initTemp = 1.0
   val finalTemp = 0.01
@@ -42,11 +42,11 @@ object TurkMain {
     val colorVarParams = ContinuousColorVariableParams
     includeColorCompatibilityTerm = true
 
-    saveRegressorsIfPossible = true
-    saveWeightsIfPossible = true
+    saveRegressorsIfPossible = false
+    saveWeightsIfPossible = false
     loadRegressorsIfPossible = true
     loadWeightsIfPossible = true
-    modelSaveDirectory = "savedModel-turkModel-4"
+    modelSaveDirectory = "savedModel-turkModel-5"
 
     initialLearningRate = 0.2
     numWeightTuningIterations = 20
@@ -128,7 +128,8 @@ object TurkMain {
     val ccmodel  = new ColorInferenceModel
     ccmodel += new ColorCompatibilityTemplate */
 
-    ReformatStudyFile(studyFile)
+
+    //ReformatStudyFile(studyFile)
 
     /*outputRandomPatterns(model, ccmodel, testMeshes)
     outputCCPatterns(model, ccmodel, testMeshes)
@@ -137,6 +138,33 @@ object TurkMain {
 
     //model.conditionOn(testMeshes(0))
     //InspectNameCentroids(model)
+
+
+    val testSet = PatternIO.getPatterns(meshDir).filter(p => pids.contains(p.pid))
+    val testMeshes = testSet.map(p => new SegmentMesh(params.colorVarParams.variableGenerator, p.fullpath)).toArray
+    val model = ModelTraining(testMeshes, params)     //doesn't matter since we're loading the model anyways
+    //just inspect the term scores, for one test mesh best output
+
+   /* var avgTermScores:VisualizationIO.TermScores = null
+    for (i <- 0 until 3)
+    {
+      val mesh = testMeshes(i)
+      model.conditionOn(mesh)
+
+      val colors = mesh.groups.map(g => Color.RGBColor(math.random, math.random, math.random))
+      val termScores = VisualizationIO.GetTermScores(model, mesh, colors)
+      println("Mesh %d term scores ".format(i))
+      termScores.print()
+
+      if (avgTermScores == null)
+        avgTermScores = termScores
+      else
+        avgTermScores = avgTermScores + termScores
+    }
+    println("Average term scores ")
+    (avgTermScores/3).print()  */
+
+    ReformatStudyFile(studyFile)
 
   }
 
@@ -367,10 +395,12 @@ object TurkMain {
 
     val aggregateWriter = new FileWriter(new File(turkDir, "aggregate.csv"))
     val writer = new FileWriter(new File(turkDir,"perPattern.csv"))
+    val tabWriter = new FileWriter(new File(turkDir,"aggregateTableau.csv"))
     val htmlWriter = new FileWriter(new File(turkDir, "studyStats.html"))
 
     writer.write("pid,worker,method,numBest,numWorst,total\n")
     aggregateWriter.write("method,numBest,numWorst,total\n")
+    tabWriter.write("method,type,count,total\n")
 
     for (worker <- workerToAnswers.keys if !flaggedWorkers.contains(worker))
     {
@@ -432,6 +462,10 @@ object TurkMain {
       println("Method %s Best: %d Worst: %d Total: %d".format(m,methodToBest(m), methodToWorst(m), total*4))
       aggregateWriter.write("%s,%d,%d,%d\n".format(m, methodToBest(m), methodToWorst(m), total*4))
       aggregateWriter.flush()
+
+      tabWriter.write("%s,%s,%d,%d\n".format(m, "best", methodToBest(m), total))
+      tabWriter.write("%s,%s,%d,%d\n".format(m, "worst", methodToWorst(m), total))
+      tabWriter.flush()
     }
 
     //write out the html file
@@ -478,6 +512,7 @@ object TurkMain {
     writer.close()
     aggregateWriter.close()
     htmlWriter.close()
+    tabWriter.close()
 
     source.close()
 
