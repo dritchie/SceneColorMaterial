@@ -1,25 +1,26 @@
 \section{Unary Color Functions}
 \label{sec:unary}
 
-As discussed in Section~\ref{sec:approach}, color compatibility alone does not predict attractive colorings. We observed that properties of a given pattern region's color can depend strongly on some key predictive features of that region. In this section, we define a set of color properties that we hypothesize contribute to good colorings, a set of features that we use to predict distributions over those properties, and a general-purpose method for performing this prediction.
+As discussed in Section~\ref{sec:approach}, color compatibility alone does not predict good pattern colorings. We observed that properties of a pattern region's color can depend strongly on some key predictive features of that region. In this section, we define a set of color properties that we hypothesize contribute to good colorings, a set of features that we use to predict distributions over those properties, and a general-purpose method for performing this prediction.
 
 \subsection{Color Properties and Predictive Features}
 \label{sec:unaryPropsAndFeatures}
 
-While it is possible to directly predict distributions over colors for pattern regions, predicting distributions instead over \emph{properties} of those colors has benefits. First, it generalizes better to colors that do not occur in the training dataset but are stylistically consistent with that dataset's overall style: a training set that uses pastel colors might not contain a particular pastel blue, but that does not mean our system should not use it. Second, it allows the relative importance of different properties to be tuned: it may be more critical to set the lightness of a pattern region correctly than to use the perfect hue.
+While we could directly predict distributions over colors for pattern regions, predicting distributions instead over \emph{properties} of those colors has benefits. First, it generalizes better to colors that do not occur in the training dataset but are stylistically consistent with that dataset's overall style: a training set that uses pastel colors might not contain a particular pastel blue, but that does not mean our system should not use it. Second, it allows the relative importance of different properties to be tuned: it may be more critical to set the lightness of a pattern region correctly than to use the perfect hue.
 
 Many different color properties can contribute to the appearance of a pattern coloring. For the colors of individual pattern regions, our method considers the following set:
 %%%
 %\begin{description}[leftmargin=*]
 \begin{description}
 	\item[Lightness] is the L component of a color in the \lab color space. This value affects the `achromatic luminance' of a color, or how bright the color appears to an observer.
-	\item[Saturation] is the difference between a color and a neutral gray, and affects how vivid the color appears. The S component of the popular HSV color space is an approximate notion of saturation based on a cylindrical transformation of RGB space. Instead, we use a more perceptually-based formula that operates in \lab space: $\frac{\sqrt{a^2+b^2}}{\sqrt{a^2+b^2+L^2}}$ ~\cite{ColorfulnessReference}
-	\item[Color Name Counts] is a vector of counts that summarizes how frequently a color is referred to using different names. The typical names for a color often convey higher-level stylistic information about the color. These vectors were derived in previous work from data collected in a large online color naming survey~\cite{ColorNamingModels}.
+	\item[Saturation] is the difference between a color and neutral gray, and affects how vivid the color appears. Rather than the typical HSV saturation, we use a more perceptually-based formula that operates in \lab space: $\frac{\sqrt{a^2+b^2}}{\sqrt{a^2+b^2+L^2}}$ ~\cite{ColorfulnessReference}
+	\item[Color Name Counts] is a vector of counts that summarizes how frequently a color is referred to using different names. The common names of a color often convey higher-level stylistic information about it. These vectors were derived in previous work from data collected in a large online color naming survey~\cite{ColorNamingModels}.
 	\item[Color Name Saliency] is a measure of how reliably a color is named~\cite{ColorNamingModels}. It is derived through an entropy-based formulation and conveys information about how `instantly recognizable' a color is likely to be.
 \end{description}
 %%%
-\remark{Say something about how you could think of more properties, but we just decided to go with these ones for initial experimentation? and it's easy to add other properties into the model (but we already have some of this in the discussion section...)}
-
+%
+%\remark{Say something about how you could think of more properties, but we just decided to go with these ones for initial experimentation? and it's easy to add other properties into the model (but we already have some of this in the discussion section...)}
+%
 Distinctive spatial features of a color group, as well as the features of the segments it contains, can affect the appearance of a color assignment. In our system, we use the following group features for color property prediction:
 %%
 \begin{description}
@@ -33,10 +34,10 @@ We also consider the following features for individual segments within a color g
 %%
 \begin{description}
 	\item[Relative Size] The area occupied by the segment divided by the total area of the pattern.
-  \item[Normalized Discrete Compactness] Measures compactness based on the relationship between the segment's boundary edges and its area~\cite{NormalizedDiscreteCompactness}.
-  \item[Elongation] Measures the relative narrowness of a segment according to the width and height of its minimum area bounding box: $1-\frac{\textrm{boxWidth}}{\textrm{boxHeight}}$. A square is the least elongated.
+  \item[Normalized Discrete Compactness] A relationship between the segment's boundary edges and its area~\cite{NormalizedDiscreteCompactness}.
+  \item[Elongation] The relative narrowness of a segment based on its minimum area bounding box: $1-\frac{\textrm{boxWidth}}{\textrm{boxHeight}}$. A square is the least elongated.
   \item[Radial Distance] Euclidean distance from the segment's centroid to the center of the pattern.
-  \item[Role Labels] A set of three binary values: {\emph{Noise}, \emph{Background}, \emph{Foreground}}. The \emph{Noise} value indicates if the segment is a `noise' segment composed of small connected components. The \emph{Background} variable indicates if a segment belongs to the group with the largest connected component. All other segments are labeled \emph{Foreground}.
+  \item[Role Labels] A set of three binary values: {\emph{Noise}, \emph{Background}, \emph{Foreground}}. \emph{Noise} value indicates if the segment was labeled as `noise' during preprocessing (Section~\ref{sec:dataset}). \emph{Background} indicates if a segment belongs to the group with the largest connected component. All other segments are labeled \emph{Foreground}.
 \end{description}
 
 \subsection{Color Property Distributions}
@@ -48,9 +49,9 @@ With a set of color properties and predictive features in hand, our goal is to p
 \groupInstStats(\colors_\group) =  \ln p( \prop( \colors_\group ) | \features_\group ) \cdot \size_\group
 \end{equation*}
 %%
-where $\colors_\group$ is the color of group $\group$ and $\features_\group$ are its features. We weight by the area of the group as larger regions tend to have more impact on the appearance of a coloring. Similarly, for a segment $\segment$, we need the function $\segInstStats(\colors_\segment) = \ln p( \prop( \colors_\segment ) | \features_\segment) \cdot \size_\segment$. Evaluating these functions on a particular color results in a `score' for how well that color fits the given group or segment.
+where $\colors_\group$ is the color of group $\group$ and $\features_\group$ are its features. We weight by the area of the group as larger regions tend to have more impact on the appearance of a coloring. Similarly, for a segment $\segment$, we need the function $\segInstStats(\colors_\segment) = \ln p( \prop( \colors_\segment ) | \features_\segment) \cdot \size_\segment$. Evaluating these functions on a particular color results in a `score' for how well that color fits the given group or segment, according to the property $\prop$.
 
-Figure~\ref{fig:unaryHistograms} shows predicted distributions over lightness for two different pattern regions. The background sky color group, which is larger, more spread, and has fewer components, exhibits a bimodal distribution, which aligns well with the intuition that backgrounds are either dark or light, but rarely of middling brightness. It favors light backgrounds, reflecting the stylistic biases of the data used for training. The smaller, more concentrated, foreground kite color group, on the other hand, strictly prefers lighter colors.
+Figure~\ref{fig:unaryHistograms} shows predicted distributions over lightness for two different pattern regions. The background sky color group, which is larger, more spread, and has fewer components, exhibits a bimodal distribution, which aligns well with the intuition that backgrounds are either dark or light but rarely of middling brightness. It favors light backgrounds, reflecting the stylistic biases of the data used for training. The smaller, more concentrated, foreground kite color group, on the other hand, strictly prefers lighter colors.
 
 \begin{figure}[ht]
 \begin{tabular}{cc}
@@ -65,7 +66,7 @@ Figure~\ref{fig:unaryHistograms} shows predicted distributions over lightness fo
 
 How should we represent these distributions $p$? Closed-form continuous distributions, such as the normal distribution, are appealing for their simplicity.  However, they are unlikely to capture the nuances of data drawn from real patterns, which is often \emph{multimodal} in nature (Figure~\ref{fig:unaryHistograms}).
 
-We adapt the method of Charpiat et al.~\shortcite{MultimodalColorization}, who build distributions of colors given local texture features for grayscale image colorization. This method was designed explicitly to account for multimodality. Our approach is as follows: first, the space of possible property values is discretized into a finite number of bins. Next, a regression model is trained on pairs of the form $(\prop(\colors), \features)$ to predict, given a feature vector $\features$, the probability that its corresponding property value $\prop(\colors)$ falls into each bin. Given a new, never-before-seen feature vector, the regressor can then output a \emph{histogram} of these probabilities, one for each bin. The resulting histogram is then smoothed using kernel density estimation, and the resulting density forms the final, continuous probability distribution.
+We adapt the method of Charpiat et al.~\shortcite{MultimodalColorization}, who build multimodal distributions of colors given local texture features for grayscale image colorization. We first discretize the space of possible property values into a finite number of bins. Next, we train a regression model on $(\prop(\colors), \features)$ pairs extracted from the training dataset. The regressor is trained to predict, given a feature vector $\features$, the probability that its corresponding property value $\prop(\colors)$ falls into each bin. Given a new, never-before-seen feature vector, the regressor can then output a \emph{histogram} of these probabilities, one for each property value bin. The histogram is then smoothed using kernel density estimation, and the resulting density forms the final, continuous probability distribution.
 
 In our implementation, we discretize the space of property values using K-means clustering with $k = 10$ on the values found in the training examples. We then use multinomial logistic regression to predict the histograms of property values given features.
 %To ensure each pattern template in the training set has equal influence in the regression, we weight each group example by one over the number of groups in the template; segment examples are weighted similarly.
