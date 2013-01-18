@@ -15,7 +15,7 @@ People can color patterns with a variety of different criteria in mind, which ma
 
 \paragraph{Coloring with fixed palettes} 
 
-Artists often draw inspiration from inspirational photographs and existing color themes, and may have specific colors in mind when coloring in a pattern. However, even with a fixed palette of colors, there are still a range of images that can be created by mapping different colors to different regions, some more desirable than others. To support this scenario, we use our model's score to rank all possible permutations of the colors, excluding the O'Donovan color compatibility factor.
+Artists often draw inspiration from inspirational photographs and existing color themes and may have specific colors in mind when coloring in a pattern. Even with a fixed color palette, mapping different colors do different regions leads to a range of possible images, some more desirable than others. We can use our model's score to rank all possible permutations of the palette colors (excluding the color compatibility factor).
 
 Figure~\ref{fig:photographMatching} shows an example where colors from two photographs are applied to different pattern templates. A color palette is first automatically extracted from the input photograph~\cite{SharonPaletteExtraction}. Our algorithm then automatically computes a pleasing mapping from the colors in the extracted palette to regions in a given pattern template.~\remark{Comment on e.g. why does it use white for the background?} 
 
@@ -56,15 +56,14 @@ Initial automatic suggestions & After fixing the stem to be green\\
 \vspace{-1.0em}
 \end{figure*}
 
+Although using a well-designed color palette often improves the look of a pattern, the spatial arrangement of those colors can make a dramatic difference in appearance. Figure~\ref{fig:permutation} shows two input color palettes for the bird pattern and the highest and lowest-scoring color assignments to the pattern using those palettes. The palettes were originally created by artists beforehand either from scratch or from a photograph, and were actually applied to this pattern on COLOURlovers. Our model ranks the original artist-created color assignments as 39th (top palette) and 21st (bottom palette) out of 120 possible permutations. This suggests that the model may be capturing general artist trends in pattern coloring.
 
-Although using a pleasing palette often improves the look of a pattern, the spatial arrangement of those colors can make a dramatic difference in appearance. Figure~\ref{fig:permutation}, shows two input color palettes for the bird pattern and the highest and lowest-scoring color assignments to the pattern from our model. These palettes were originally created by artists beforehand either from scratch or from a photograph, and were actually applied to this pattern on COLOURlovers. Our model ranks the original artist-created color assignments as 39th (top palette) and 21st (bottom palette) out of 120 possible permutations. This suggests that the model may be capturing general artist trends in pattern coloring.
-
-In this example, the model terms that most distinguish the 3 highest-scoring assignments from the 3 lowest-scoring assignments are the group and segment color name counts. Our model prefers colors like yellow, grey, and green to red-orange and orange-brown for background colors. Assignments with these orange background colors tend to be ranked the lowest. This may be because there are few popular patterns with orange backgrounds in our training set.
+In this example, the model terms that most distinguish the 3 highest-scoring assignments from the 3 lowest-scoring assignments are the group and segment color name counts. Our model prefers colors such as yellow, grey, and green to red-orange and orange-brown for background colors. Assignments with these orange background colors tend to be ranked the lowest. This may be because there are few popular patterns with orange backgrounds in our training set.
 
 
 \paragraph{Hard color constraints}
 
-In some cases, a user may only have partial knowledge about the colors she wants to see in particular pattern regions. Our model can assist users in this situation by fixing the color of certain pattern regions and using conditional inference to sample values for the remaining unconstrained color variables. Figure~\ref{fig:constrainedInference} shows an example, where after viewing the initial suggestions, the user decides she wants to see more results where the stem of the plant is a particular green, and our system outputs new suggestions subject to this constraint.~\remark{Comment on the effect this has (i.e. it makes other regions more likely to also be green, etc.)}
+In some cases, a user may only have partial knowledge about the colors she wants to see in particular pattern regions. Our model can assist users in this situation by fixing the color of certain pattern regions and using conditional inference to sample values for the remaining unconstrained color variables. Figure~\ref{fig:constrainedInference} shows an example. After viewing an initial set of coloring suggestions, the user decides she wants to see more results where the stem of the plant is a particular shade of green. Our system outputs new suggestions subject to this constraint.~\remark{Comment on the effect this has (i.e. it makes other regions more likely to also be green, etc.)}
 
 \paragraph{Soft color constraints}
 
@@ -110,7 +109,7 @@ Original&Suggestions\\
 \vspace{-1.0em}
 \end{figure}
 
-Figure~\ref{fig:nearbySuggestions} shows example scenarios where a proposed coloring is given, and the model returns similar colorings. Here we choose $\sigma_\textrm{user}$ to be 10\% of the diagonal length of the \lab color space, and $w_\textrm{user}=3$, indicating a desire to remain fairly close to the original coloring. Our model is able to make numerous variations to the input colors while still preserving the overall quality of the results.
+Figure~\ref{fig:nearbySuggestions} shows two example scenarios where a proposed coloring is given and the model returns similar colorings. Here we choose $\sigma_\textrm{user}$ to be 10\% of the diagonal length of the \lab color space, and $w_\textrm{user}=3$, indicating a desire to remain fairly close to the original coloring. Our model generates numerous variations on the input coloring while still preserving its overall character.
 
 \begin{figure}[ht]
 \begin{tabular}{ccc} 
@@ -138,7 +137,7 @@ Artist A&Artist B\\
 \label{fig:artistTraining}
 \end{figure*}
 
-\paragraph{Style capture} A powerful advantage of a data-driven approach is the ability to modify the underlying training source to achieve specialization of the resulting model. This ability allows our model to capture a specific style and color preferences such as ``high-contrast patterns'' by selecting a set of patterns with the desired property. Figure~\ref{fig:styleTraining} demonstrates this behavior using four style categories: \emph{Light}, \emph{Dark}, \emph{Bold}, and \emph{Mellow}. Using 17 training examples, our model can capture general properties of the example patterns such as the distribution of colors over the background regions in \emph{Light} and \emph{Dark} and the amount of contrast between regions in \emph{Bold} and \emph{Mellow}. The model can also capture the style of a specific artist, as shown in Figure~\ref{fig:artistTraining}. Here, 100 images from each artist were used for training. The sampled images mimic certain properties of the the style of each artist, such as the light backgrounds preferred by artist A and the bold colors and dark backgrounds preferred by artist B. The complete list of patterns used as training data for these examples can be found in the supplemental materials.
+\paragraph{Style capture} A powerful advantage of a data-driven approach is the ability to modify the underlying training source to achieve specialization of the resulting model. This ability allows our model to capture a specific style and color preferences such as ``high-contrast patterns'' by selecting a set of patterns with the desired property. Figure~\ref{fig:styleTraining} demonstrates this behavior using four style categories: \emph{Light}, \emph{Dark}, \emph{Bold}, and \emph{Mellow}. Using 17 training examples, our model can capture general properties of the example patterns such as the distribution of colors over the background regions in \emph{Light} and \emph{Dark} and the level of contrast in \emph{Bold} and \emph{Mellow}. The model can also capture the style of a specific artist, as shown in Figure~\ref{fig:artistTraining}. Here, 100 images from each artist were used for training. The sampled images mimic properties of each artist's style, such as the light backgrounds preferred by Artist A and the bold colors and dark backgrounds preferred by Artist B. The complete list of patterns used as training data for these examples can be found in the supplemental materials.
 
 \subsection{Applications}
 
