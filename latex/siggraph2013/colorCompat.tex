@@ -11,7 +11,7 @@ To turn a theme's predicted rating into a score consistent with our unary and bi
 \colorCompatInstStats(\colors_1 \ldots \colors_5) = \ln(\texttt{compat}(\colors_1 \ldots \colors_5) / 5)
 \end{equation*}
 %%%
-where $\colors_1 \ldots \colors_5$ are the colors of the five largest color groups in the pattern and \texttt{compat} is the O'Donovan color compatibility model.
+where $\colors_1 \ldots \colors_5$ are the colors of the five largest color groups in the pattern and \texttt{compat} is the O'Donovan color compatibility model. Our implementation uses the O'Donovan model of color compatibility, but the system is flexible and can accomodate any other color compatibility or harmony model that can assign a score to a set of colors.
 
 %Previous work has shown that the aesthetic appeal of an image can be improved by increasing the compatibility or harmony of image colors ~\cite{CohenOrHarmonization,DressUp,ColorizationUsingHarmony,ODonovan}. Our model includes a color compatibility term to score the general appeal of the colors in an assignment, based on the compatibility model introduced by O'Donovan et al.~\shortcite{ODonovan}. This compatibility model predicts 0-5 numeric aesthetic ratings for five-color `color themes,' which are ordered rows of five colors. 
 %
