@@ -145,17 +145,17 @@ Artist A&Artist B\\
 Next, we show how our model can be applied to real-world pattern coloring tasks, such as coloring in webpage backgrounds, coordinating colors in interior scene design, and suggesting clothing colorings to fit people with different physical attributes. %We show how to color the background of a webpage to match different foreground color themes, how to improve the color coordination of interior scene designs, and how to suggest colorings for clothing patterns to fit people with different physical attributes.
 
 \paragraph{Web design}
-A web designer may want to change a web page's color theme to fit the season, a special event, or even the time of day. Our model can support this tasks by suggesting recolorings for web page pattern elements. In Figure~\ref{fig:webpageRecoloring}, the background pattern of a blog is automatically recolored in three distinct styles. Each style is defined by a manually-specified page body color and header text color. We generate these recolorings by adding new factors to the model. First, we add a unary factor to each color variable that encourages similarity to a color that occurs in the web page body:
+A web designer may want to change a web page's color theme to fit the season, a special event, or even the time of day. Our model can support these tasks by suggesting recolorings for web page pattern elements. In Figure~\ref{fig:webpageRecoloring}, the background pattern of a blog is automatically recolored in three distinct styles. Each style is defined by a manually-specified page body color and header text color. We generate these recolorings by adding new factors to the model. First, we add a unary factor to each color variable that encourages similarity to a color that occurs in the web page body:
 %%
 \begin{equation*}
-\factor^\textrm{WebSim}(\colorVars_\group | \webpage) = p(\colorVars_\group | \webpage)
+\factor^\textrm{WebSim}(\colors_\group | \webpage) = p(\colors_\group | \webpage)
 \end{equation*}
 %%
 where $\webpage$ is a rendered image of the web page body. The distribution $p$ is represented with a smoothed histogram of colors in the image, after quantizing to a small number of colors (20, in this experiment).
 We also add a factor to the pattern's background color group that penalizes similarity to the web page body background color:
 %%
 \begin{equation*}
-\factor^\textrm{BgPen}(\colorVars_{\textrm{largest}(\groups)} | \webpage) = 0.05 \cdot || \colorVars_{\textrm{largest}(\groups)} - \textrm{bgColor}(\webpage) ||
+\factor^\textrm{BgPen}(\colors_{\textrm{largest}(\groups)} | \webpage) = 0.05 \cdot || \colors_{\textrm{largest}(\groups)} - \textrm{bgColor}(\webpage) ||
 \end{equation*}
 %%
 This term ensures that the body of the page stands out from the rest of the page. A more sophisticated approach would treat the entire web page as a pattern and perform joint recoloring; we leave this extension to future work.

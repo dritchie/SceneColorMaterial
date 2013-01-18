@@ -98,7 +98,7 @@ Finally, we use maximimum marginal relevance (MMR) to enforce diversity in the s
 
 The factor graph model we have defined is parameterized by a vector of weights $\weights$. Setting these weights manually proves challenging, as it is not obvious which color properties matter most to the quality of a pattern coloring. Instead, we would like to set them automatically, using our training dataset as a guide.
 
-We formualate the weight-tuning problem as one of \emph{maximum likelihood parameter estimation}: that is, we would like to set the weights such that the training examples have high probability under the resulting model. We first rewrite the probability distribution encoded by our model from a weight-centric view
+We formulate the weight-tuning problem as one of \emph{maximum likelihood parameter estimation}: we would like to set the weights such that the training examples have high probability under the resulting model. We first rewrite the probability distribution encoded by our model from a weight-centric view
 %%
 \begin{equation*}
 p(\colors | \pattern : \weights) = \frac{1}{Z(\pattern : \weights)} \prod_{w \in \weights} \exp(w \cdot \weightStats(\colors, \pattern))
@@ -125,7 +125,7 @@ Convex log-likelihoods such as this are typically maximized via gradient ascent.
 		- \expectation_\weights[\weightStats(\colorVars, \pattern)]
 \end{equation*}
 %%
-where $\expectation_\weights$ denotes an expectation under the model with weights $\weights$. Unfortunately, these quantities are extremely expensive to compute. The expectation term requires probabilistic inference---an NP-complete problem---for every training pattern, for every iteration of gradient ascent.
+where $\expectation_\weights$ denotes an expectation under the model with weights $\weights$. Unfortunately, these quantities are extremely expensive to compute: the expectation term requires probabilistic inference---an NP-complete problem---for every training pattern, for every iteration of gradient ascent.
 
 This computational intractability has motivated the development of alternative, `biased' parameter estimation schemes which do not directly maximize the likelihood function but nevertheless yield parameters that give high likelihoods. We use one such method called \emph{Contrastive Divergence} (CD)~\cite{ContrastiveDivergence}. CD uses the following approximation to the likelihood gradient:
 %% CD gradient

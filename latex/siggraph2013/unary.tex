@@ -26,7 +26,7 @@ Distinctive spatial features of a color group, as well as the features of the se
 \begin{description}
 	\item[Relative Size] The area occupied by the group divided by the total area of the pattern.
   \item[Segment Spread] The 2D covariance matrix of the group's segment centroids. This feature captures whether the group is concentrated in one section of the pattern or spread across the whole pattern.
-  \item[Segment Size Statistics] The min, mean, max, and standard deviation of the sizes of segments within the group.
+  \item[Segment Size Statistics] The minimum, maximum, mean, and standard deviation of the sizes of segments within the group.
   \item[Number of Segments] The number of segments in the group divided by the total number of segments in the image
 \end{description}
 %%
@@ -37,7 +37,7 @@ We also consider the following features for individual segments within a color g
   \item[Normalized Discrete Compactness] A relationship between the segment's boundary edges and its area~\cite{NormalizedDiscreteCompactness}.
   \item[Elongation] The relative narrowness of a segment based on its minimum area bounding box: $1-\frac{\textrm{boxWidth}}{\textrm{boxHeight}}$. A square is the least elongated.
   \item[Radial Distance] Euclidean distance from the segment's centroid to the center of the pattern.
-  \item[Role Labels] A set of three binary values: {\emph{Noise}, \emph{Background}, \emph{Foreground}}. \emph{Noise} value indicates if the segment was labeled as `noise' during preprocessing (Section~\ref{sec:dataset}). \emph{Background} indicates if a segment belongs to the group with the largest connected component. All other segments are labeled \emph{Foreground}.
+  \item[Role Labels] A set of three binary values: {\emph{Noise}, \emph{Background}, \emph{Foreground}}. \emph{Noise} indicates if the segment was labeled as `noise' during preprocessing (Section~\ref{sec:dataset}). \emph{Background} indicates if a segment belongs to the group with the largest connected component. All other segments are labeled \emph{Foreground}.
 \end{description}
 
 \subsection{Color Property Distributions}
