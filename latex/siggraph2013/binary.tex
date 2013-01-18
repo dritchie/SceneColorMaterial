@@ -37,7 +37,18 @@ For a particular pair of adjacent segments $(\segment, \segprime)$ and a color p
 %%
 where $\adjStrength(\segment,\segprime)$ is the \emph{strength} of the adjacency $(\segment,\segprime)$. We define adjacency strength as the number of pixels from segments $\segment$ or $\segprime$ that are within a 2-pixel distance from their perimeters. All adjacency strengths in a given pattern are normalized to sum to 1. We learn the distributions $p$ using the `histogram regression' approach described in Section~\ref{sec:unary}.
 
-\remark{Show \& discuss an example of two adjacencies that have different feature vectors \& different predicted CPDs for some property (Perhaps show adjacency between foreground-outline is different than for outline-background?)}
+Figure~\ref{fig:binaryHistograms} shows predicted distributions over relative lightness for two different adjacent segment pairs; a value of 0 indicates identical lightness values. The two distributions are similar in shape and reflect the intution that no two adjacent segments should be completely equi-luminant. However, the foreground-background adjacency between the kite and the sky concentrates more of its mass toward higher lightness differences. Together, these two distributions suggest that foreground-background adjacencies should have higher lightness contrast than foreground-foreground adjacencies.
+
+\begin{figure}[ht]
+\begin{tabular}{cc}
+{\raisebox{4em}{\includegraphics[width=.25\columnwidth]{figs/histograms/foregroundAdjacency}}}&\includegraphics[width=.60\columnwidth]{figs/histograms/foregroundAdjacencyHistogram}\vspace{0.5em}\\
+{\raisebox{4em}{\includegraphics[width=.25\columnwidth]{figs/histograms/foregroundBackgroundAdjacency}}}&\includegraphics[width=.60\columnwidth]{figs/histograms/foregroundBackgroundAdjacencyHistogram}\vspace{0.5em}\\
+\end{tabular}
+
+\caption{Predicted distributions over relative lightness for two different segment adjacencies (participating segments higlighted in orange and green). The foreground-foreground distribution permits more similar lightness values than the foreground-background disribution.}
+\label{fig:binaryHistograms}
+\vspace{-1.0em}
+\end{figure}
 
 %Good color assignments to adjacent segments may depend on the nature of their adjacency. For example, a square enclosed by a thin border appears different from a square enclosed by a thick border, and different again from a square side-by-side with another square (Figure~\ref{fig:surround}). Thus, when computing features of an adjacency we include the features of the segments involved as well as how much one neighbor encloses another.
 %\begin{figure}[ht]
