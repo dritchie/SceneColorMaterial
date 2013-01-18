@@ -6,11 +6,10 @@ We have defined unary, binary, and global scoring functions for pattern color pr
 To do this, we turn to the language of \emph{probabilistic factor graphs}. A factor graph is a type of probabilistic graphical model that decomposes a complex probability distribution over multiple variables into a set of smaller \emph{factors} over smaller subsets of the variables. In our case, the variables $\colorVars$ are the colors of each color group in a pattern, and the factors $\factor$ are derived from the scoring functions defined in the previous sections. Figure~\ref{fig:FactorGraph} shows an example of a factor graph for one simple pattern. The circles denote color variables, while squares denote different factors $\factor$. Edges in the graph connect each factor to the variables within its scope.
 
 \begin{figure}[ht]
-\begin{tabular}{cc}
-\raisebox{4em}{\includegraphics[width=.2\columnwidth]{figs/factorGraphPattern}} &
-\includegraphics[width=.7\columnwidth]{figs/factorGraph} \\
-\end{tabular} 
-\caption{A factor graph for an example pattern template. Factors correspond with the color compatibility and spatial terms from our model. In the figure, nodes are colored according to their corresponding color group in the pattern\remark{Rough figure.}}
+%\raisebox{4em}{\includegraphics[width=.2\columnwidth]{figs/factorGraphPattern}} &
+%\includegraphics[width=.7\columnwidth]{figs/factorGraph} 
+\includegraphics[width=\columnwidth]{figs/factorGraphNew}
+\caption{A factor graph for an example pattern template. Factors correspond with the color compatibility and spatial terms from our model. In the figure, nodes are colored according to their corresponding color group in the pattern.}
 \label{fig:FactorGraph}
 \end{figure}
 
