@@ -37,7 +37,7 @@ For a particular pair of adjacent segments $(\segment, \segprime)$ and a color p
 %%
 where $\adjStrength(\segment,\segprime)$ is the \emph{strength} of the adjacency $(\segment,\segprime)$. We define adjacency strength as the number of pixels from segments $\segment$ or $\segprime$ that are within a 2-pixel distance from their perimeters. All adjacency strengths in a given pattern are normalized to sum to 1. We learn the distributions $p$ using the `histogram regression' approach described in Section~\ref{sec:unary}.
 
-Figure~\ref{fig:binaryHistograms} shows predicted distributions over relative lightness for two different adjacent segment pairs. The two distributions are similar in shape and reflect the intuition that no two adjacent segments should be completely equi-luminant. However, the foreground-background adjacency between the kite and the sky concentrates more of its mass toward higher lightness differences. Together, these two distributions suggest that foreground-background adjacencies should exhibit more lightness contrast than foreground-foreground adjacencies.
+Figure~\ref{fig:binaryHistograms} shows predicted distributions over relative lightness for two different adjacent segment pairs. The two distributions are similar in shape and reflect the intuition that no two adjacent segments should be completely equi-luminant. However, the adjacency between the foreground flower and the background concentrates more of its mass toward higher lightness differences. Together, these two distributions suggest that foreground-background adjacencies should exhibit more lightness contrast than foreground-foreground adjacencies.
 
 \begin{figure}[ht]
 \begin{tabular}{cc}
