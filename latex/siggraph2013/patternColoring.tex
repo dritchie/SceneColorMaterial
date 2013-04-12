@@ -14,7 +14,7 @@
 %%% [review] - A technical paper submitted for review. Includes line
 %%%   numbers and anonymization of author and affiliation information.
 
-\documentclass[review]{acmsiggraph}
+\documentclass[annual]{acmsiggraph}
 
 %%% If you are submitting your paper to one of our annual conferences - the 
 %%% ACM SIGGRAPH conference held in North America, or the SIGGRAPH Asia 
@@ -27,7 +27,7 @@
 %%% submission management system. Replace '45678' with the value you were
 %%% assigned.
 
-\TOGonlineid{0399}
+%%%\TOGonlineid{0399}
 
 %%% 2. ``\TOGvolume'' and ``\TOGnumber''
 %%% If you are preparing a preprint of your accepted paper, and your paper
@@ -36,8 +36,8 @@
 %%% volume and number values for that issue - you'll get them before your
 %%% final paper is due.
 
-%\TOGvolume{0}
-%\TOGnumber{0}
+\TOGvolume{32}
+\TOGnumber{4}
 
 %%% 3. ``TOGarticleDOI''
 %%% The ``TOGarticleDOI'' command accepts the DOI information provided to you
@@ -45,7 +45,7 @@
 %%% article page and direct PDF link in the ACM Digital Library.
 %%% Replace ``1111111.2222222'' with the values you are given.
 
-%\TOGarticleDOI{1111111.2222222}
+\TOGarticleDOI{2461912.2461988}
 
 %%% 4. ``\TOGprojectURL'', ``\TOGvideoURL'', ``\TOGdataURL'', ``\TOGcodeURL''
 %%% If you would like to include links to personal repositories for auxiliary
@@ -68,16 +68,15 @@
 %%% For multiple authors, separate each author's information by the ``\and''
 %%% command.
 
-\author{Matthew Fisher\thanks{e-mail: \{mdfisher, dritchie, msavva, hanrahan\}@stanford.edu}\\ Stanford University %
+\author{Sharon Lin\thanks{e-mail: \{sharonl, dritchie, mdfisher, hanrahan\}@stanford.edu}\\ Stanford University %
 \and Daniel Ritchie\footnotemark[1]\\ Stanford University %
-\and Manolis Savva\footnotemark[1]\\ Stanford University %
-\and Thomas Funkhouser\thanks{e-mail: funk@cs.princeton.edu}\\ Princeton University %
+\and Matthew Fisher\footnotemark[1]\\ Stanford University %
 \and Pat Hanrahan\footnotemark[1]\\ Stanford University}
 
 %%% The ``pdfauthor'' command accepts the authors of the work,
 %%% comma-delimited, and adds this information to the PDF metadata.
 
-\pdfauthor{Matthew Fisher, Manolis Savva, Daniel Ritchie, Thomas Funkhouser, Pat Hanrahan}
+\pdfauthor{Sharon Lin, Daniel Ritchie, Matthew Fisher, Pat Hanrahan}
 
 %% Insert paper keywords here!
 \keywords{Probabilistic modeling, factor graphs, colorization, graphic design, data-driven methods, Markov Chain Monte Carlo}
@@ -105,6 +104,8 @@
 %% Macros and mathematical notation
 \input{macros.tex}
 \input{notation.tex}
+
+\widowpenalty=500
 
 \begin{document}
 
@@ -163,7 +164,7 @@
 \input{results.tex}
 \input{evaluation.tex}
 \input{discussion.tex}
-%\input{acknowledgments.tex}
+\input{acknowledgments.tex}
 
 \bibliographystyle{acmsiggraph}
 \bibliography{patternColoring}

@@ -6,13 +6,13 @@ As discussed in Section~\ref{sec:approach}, color compatibility alone does not p
 \subsection{Color Properties and Predictive Features}
 \label{sec:unaryPropsAndFeatures}
 
-While we could directly predict distributions over colors for pattern regions, predicting distributions instead over \emph{properties} of those colors has benefits. First, it generalizes better to colors that do not occur in the training dataset but are stylistically consistent with that dataset's overall style: a training set that uses pastel colors might not contain a particular pastel blue, but that does not mean our system should not use it. Second, it allows the relative importance of different properties to be tuned: it may be more critical to set the lightness of a pattern region correctly than to use the perfect hue.
+While we could directly predict distributions over colors for pattern regions, predicting distributions instead over \emph{properties} (e.g. lightness or saturation) of those colors has benefits. First, it generalizes better to colors that do not occur in the training dataset but are consistent with that dataset's overall style: a training set that uses pastel colors might not contain a particular pastel blue, but that does not mean our system should not use it. Second, it allows the relative importance of different properties to be tuned: it may be more critical to set the lightness of a pattern region correctly than to use the perfect hue.
 
 Many different color properties can contribute to the appearance of a pattern coloring. For the colors of individual pattern regions, our method considers the following set:
 %%%
 %\begin{description}[leftmargin=*]
 \begin{description}
-	\item[Lightness] is the L component of a color in the \lab color space. This value affects the `achromatic luminance' of a color, or how bright the color appears to an observer.
+	\item[Lightness] is the L component of a color in the \lab color space. This value affects how bright the color appears to an observer.
 	\item[Saturation] is the difference between a color and neutral gray, and affects how vivid the color appears. Rather than the typical HSV saturation, we use a more perceptually-based formula that operates in \lab space: $\frac{\sqrt{a^2+b^2}}{\sqrt{a^2+b^2+L^2}}$ ~\cite{ColorfulnessReference}
 	\item[Color Name Counts] is a vector of counts that summarizes how frequently a color is referred to using different names. The common names of a color often convey higher-level stylistic information about it. These vectors were derived in previous work from data collected in a large online color naming survey~\cite{ColorNamingModels}.
 	\item[Color Name Saliency] is a measure of how reliably a color is named~\cite{ColorNamingModels}. It is derived through an entropy-based formulation and conveys information about how `instantly recognizable' a color is likely to be.
@@ -49,14 +49,14 @@ With a set of color properties and predictive features in hand, our goal is to p
 \groupInstStats(\colors_\group) =  \ln p( \prop( \colors_\group ) | \features_\group ) \cdot \size_\group
 \end{equation*}
 %%
-where $\colors_\group$ is the color of group $\group$ and $\features_\group$ are its features. We weight by the area of the group as larger regions tend to have more impact on the appearance of a coloring. Similarly, for a segment $\segment$, we need the function $\segInstStats(\colors_\segment) = \ln p( \prop( \colors_\segment ) | \features_\segment) \cdot \size_\segment$. Evaluating these functions on a particular color results in a `score' for how well that color fits the given group or segment, according to the property $\prop$.
+where $\colors_\group$ is the color of group $\group$ and $\features_\group$ are its features. We weight by the area of the group $\size_\group$ as larger regions tend to have more impact on the appearance of a coloring. Similarly, for a segment $\segment$, we need the function $\segInstStats(\colors_\segment) = \ln p( \prop( \colors_\segment ) | \features_\segment) \cdot \size_\segment$. Evaluating these functions on a particular color results in a `score' for how well that color fits the given group or segment, according to the property $\prop$.
 
-Figure~\ref{fig:unaryHistograms} shows predicted distributions over lightness for two different pattern regions. The background sky color group, which is larger, more spread, and has fewer components, exhibits a bimodal distribution, which aligns well with the intuition that backgrounds are either dark or light but rarely of middling brightness. It favors light backgrounds, reflecting the stylistic biases of the data used for training. The smaller, more concentrated, foreground kite color group, on the other hand, strictly prefers lighter colors.
+Figure~\ref{fig:unaryHistograms} shows predicted distributions over lightness for two different pattern regions using training data from the top 10 artists in our dataset. The background color group, which is larger and more spread exhibits a bimodal distribution, which aligns well with the intuition that backgrounds are either dark or light but rarely of middling brightness. It favors light backgrounds, reflecting the stylistic biases of the data used for training. The smaller, more concentrated, foreground flower color group, on the other hand, strictly prefers lighter colors.
 
 \begin{figure}[ht]
 \begin{tabular}{cc}
-{\raisebox{4em}{\includegraphics[width=.25\columnwidth]{figs/histograms/backgroundGroup}}}&\includegraphics[width=.60\columnwidth]{figs/histograms/backgroundGroupHistogram}\vspace{0.5em}\\
-{\raisebox{4em}{\includegraphics[width=.25\columnwidth]{figs/histograms/foregroundGroup}}}&\includegraphics[width=.60\columnwidth]{figs/histograms/foregroundGroupHistogram}\vspace{0.5em}\\
+{\raisebox{4em}{\includegraphics[width=.25\columnwidth]{figs/histograms/b}}}&\includegraphics[width=.60\columnwidth]{figs/histograms/backgroundGroupHistogram2}\vspace{0.5em}\\
+{\raisebox{4em}{\includegraphics[width=.25\columnwidth]{figs/histograms/f}}}&\includegraphics[width=.60\columnwidth]{figs/histograms/foregroundGroupHistogram2}\vspace{0.5em}\\
 \end{tabular}
 
 \caption{Predicted distributions over lightness for two different pattern color groups (higlighted in orange). The background has a bimodal distribution, whereas the foreground strictly favors lighter colors.}

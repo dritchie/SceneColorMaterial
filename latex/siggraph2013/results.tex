@@ -13,13 +13,7 @@ People can color patterns with a variety of different criteria in mind, which ma
 
 \paragraph{Automatic pattern coloring} In the most direct application of our framework, we can sample from our model to produce colorings for a pattern template that are similar to the colorings used for training. Figure~\ref{fig:teaser} shows two examples of this process. The sampled patterns exhibit a range of colors and styles employed by the COLOURLovers artists. For comparison, the same patterns colored with palettes randomly sampled from RGB-space are shown on the right. These patterns exhibit significant problems, such as low color harmony and adjacent regions with equi-luminant colors.
 
-\paragraph{Coloring with fixed palettes} 
-
-Artists often draw inspiration from inspirational photographs and existing color themes and may have specific colors in mind when coloring in a pattern. Even with a fixed color palette, mapping different colors to different regions leads to a range of possible images, some more desirable than others. We can use our model's score to rank all possible permutations of the palette colors (excluding the color compatibility factor).
-
-Figure~\ref{fig:photographMatching} shows an example where colors from two photographs are applied to different pattern templates. A color palette is first automatically extracted from the input photograph~\cite{SharonPaletteExtraction}. Our algorithm then automatically computes a pleasing mapping from the colors in the extracted palette to regions in a given pattern template.~\remark{Comment on e.g. why does it use white for the background?} 
-
-\begin{figure}[h!]
+\begin{figure}[t!]
 \begin{tabular}{cccc} 
 \raisebox{0.5em}{\includegraphics[width=.275\columnwidth]{figs/photos/brick}}&
 \includegraphics[width=.65\columnwidth]{figs/photos/brickAll}\\
@@ -31,6 +25,12 @@ Figure~\ref{fig:photographMatching} shows an example where colors from two photo
 \vspace{-1.0em}
 \label{fig:photographMatching}
 \end{figure}
+
+\paragraph{Coloring with fixed palettes} 
+
+Artists often draw inspiration from inspirational photographs and existing color themes and may have specific colors in mind when coloring in a pattern. Even with a fixed color palette, mapping different colors to different regions leads to a range of possible images, some more desirable than others. We can use our model's score to rank all possible permutations of the palette colors (excluding the color compatibility factor).
+
+Figure~\ref{fig:photographMatching} shows an example where colors from two photographs are applied to different pattern templates. A color palette is first automatically extracted from the input photograph~\cite{SharonPaletteExtraction}. Our algorithm then automatically computes a pleasing mapping from the colors in the extracted palette to regions in a given pattern template.~\remark{Comment on e.g. why does it use white for the background?} 
 
 
 \begin{figure*}[ht!]
@@ -56,7 +56,7 @@ Initial automatic suggestions & After fixing the stem to be green\\
 \vspace{-1.0em}
 \end{figure*}
 
-Although using a well-designed color palette often improves the look of a pattern, the spatial arrangement of those colors can make a dramatic difference in appearance. Figure~\ref{fig:permutation} shows two input color palettes for the bird pattern and the highest and lowest-scoring color assignments to the pattern using those palettes. These palettes were originally used by artists to color in this pattern on COLOURlovers. Because the pattern has 5 color groups, there are 120 possible color assignments for a given 5-color palette. Our model ranks the original artist-created color assignments as 39th (for the first palette) and 21st (for the second) out of the 120 permutations. Over a larger sampling of 188 patterns, artist-created colorings rank in the top 40\%, suggesting that the model captures general artist trends in pattern coloring. However, there may be stylistic variations between different artists that are not well predicted by a single model.
+Although using a well-designed color palette often improves the look of a pattern, the spatial arrangement of those colors can make a dramatic difference in appearance. Figure~\ref{fig:permutation} shows two input color palettes for the bird pattern and the highest and lowest-scoring color assignments to the pattern using those palettes. These palettes were originally used by artists to color in this pattern on COLOURlovers. Because the pattern has 5 color groups, there are 120 possible color assignments for a given 5-color palette. Our model ranks the original artist-created color assignments as 39th (for the first palette) and 21st (for the second) out of the 120 permutations. Over a larger sampling of 188 patterns, artist-created colorings rank in the top 40\% overall, suggesting that the model captures general artist trends in pattern coloring. However, there may be stylistic variations between different artists that are not well predicted by a single model.
 
 In this example, the model terms that most distinguish the highest-scoring assignments from the lowest-scoring ones are the color name counts factors. The model prefers colors such as Yellow, Grey, and Green to Red-Orange and Orange-Brown for background regions. Colorings with orange background colors tend to score poorly, perhaps because there are few popular patterns with orange backgrounds in our training set.
 %Other distinguishing terms include perceptual difference between adjacent regions.
@@ -98,7 +98,7 @@ Here, $\textrm{targetColor}(\group)$ is the desired color of group $\group$ and 
 %\vspace{-1.0em}
 %\end{figure}
 
-\begin{figure}[!h]
+\begin{figure}[t!]
 \begin{tabular}{cc}
 {\includegraphics[width=.1785\columnwidth]{figs/guidedSearch1Original}}&\includegraphics[width=.735\columnwidth]{figs/guidedSearch1MMR}\vspace{0.5em}\\
 {\includegraphics[width=.1785\columnwidth]{figs/guidedSearch0Original}}&\includegraphics[width=.735\columnwidth]{figs/guidedSearch0MMR}\vspace{0.5em}\\
@@ -113,24 +113,25 @@ Original&Suggestions\\
 
 Figure~\ref{fig:nearbySuggestions} shows two example scenarios where a proposed coloring is given and the model returns similar colorings. Here we choose $\sigma_\textrm{user}$ to be 10\% of the diagonal length of the \lab color space, and $w_\textrm{user}=3$, indicating a desire to remain fairly close to the original coloring. Our model generates numerous variations on the input coloring while still preserving its overall character.
 
-\begin{figure}[ht]
+\begin{figure}[t!]
 \begin{tabular}{ccc} 
 Style&Example&Results\\ %\hline
-\raisebox{1.55em}{\emph{Light}}&\includegraphics[width=.148\columnwidth]{figs/styleResultsLightExample}&\includegraphics[width=.62\columnwidth]{figs/styleResultsLight}\vspace{0.5em}\\
+\raisebox{1.55em}{\emph{Light}}&\includegraphics[width=.148\columnwidth]{figs/styleResultsLightExample2}&\includegraphics[width=.62\columnwidth]{figs/styleResultsLight}\vspace{0.5em}\\
 \raisebox{1.55em}{\emph{Dark}}&\includegraphics[width=.148\columnwidth]{figs/styleResultsDarkExample}&\includegraphics[width=.62\columnwidth]{figs/styleResultsDark}\vspace{0.5em}\\
 \raisebox{1.55em}{\emph{Bold}}&\includegraphics[width=.148\columnwidth]{figs/styleResultsBoldExample}&\includegraphics[width=.62\columnwidth]{figs/styleResultsBold}\vspace{0.5em}\\
 \raisebox{1.55em}{\emph{Mellow}}&\includegraphics[width=.148\columnwidth]{figs/styleResultsMellowExample}&\includegraphics[width=.62\columnwidth]{figs/styleResultsMellow}\vspace{0.5em}\\
 \end{tabular}
 
-\caption{In this example, 17 patterns were chosen in three different styles, and a representative image from each style is shown in the second column. A separate model was then trained on each style, and in the third column we show four samples drawn from each model. In each case, our model is able to learn different properties of the desired distribution over colors.}
+\caption{Training different models on patterns with different styles. (Left) A representative pattern from each style. (Right) The top four samples drawn from each model.}
 \label{fig:styleTraining}
 \vspace{-1.0em}
 \end{figure}
 
 \begin{figure*}[ht]
+\centering
 \begin{tabular}{cc} 
-\includegraphics[width=.44\linewidth]{figs/styleSugarExamples}&\includegraphics[width=.44\linewidth]{figs/styleAlbenajExamples}\vspace{1.0em}\\
-\includegraphics[width=.44\linewidth]{figs/styleSugar}&\includegraphics[width=.44\linewidth]{figs/styleAlbenaj}\\
+\includegraphics[width=.44\linewidth]{figs/styleSugarExamples2}&\includegraphics[width=.44\linewidth]{figs/styleAlbenajExamples2}\vspace{1.0em}\\
+\includegraphics[width=.44\linewidth]{figs/styleSugar2}&\includegraphics[width=.44\linewidth]{figs/styleAlbenaj2}\\
 Artist A&Artist B\\
 \end{tabular}
 
@@ -162,7 +163,7 @@ We also add a factor to the pattern's background color group that penalizes simi
 This term ensures that the body of the page does not blend into the patterned background. A more sophisticated approach would treat the entire web page as a pattern and perform joint recoloring; we leave this extension to future work.
 
 
-\begin{figure}[ht]
+\begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{figs/webpageRecoloring}
 \caption{With a few additional factors, our model can recolor the background pattern of a web page to match the colors in the page body.}
