@@ -6,7 +6,7 @@ As discussed in Section~\ref{sec:approach}, color compatibility alone does not p
 \subsection{Color Properties and Predictive Features}
 \label{sec:unaryPropsAndFeatures}
 
-While we could directly predict distributions over colors for pattern regions, predicting distributions instead over \emph{properties} of those colors (e.g. lightness or saturation) has benefits. First, it generalizes better to colors that do not occur in the training dataset but are consistent with that dataset's overall style: a training set that uses pastel colors might not contain a particular pastel blue, but that does not mean our system should not use it. Second, it allows the relative importance of different color properties to be tuned: it may be more critical to set the lightness of a pattern region correctly than to use the perfect hue.
+While we could directly predict distributions over colors for pattern regions, predicting distributions instead over \emph{properties} of those colors (e.g. lightness or saturation) has benefits. First, it generalizes better to colors that do not occur in the training dataset but are consistent with that dataset's overall style: a training set that uses pastel colors might not contain a particular pastel blue, but that does not mean our system should not use it. Second, it allows the relative importance of different color properties to be tuned: it may be more critical to set the lightness of a pattern region correctly than to use the perfect hue. Similar approaches have been succesfully deployed to model the aesthetics of photographs~\cite{PhotoAesthetics}.
 
 Many different color properties can contribute to the appearance of a pattern coloring. For the colors of individual pattern regions, our method considers the following set:
 %%%

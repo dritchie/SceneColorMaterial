@@ -175,6 +175,7 @@ This term ensures that the body of the page does not blend into the patterned ba
 
 \paragraph{3D scene design}
 Color-coordinating a virtual scene is another creative task that can benefit from computatational support. While repositories such as the 3D Warehouse provide a wealth of object models with which to build scenes, such models are rarely color coordinated with one another. Figure~\ref{fig:sceneRecoloring} shows how our model can make coordinating object colors easier. We can treat a scene as a recolorable pattern by rendering its material coefficients to an image. The user then provides a few additional annotations to specify which object components should be the same color; in this example, cushions, pillows, and wooden objects must take the same color. Finally, we add a factor to our model to enforce that the colors assigned to each component are similar to their original colors (see Equation~\ref{eq:targetFactor}) to keep the system from wandering into physically implausible colorings. The resulting model suggests plausible, improved recolorings of the scene.
+Recent related work transfers material properties from photographs to 3D scenes~\cite{MaterialStyleTransfer}; the objective functions used in this system could be adapted to soft constraints in our framework.
 %Our model's applicability to this task, despite it being trained only on \emph{2D} patterns, suggests that it captures some simple cross-domain aesthetic principles.
 
 \begin{figure*}[ht]
