@@ -71,7 +71,7 @@ In some cases, a user may only have partial knowledge about the colors she wants
 
 \paragraph{Soft color constraints}
 
-In another use case, a user might have strong preferences for the appearance of the pattern. She might manually color a pattern and then wish to see variations upon this theme, hoping to find better-looking alternatives nearby in the space of colorings. Our model can support this type of query by incorporating an additional soft constraint factor on color variable, constraining it ot be close to a target color:
+In another use case, a user might have strong preferences for the appearance of the pattern. She might manually color a pattern and then wish to see variations upon this theme, hoping to find better-looking alternatives nearby in the space of colorings. Our model can support this type of query by incorporating an additional soft constraint factor on color variable, constraining it to be close to a target color:
 %%
 \begin{equation}
 \factor^\textrm{Target}(\colorVars_\group | \pattern) = \mathcal{N}(||\colorVars_\group - \textrm{targetColor}(\group)||, \sigma_\textrm{user})
