@@ -148,7 +148,7 @@ Artist A&Artist B\\
 
 \subsection{Applications}
 
-Next, we show how our model can be applied to real-world pattern coloring tasks, such as coloring in webpage backgrounds, coordinating colors in interior scene design, and suggesting clothing colorings to fit people with different physical attributes. %We show how to color the background of a webpage to match different foreground color themes, how to improve the color coordination of interior scene designs, and how to suggest colorings for clothing patterns to fit people with different physical attributes.
+Next, we show how our model can be applied to different pattern coloring tasks, such as coloring in webpage backgrounds, coordinating colors in interior scene design, and suggesting clothing colorings to fit people with different physical attributes. %We show how to color the background of a webpage to match different foreground color themes, how to improve the color coordination of interior scene designs, and how to suggest colorings for clothing patterns to fit people with different physical attributes.
 
 \paragraph{Web design}
 A web designer may want to change a web page's color theme to fit the season, a special event, or even the time of day. Our model can support these tasks by suggesting recolorings for web page pattern elements. In Figure~\ref{fig:webpageRecoloring}, the background pattern of a blog is automatically recolored in three distinct styles. Each style is defined by a manually-specified page body color and header text color. We generate these recolorings by adding new factors to the model. First, we add a unary factor to each color variable that encourages similarity to a color that occurs in the web page body:
