@@ -1,7 +1,7 @@
 \section{Probabilistic Model}
 \label{sec:model}
 
-We have defined unary, pairwise, and global scoring functions for pattern color properties; we now need to combine them into one unified scoring function that evaluates the overall quality of a pattern coloring.
+We have defined unary, pairwise, and global scoring functions for pattern color properties; we now need to combine them into one scoring function that evaluates the overall quality of a pattern coloring.
 
 For this task, we turn to the language of \emph{probabilistic factor graphs}. A factor graph is a probabilistic graphical model that decomposes a complex probability distribution over multiple variables into a set of smaller \emph{factors} over subsets of the variables. In our case, the variables $\colorVars$ are the colors of each color group in a pattern, and the factors $\factor$ are derived from our scoring functions. Figure~\ref{fig:FactorGraph} shows an example of a factor graph for one simple pattern. The circles denote color variables, while squares denote different factors $\factor$. Edges in the graph connect each factor to the variables within its scope.
 
@@ -55,7 +55,7 @@ Our sampler uses the following MH proposals:
 	\item{\textbf{Perturb} a randomly chosen color by $v \sim \mathcal{N}(0, \sigma)$ in RGB space}
 	\item{\textbf{Swap} two randomly chosen colors}
 \end{itemize}
-where $\sigma$ varies linearly with the model temperature $t$, encouraging larger perturbations at high temperatures. The sampler chooses between these two proposals with a probability that also varies linearly with temperature. The sampler operates in RGB space since all RGB colors fall in the gamut of human color vision---which is not the case with \lab space---and the sampler should not waste time exploring colorings that cannot be visualized. Since the RGB color space is bounded, the perturbation proposal draws from a truncated normal distribution in order to maintain ergodicity of the MCMC chains~\cite{TruncatedGaussians}.
+where $\sigma$ varies linearly with the model temperature $t$, encouraging larger perturbations at high temperatures. The sampler chooses between these two proposals with a probability that also varies linearly with temperature. The sampler operates in RGB space since all RGB colors fall in the display gamut---which is not the case with \lab space---and the sampler should not waste time exploring colorings that cannot be visualized. Since the RGB color space is bounded, the perturbation proposal draws from a truncated normal distribution in order to maintain ergodicity of the MCMC chains~\cite{TruncatedGaussians}.
 
 Finally, we use maximimum marginal relevance (MMR) to enforce diversity in the set of suggestions returned by the sampler~\cite{MMR}. MMR is a technique from information retrieval that re-ranks every item in a list according to a linear combination of relevance (model score, in our case) and similarity to the items preceding it. The similarity metric we use for two colorings $\colors$ and $\tilde{\colors}$ of a pattern is $- \sum_{\group \in \groups} {\size_\group \cdot ||\colors_\group - \tilde{\colors}_\group||}$, which is the area-weighted sum of \lab distances between the corresponding colors in each coloring.
 
@@ -70,7 +70,7 @@ We formulate the weight-tuning problem as one of \emph{maximum likelihood parame
 p(\colors | \pattern : \weights) = \frac{1}{Z(\pattern : \weights)} \prod_{w \in \weights} \exp(w \cdot \weightStats(\colors, \pattern))
 \end{equation*}
 %%
-where $\weightStats(\colors, \pattern)$ sums all the scoring functions $\phi$ that share the weight $w$. We can then easily express the log-likelihood of the the weights given a dataset $\dataset$ of pattern colorings:
+where $\weightStats(\colors, \pattern)$ sums all the scoring functions $\phi$ that share the weight $w$. We can then express the log-likelihood of the weights given a dataset $\dataset$ of pattern colorings:
 %%
 \begin{equation*}
 \ell(\weights : \dataset) =
