@@ -30,7 +30,8 @@ People can color patterns with a variety of different criteria in mind, which ma
 
 Artists often draw inspiration from inspirational photographs and existing color themes and may have specific colors in mind when coloring in a pattern. Even with a fixed color palette, mapping different colors to different regions leads to a range of possible images, some more desirable than others. We can use our model's score to rank all possible permutations of the palette colors (excluding the color compatibility factor).
 
-Figure~\ref{fig:photographMatching} shows an example where colors from two photographs are applied to different pattern templates. A color palette is first automatically extracted from the input photograph~\cite{SharonPaletteExtraction}. Our algorithm then automatically computes a pleasing mapping from the colors in the extracted palette to regions in a given pattern template.~\remark{Comment on e.g. why does it use white for the background?} 
+Figure~\ref{fig:photographMatching} shows an example where colors from two photographs are applied to different pattern templates. A color palette is first automatically extracted from the input photograph~\cite{SharonPaletteExtraction}. Our algorithm then automatically computes a pleasing mapping from the colors in the extracted palette to regions in a given pattern template.
+%~\remark{Comment on e.g. why does it use white for the background?} 
 
 
 \begin{figure*}[ht!]
@@ -65,7 +66,8 @@ Our model also predicts that foreground regions should more perceptually distinc
 
 \paragraph{Hard color constraints}
 
-In some cases, a user may only have partial knowledge about the colors she wants to see in particular pattern regions. Our model assists this situation by allowing users to fix the colors of certain pattern regions. The system then uses conditional inference to sample values for the remaining unconstrained color variables. Figure~\ref{fig:constrainedInference} shows an example. After viewing an initial set of coloring suggestions, the user decides she wants to see more results where the stem of the plant is a particular shade of green. Our system outputs new suggestions subject to this constraint.~\remark{Comment on the effect this has (i.e. it makes other regions more likely to also be green, etc.)}
+In some cases, a user may only have partial knowledge about the colors she wants to see in particular pattern regions. Our model assists this situation by allowing users to fix the colors of certain pattern regions. The system then uses conditional inference to sample values for the remaining unconstrained color variables. Figure~\ref{fig:constrainedInference} shows an example. After viewing an initial set of coloring suggestions, the user decides she wants to see more results where the stem of the plant is a particular shade of green. Our system outputs new suggestions subject to this constraint.
+%~\remark{Comment on the effect this has (i.e. it makes other regions more likely to also be green, etc.)}
 
 \paragraph{Soft color constraints}
 
