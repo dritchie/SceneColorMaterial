@@ -13,7 +13,16 @@ People can color patterns with a variety of different criteria in mind, which ma
 
 \paragraph{Automatic pattern coloring} In the most direct application of our framework, we can sample from our model to produce colorings for a pattern template that are similar to the colorings used for training. Figure~\ref{fig:teaser} shows two examples of this process. The sampled patterns exhibit a range of colors and styles employed by the COLOURLovers artists. For comparison, the same patterns colored with palettes randomly sampled from RGB-space are shown on the right. These patterns exhibit significant problems, such as low color harmony and adjacent regions with equi-luminant colors.
 
-\begin{figure}[t]
+
+
+\paragraph{Coloring with fixed palettes} 
+
+
+Artists often draw inspiration from inspirational photographs and existing color themes and may have specific colors in mind when coloring in a pattern. Even with a fixed color palette, mapping different colors to different regions leads to a range of possible images, some more desirable than others. We can use our model's score to rank all possible permutations of the palette colors (excluding the color compatibility factor).
+
+Figure~\ref{fig:photographMatching} shows an example where colors from two photographs are applied to different pattern templates. A color palette is first automatically extracted from the input photograph~\cite{SharonPaletteExtraction}. Our algorithm then automatically computes a pleasing mapping from the colors in the extracted palette to regions in a given pattern template.
+
+\begin{figure}[h!]
 \begin{tabular}{cccc} 
 \raisebox{0.5em}{\includegraphics[width=.275\columnwidth]{figs/photos/brick}}&
 \includegraphics[width=.65\columnwidth]{figs/photos/brickAll}\\
@@ -22,11 +31,9 @@ People can color patterns with a variety of different criteria in mind, which ma
 \end{tabular}
 
 \caption{Palettes are extracted from the two input photographs on the left, and on the right we show the top-scoring coloring suggested by our algorithm for three different pattern templates.}
-\vspace{-1.0em}
+%\vspace{-1.0em}
 \label{fig:photographMatching}
 \end{figure}
-
-\paragraph{Coloring with fixed palettes} 
 
 \begin{figure*}[ht]
 \begin{tabular}{ccc}
@@ -51,9 +58,7 @@ Initial automatic suggestions & After fixing the stem to be green\\
 \vspace{-1.0em}
 \end{figure*}
 
-Artists often draw inspiration from inspirational photographs and existing color themes and may have specific colors in mind when coloring in a pattern. Even with a fixed color palette, mapping different colors to different regions leads to a range of possible images, some more desirable than others. We can use our model's score to rank all possible permutations of the palette colors (excluding the color compatibility factor).
 
-Figure~\ref{fig:photographMatching} shows an example where colors from two photographs are applied to different pattern templates. A color palette is first automatically extracted from the input photograph~\cite{SharonPaletteExtraction}. Our algorithm then automatically computes a pleasing mapping from the colors in the extracted palette to regions in a given pattern template.
 %~\remark{Comment on e.g. why does it use white for the background?} 
 
 Although using a well-designed color palette often improves the look of a pattern, the spatial arrangement of those colors can make a dramatic difference in appearance. Figure~\ref{fig:permutation} shows two input color palettes for the bird pattern and the highest and lowest-scoring color assignments to the pattern using those palettes. These palettes were originally used by artists to color in this pattern on COLOURlovers. Because the pattern has 5 color groups, there are 120 possible color assignments for a given 5-color palette. Our model ranks the original artist-created color assignments as 39th (for the first palette) and 21st (for the second) out of the 120 permutations. Over a larger sampling of 188 patterns, artist-created colorings rank in the top 40\% overall, suggesting that the model captures general artist trends in pattern coloring. However, there may be stylistic variations between different artists that are not well predicted by a single model.
@@ -149,6 +154,14 @@ Artist A&Artist B\\
 
 Next, we show how our model can be applied to different pattern coloring tasks, such as coloring in webpage backgrounds, suggesting clothing colorings to fit people with different physical attributes, and coordinating colors in interior scene design.
 
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\columnwidth]{figs/webpageRecoloring}
+\caption{With a few additional factors, our model can recolor the background pattern of a web page to match the colors in the page body.}
+\label{fig:webpageRecoloring}
+\vspace{-1.0em}
+\end{figure}
+
 \paragraph{Web design}
 A web designer may want to change a web page's color theme to fit the season, a special event, or even the time of day. Our model can support these tasks by suggesting recolorings for web page pattern elements. In Figure~\ref{fig:webpageRecoloring}, the background pattern of a blog is automatically recolored in three distinct styles. Each style is defined by a manually-specified page body color and header text color. We generate these recolorings by adding new factors to the model. First, we add a unary factor to each color variable that encourages similarity to a color that occurs in the web page body:
 %%
@@ -165,17 +178,21 @@ We also add a factor to the pattern's background color group that penalizes simi
 %%
 This term ensures that the body of the page does not blend into the patterned background. A more sophisticated approach would treat the entire web page as a pattern and perform joint recoloring; we leave this extension to future work.
 
+
+
+
 \paragraph{Fashion design}
 Our model can also adapt the colorings of clothing items to fit different people. Figure~\ref{fig:fashion} shows a shirt recolored to match different hair, eye, and skin tones. The hair, skin, eyes, and lips of the 3D person model were manually quantized to a single color; the resulting texture atlas functions as a recolorable pattern template. Fixing the colors of the hair, skin, eyes, and lips constrains the inference process to produce suitable colorings for a person with those physical attributes.
 %It should be possible to apply a similar procedure to photographic images, though those inputs may require an intrinsic image decomposition to separate shading from reflectance~\cite{IntrinsicImages}.
 
-\begin{figure}[ht]
+\begin{figure}[h!]
 \centering
-\includegraphics[width=\columnwidth]{figs/webpageRecoloring}
-\caption{With a few additional factors, our model can recolor the background pattern of a web page to match the colors in the page body.}
-\label{fig:webpageRecoloring}
+\includegraphics[width=\columnwidth]{figs/fashion/composite}
+\caption{Using our model to colorize a patterned shirt for different people. The hair, skin, eye, and lip colors are treated as fixed constraints, which encourage the model to produce compatible colorings via adjacencies and long-range dependencies.}
+\label{fig:fashion}
 \vspace{-1.0em}
 \end{figure}
+
 
 \paragraph{3D scene design}
 Color-coordinating a virtual scene is another creative task that can benefit from computatational support. While repositories such as the 3D Warehouse provide a wealth of object models with which to build scenes, such models are rarely color coordinated with one another. Figure~\ref{fig:sceneRecoloring} shows how our model can make coordinating object colors easier. We can treat a scene as a recolorable pattern by rendering its material coefficients to an image. The user then provides a few additional annotations to specify which object components should be the same color; in this example, cushions, pillows, and wooden objects must take the same color. Finally, we add a factor to our model to enforce that the colors assigned to each component are similar to their original colors (see Equation~\ref{eq:targetFactor}) to keep the system from wandering into physically implausible colorings. The resulting model suggests plausible, improved recolorings of the scene.
@@ -190,13 +207,7 @@ The time required to generate coloring suggestions varies depending on the visua
 Real-time coloring suggestions would benefit many of the applications demonstrated in this paper, and there are several avenues for improving the performance of our unoptimized, JVM-based prototype to this end. We could leverage the massive parallelism of graphics hardware to speed up parallel tempering, as was done in related work on automatic furniture layout~\cite{MerrellFurnitureLayout}. We could also improve the convergence of the individual MCMC chains via gradient-based proposals, as in Hamiltonian MCMC~\cite{HamiltonianMCMC}.
 %Prior work has shown the feasibility of computing the gradients of programmatically-expressed distributions using automatic differentation~\cite{AutoDiff}. 
 
-\begin{figure}[ht]
-\centering
-\includegraphics[width=\columnwidth]{figs/fashion/composite}
-\caption{Using our model to colorize a patterned shirt for different people. The hair, skin, eye, and lip colors are treated as fixed constraints, which encourage the model to produce compatible colorings via adjacencies and long-range dependencies.}
-\label{fig:fashion}
-\vspace{-1.0em}
-\end{figure}
+
 
 \begin{figure*}[ht]
 \begin{tabular}{c|ccc} 

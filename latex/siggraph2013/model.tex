@@ -9,7 +9,7 @@ For this task, we turn to the language of \emph{probabilistic factor graphs}. A 
 %\raisebox{4em}{\includegraphics[width=.2\columnwidth]{figs/factorGraphPattern}} &
 %\includegraphics[width=.7\columnwidth]{figs/factorGraph} 
 \centering
-\includegraphics[width=0.85\columnwidth]{figs/factorGraphNew}
+\includegraphics[width=0.8\columnwidth]{figs/factorGraphNew}
 \caption{A factor graph for an example pattern template. Variable nodes are colored according to their corresponding color group in the pattern.}
 \label{fig:FactorGraph}
 \end{figure}
@@ -55,7 +55,7 @@ Our sampler uses the following MH proposals:
 	\item{\textbf{Perturb} a randomly chosen color by $v \sim \mathcal{N}(0, \sigma)$ in RGB space}
 	\item{\textbf{Swap} two randomly chosen colors}
 \end{itemize}
-where $\sigma$ varies linearly with the model temperature $t$, encouraging larger perturbations at high temperatures. The sampler chooses between these two proposals with a probability that also varies linearly with temperature. The sampler operates in RGB space since all RGB colors fall in the display gamut---which is not the case with \lab space---and the sampler should not waste time exploring colorings that cannot be visualized. Since the RGB color space is bounded, the perturbation proposal draws from a truncated normal distribution in order to maintain ergodicity of the MCMC chains~\cite{TruncatedGaussians}.
+where $\sigma$ varies linearly with the model temperature $t$, encouraging larger perturbations at high temperatures. The sampler chooses between these two proposals with a probability that also varies linearly with temperature. The sampler operates in RGB space rather than \lab space, since all RGB colors fall in the display gamut, and the sampler should not waste time exploring colorings that cannot be visualized. Since the RGB color space is bounded, the perturbation proposal draws from a truncated normal distribution in order to maintain ergodicity of the MCMC chains~\cite{TruncatedGaussians}.
 
 Finally, we use maximimum marginal relevance (MMR) to enforce diversity in the set of suggestions returned by the sampler~\cite{MMR}. MMR is a technique from information retrieval that re-ranks every item in a list according to a linear combination of relevance (model score, in our case) and similarity to the items preceding it. The similarity metric we use for two colorings $\colors$ and $\tilde{\colors}$ of a pattern is $- \sum_{\group \in \groups} {\size_\group \cdot ||\colors_\group - \tilde{\colors}_\group||}$, which is the area-weighted sum of \lab distances between the corresponding colors in each coloring.
 
@@ -106,7 +106,9 @@ where $\hat{\colors}$ is the coloring obtained by running an MCMC chain for $k$ 
 
 While the exact weights learned depend on the training dataset, we have noticed several persistent trends.
 The perceptual difference, color compatibility, and color name count terms receive the highest weights. These trends coincide well with our intuition that colors should be harmonious, adjacent regions should have sufficient contrast, and colors should be categorically similar to those in the training set.
-The lowest weight belongs to the color name similarity term, which suggests that the similarity in how two colors are named is not strongly predictive of their compatibility as an adjacent color pair.
+The lowest weight belongs to the color name similarity term, which suggests that the similarity in how two adjacent colors are named is not strongly predictive of their compatibility.
+%in how two colors are named is not strongly predictive of their compatibility as an adjacent color pair.
+%in how two adjacent colors are named is not strongly predictive of their compatibility.
 %The information conveyed by this property may be partially redundant with the perceptual difference term. Also, as this property computes the cosine similarity between two 179-dimensional color name count vectors, the dimensionality of the color name space may simply be too high to provide sufficient discrimination for pattern coloring.
 
 \subsection{Implementation}

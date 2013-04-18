@@ -43,7 +43,7 @@ We also consider the following features for individual segments within a color g
 \subsection{Color Property Distributions}
 \label{sec:unaryDistribs}
 
-With a set of color properties and predictive spatial features in hand, our goal is to predict distributions over those properties given the features. Then, for a color group $\group$ and a color property $\prop$, we define the scoring function
+With a set of color properties and predictive spatial features in hand, our goal is to predict distributions over those properties given the features. Then, for a color group $\group$ and a color property $\prop$, we define the scoring function:
 %%
 \begin{equation*}
 \groupInstStats(\colors_\group) =  \ln p( \prop( \colors_\group ) | \features_\group ) \cdot \size_\group
@@ -54,9 +54,10 @@ where $\colors_\group$ is the color of group $\group$ and $\features_\group$ are
 Figure~\ref{fig:unaryHistograms} shows predicted distributions over lightness for different pattern regions using training data from the top 10 artists in our dataset. The background color group, which is larger and more spread, exhibits a bimodal distribution. Intuitively, backgrounds are either dark or light but rarely of middling brightness. The distribution favors light backgrounds, reflecting the stylistic biases of the data used for training. The smaller, more concentrated, foreground flower color group, on the other hand, strictly prefers lighter colors.
 
 \begin{figure}[ht]
+\centering
 \begin{tabular}{cc}
-{\raisebox{4em}{\includegraphics[width=.25\columnwidth]{figs/histograms/b}}}&\includegraphics[width=.60\columnwidth]{figs/histograms/backgroundGroupHistogram2}\vspace{0.5em}\\
-{\raisebox{4em}{\includegraphics[width=.25\columnwidth]{figs/histograms/f}}}&\includegraphics[width=.60\columnwidth]{figs/histograms/foregroundGroupHistogram2}\vspace{0.5em}\\
+{\raisebox{2.5em}{\includegraphics[width=.25\columnwidth]{figs/histograms/b}}}&\includegraphics[width=.60\columnwidth]{figs/histograms/backgroundGroupHistogram-small}\vspace{0.5em}\\
+{\raisebox{2.5em}{\includegraphics[width=.25\columnwidth]{figs/histograms/f}}}&\includegraphics[width=.60\columnwidth]{figs/histograms/foregroundGroupHistogram-small}\vspace{0.5em}\\
 \end{tabular}
 
 \caption{Predicted distributions over lightness for two different color groups (higlighted in orange). The background has a bimodal distribution, whereas the foreground strictly favors lighter colors.}
