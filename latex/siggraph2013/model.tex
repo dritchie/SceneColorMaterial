@@ -1,7 +1,7 @@
 \section{Probabilistic Model}
 \label{sec:model}
 
-We have defined unary, pairwise, and global scoring functions for pattern color properties; we now need to combine them into one scoring function that evaluates the overall quality of a pattern coloring.
+We have defined unary, pairwise, and global scoring functions for pattern color properties. Now, we combine them into one scoring function that evaluates the overall quality of a pattern coloring.
 
 For this task, we turn to the language of \emph{probabilistic factor graphs}. A factor graph is a probabilistic graphical model that decomposes a complex probability distribution over multiple variables into a set of smaller \emph{factors} over subsets of the variables. In our case, the variables $\colorVars$ are the colors of each color group in a pattern, and the factors $\factor$ are derived from our scoring functions. Figure~\ref{fig:FactorGraph} shows an example of a factor graph for one simple pattern. The circles denote color variables, while squares denote different factors $\factor$. Edges in the graph connect each factor to the variables within its scope.
 

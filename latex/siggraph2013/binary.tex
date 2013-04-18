@@ -3,6 +3,7 @@
 
 While group and segment terms model the dependency of color assignments on spatial features of same-color regions, they do not capture relationships between different-color regions. Adjacent color regions can have strong effects on their neighbor's perceived color, making colors appear more or less saturated or causing vibrating boundaries~\cite{AlbersInteractionOfColor}. Thus, we also predict distributions over color properties for adjacent segment pairs.
 
+
 \subsection{Color Properties and Predictive Features}
 \label{sec:binaryPropsAndFeatures}
 
@@ -17,9 +18,9 @@ As with individual pattern regions, there are many possible properties of the co
 	\item[Color Name Similarity] is the cosine similarity between the color name count vectors defined in Section~\ref{sec:unary}~\cite{ColorNamingModels}. This measure assesses whether two colors are typically referred to with the same set of names.
 \end{description}
 %%%
-To form a set of predictive spatial features for an adjacent segment pair, we use the features from both of the participating segments, concatenated such that the one with the smaller $L_2$ norm is first to enforce a consistent ordering. We then append an additional pair of features based on the insight that good color assignments to adjacent segments may depend on the nature of their adjacency. For example, a square enclosed by a thin border appears different from a square enclosed by a thick border, and different again from a square side-by-side with another square (Figure~\ref{fig:surround}). Thus, we add a pair of features we call \textbf{Enclosure Strengths}, which measure how much one segment in the adjacency encloses the other and vice versa. Enclosure Strength is defined as the number of pixels of the neighboring segment appearing within a 2-pixel neighborhood outside the segment's boundary, normalized by the area of that neighborhood. Out-of-image pixels are counted as part of the neighborhood area.
+Good color assignments may depend on the sizes of participating regions and the nature of their adjacency. For example, a square enclosed by a thin border appears different from a square enclosed by a thick border, and different again from a square side-by-side with another square (Figure~\ref{fig:surround}). Thus, to form a set of predictive spatial features for an adjacent segment pair, we use the features from both participating segments, concatenated such that the one with the smaller $L_2$ norm is first to enforce a consistent ordering. In addition, we add a pair of features we call \textbf{Enclosure Strengths}, which measure how much one segment in the adjacency encloses the other and vice versa. Enclosure Strength is defined as the number of pixels of the neighboring segment appearing within a 2-pixel neighborhood outside the segment's boundary, normalized by the area of that neighborhood. Out-of-image pixels are counted as part of the neighborhood area.
 
-\begin{figure}[ht]
+\begin{figure}[h!]
 \centering
 \includegraphics[width=.7\columnwidth]{figs/surround}
 \caption{Color appearance depends on relationships with surrounding regions.}
@@ -29,13 +30,13 @@ To form a set of predictive spatial features for an adjacent segment pair, we us
 \subsection{Color Property Distributions}
 \label{sec:binaryDistribs}
 
-For a particular pair of adjacent segments $(\segment, \segprime)$ and a color property $\prop$, we can define a function for the distribution over color property values given the spatial features of the adjacency:
+For a particular pair of adjacent segments $(\segment, \segprime)$ and a color property $\prop$, we can define a scoring function: %that takes into account the distribution over color property values given features of the adjacency:
 %%
 \begin{equation*}
 \adjInstStats(\colors_\segment, \colors_\segprime) = \ln p( \prop( \colors_\segment, \colors_\segprime ) | \features_{\segment, \segprime} ) \cdot \adjStrength(\segment, \segprime)
 \end{equation*}
 %%
-where $\adjStrength(\segment,\segprime)$ is the \emph{strength} of the adjacency $(\segment,\segprime)$. We define adjacency strength as the number of pixels from segments $\segment$ or $\segprime$ that are within a 2-pixel distance from their perimeters. All adjacency strengths in a given pattern are normalized to sum to 1. We learn the distributions $p$ using the `histogram regression' approach described in Section~\ref{sec:unary}.
+where $\adjStrength(\segment,\segprime)$ is the \emph{strength} of the adjacency $(\segment,\segprime)$. We define adjacency strength as the number of pixels from segments $\segment$ or $\segprime$ that are within a 2-pixel distance from their perimeters. All adjacency strengths in a given pattern are normalized to sum to 1. We learn the distributions $p$ using the `histogram regression' approach described in Section~\ref{sec:unary}. This function scores how well a color assignment fits an adjacency according to color property $\prop$.
 
 Figure~\ref{fig:binaryHistograms} shows predicted distributions over relative lightness for two different adjacent segment pairs. The two distributions are similar in shape and reflect the intuition that no two adjacent segments should be completely equi-luminant. However, the adjacency between the foreground flower and the background concentrates more of its mass toward higher lightness differences. Together, these two distributions suggest that foreground-background adjacencies should exhibit more lightness contrast than foreground-foreground adjacencies.
 
