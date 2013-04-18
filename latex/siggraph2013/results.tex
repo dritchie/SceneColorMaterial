@@ -63,7 +63,7 @@ Initial automatic suggestions & After fixing the stem to be green\\
 
 Although using a well-designed color palette often improves the look of a pattern, the spatial arrangement of those colors can make a dramatic difference in appearance. Figure~\ref{fig:permutation} shows two input color palettes for the bird pattern and the highest and lowest-scoring color assignments to the pattern using those palettes. These palettes were originally used by artists to color in this pattern on COLOURlovers. Because the pattern has 5 color groups, there are 120 possible color assignments for a given 5-color palette. Our model ranks the original artist-created color assignments as 39th (for the first palette) and 21st (for the second) out of the 120 permutations. Over a larger sampling of 188 patterns, artist-created colorings rank in the top 40\% overall, suggesting that the model captures general artist trends in pattern coloring. However, there may be stylistic variations between different artists that are not well predicted by a single model.
 
-In this example, the model terms that most distinguish the highest-scoring assignments from the lowest-scoring ones are the color name counts factors. The model prefers colors such as Yellow, Grey, and Green to Red-Orange and Orange-Brown for background regions. Colorings with orange background colors tend to score poorly, perhaps because there are few popular patterns with orange backgrounds in our training set.
+In this example, the model terms that most distinguish the highest-scoring assignments from the lowest-scoring ones are the color name counts factors. The model prefers colors such as Tan-Yellow, Grey, and Green-Black to Red-Orange and Orange for background regions. Colorings with orange background colors tend to score poorly, perhaps because there are few popular patterns with orange backgrounds in our training set.
 %Other distinguishing terms include perceptual difference between adjacent regions.
 Our model also predicts that foreground regions should more perceptually distinct from the background than from other foreground regions. Thus, it tends to assign the most distinct color in the palette to the background region.
 
@@ -119,7 +119,9 @@ Original&Suggestions\\
 
 Figure~\ref{fig:nearbySuggestions} shows two example scenarios where a proposed coloring is given and the model returns similar colorings. Here we choose $\sigma_\textrm{user}$ to be 10\% of the diagonal length of the \lab color space, and $w_\textrm{user}=3$, indicating a desire to remain fairly close to the original coloring. Our model generates numerous variations on the input coloring while still preserving its overall character.
 
-\begin{figure}[t]
+\paragraph{Style capture} A powerful advantage of a data-driven approach is the ability to modify the underlying training source to achieve specialization of the resulting model. This ability allows our model to capture a specific style and color preferences such as ``high-contrast patterns'' by selecting a set of patterns with the desired property. Figure~\ref{fig:styleTraining} demonstrates this behavior using four style categories: \emph{Light}, \emph{Dark}, \emph{Bold}, and \emph{Mellow}. Using 17 training examples, our model can capture general properties of the example patterns such as the distribution of colors over the background regions in \emph{Light} and \emph{Dark} and the level of contrast in \emph{Bold} and \emph{Mellow}. The model can also capture the style of a specific artist, as shown in Figure~\ref{fig:artistTraining}. Here, 100 images from each artist were used for training. The sampled images mimic properties of each artist's style, such as the light backgrounds preferred by Artist A and the bold colors and dark backgrounds preferred by Artist B. The complete list of patterns used as training data for these examples can be found in the supplemental materials.
+
+\begin{figure}[!ht]
 \begin{tabular}{ccc} 
 Style&Example&Results\\ %\hline
 \raisebox{1.55em}{\emph{Light}}&\includegraphics[width=.148\columnwidth]{figs/styleResultsLightExample2}&\includegraphics[width=.62\columnwidth]{figs/styleResultsLight}\vspace{0.5em}\\
@@ -147,8 +149,6 @@ Artist A&Artist B\\
 \vspace{-1.0em}
 \label{fig:artistTraining}
 \end{figure*}
-
-\paragraph{Style capture} A powerful advantage of a data-driven approach is the ability to modify the underlying training source to achieve specialization of the resulting model. This ability allows our model to capture a specific style and color preferences such as ``high-contrast patterns'' by selecting a set of patterns with the desired property. Figure~\ref{fig:styleTraining} demonstrates this behavior using four style categories: \emph{Light}, \emph{Dark}, \emph{Bold}, and \emph{Mellow}. Using 17 training examples, our model can capture general properties of the example patterns such as the distribution of colors over the background regions in \emph{Light} and \emph{Dark} and the level of contrast in \emph{Bold} and \emph{Mellow}. The model can also capture the style of a specific artist, as shown in Figure~\ref{fig:artistTraining}. Here, 100 images from each artist were used for training. The sampled images mimic properties of each artist's style, such as the light backgrounds preferred by Artist A and the bold colors and dark backgrounds preferred by Artist B. The complete list of patterns used as training data for these examples can be found in the supplemental materials.
 
 \subsection{Applications}
 
