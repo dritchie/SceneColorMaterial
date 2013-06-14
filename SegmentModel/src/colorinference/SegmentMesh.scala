@@ -137,13 +137,14 @@ object Segment
     def getBinaryRegressionFeatures_Interleaved(seg1:Segment, adj:SegmentAdjacency) : (Tensor1, Array[String]) =
     {
         val seg2 = adj.neighbor
+        val seg2adj = seg2.adjacencies(seg1) //the enclosures are not symmetric, due to the discrete nature of the pixels
 
         val f1 = getUnaryRegressionFeatures(seg1)
         val f2 = getUnaryRegressionFeatures(seg2)
 
         //add the enclosure strength as a feature
         val fvec1 = MathUtils.concatVectors(f1._1, Tensor1(adj.originEnclosure))
-        val fvec2 = MathUtils.concatVectors(f2._1, Tensor1(adj.neighborEnclosure))
+        val fvec2 = MathUtils.concatVectors(f2._1, Tensor1(seg2adj.originEnclosure))
 
         //modify the feature names
         val fnames1 = Array.concat(f1._2 , Array("enclosure"))
@@ -485,7 +486,7 @@ class SegmentMesh(private val gen:ColorVariableGenerator) extends VariableStruct
 
 
   /** Filtering **/
-  def filter(sK:Int, aK:Int, noNoise:Boolean)
+   def filter(sK:Int, aK:Int, noNoise:Boolean)
   {
     //filtering the top segK segments per group, and the top adj K adjacencies per relevant segment
     //we're filtering by group to allow more equal representation across color groups
@@ -507,7 +508,7 @@ class SegmentMesh(private val gen:ColorVariableGenerator) extends VariableStruct
       for (g <- groups)
       {
         g.members.clear()
-        var sortedMembers = g.allMembers.filter(a=>(!ignoreNoise || !a.isNoise)).sortBy(_.size)
+        var sortedMembers = g.allMembers.filter(a=>(!ignoreNoise || !a.isNoise)).sortBy(a => (a.size, a.index))
         if (segK >= 0)
           sortedMembers = sortedMembers.takeRight(segK)
         g.members ++= sortedMembers
@@ -516,12 +517,13 @@ class SegmentMesh(private val gen:ColorVariableGenerator) extends VariableStruct
     }
     //filter the adjacencies per segment
     //compute the top K adjacencies per segment. Note: the adjacencies might involve segments that are not in the top segK segments per group
+    //in case there are things the same size, sort by index as well
     if (adjK >= 0 || ignoreNoise)
     {
       val segToTopK = new mutable.HashMap[Segment, Seq[Segment]]()
       for (seg <- segments)
       {
-        var topK = seg.allAdjacencies.values.toList.filter(a=>(!ignoreNoise || !a.neighbor.isNoise)).sortBy(_.strength)
+        var topK = seg.allAdjacencies.values.toList.filter(a=>(!ignoreNoise || !a.neighbor.isNoise)).sortBy(a => (a.strength, a.neighbor.index))
         if (adjK >= 0)
           topK = topK.takeRight(aK)
         segToTopK(seg) = topK.map(_.neighbor)
@@ -531,13 +533,15 @@ class SegmentMesh(private val gen:ColorVariableGenerator) extends VariableStruct
       {
         seg.adjacencies.clear()
 
-        //add the adjacency if it is in the topK of either the origin segment or its neighbor, if that neighbor is also non-filtered
-        //if the neighbor is not included in segments, then we don't need to check its adjacencies since there's no way we'll count that adjacency
-        //twice
+        //add the adjacency if it is in the topK of either the origin segment or its neighbor
         for ((seg2, adj) <- seg.allAdjacencies)
         {
             if (segToTopK(seg).contains(seg2) || (segToTopK.contains(seg2) && segToTopK(seg2).contains(seg)))
+            {
               seg.adjacencies(seg2) = adj
+              seg2.adjacencies(seg) = seg2.allAdjacencies(seg)
+            }
+
         }
 
       }

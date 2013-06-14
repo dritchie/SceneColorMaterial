@@ -68,7 +68,7 @@ object ColorInferenceModel
                                      saveValidationLog:Boolean, cvRanges:HistogramRegressor.CrossValidationRanges,
                                      numBins:Int, bandScale:Double, loadFrom:String = "")
         {
-            val dataIsScalar = examples.head.target.length == 1
+            //val dataIsScalar = examples.head.target.length == 1
             //def quantizer(binCount:Int) = if (dataIsScalar) new UniformVectorQuantizer(Array(binCount)) else new KMeansVectorQuantizer(binCount)
             def quantizer(binCount:Int) = new KMeansVectorQuantizer(binCount)
 
@@ -164,7 +164,7 @@ object ColorInferenceModel
     }
 
     // Implement this trait so that we can spit out & analyze model contents
-    class SummaryItem(val ttype:String, val propname:String, val ids:Array[String], val hist:VectorHistogram, val origValue:Tensor1)
+    class SummaryItem(val ttype:String, val propname:String, val ids:Array[String], val hist:VectorHistogram, val origValue:Tensor1, val featureDesc:String="")
     class CoefficientsItem(val ttype:String, val propname:String, val classes:Seq[Tensor1], val featureNames:Seq[String], val coefficients:Array[Array[Double]])
     class Summary
     {
@@ -289,7 +289,12 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
     def summary:Summary =
     {
       val s = new Summary
-      val items = data.keys.map(si => new SummaryItem("unarysegment", propName, Array("s"+si), data(si).value.hist, colorPropExtractor(data(si).value.seg.group.color.observedColor)) )
+      val items = data.keys.map(si =>
+      {
+        val features = Segment.getUnaryRegressionFeatures(data(si).value.seg)
+        val desc = features._2.zip(features._1.toArray).mkString("-")
+        new SummaryItem("unarysegment", propName, Array("s"+si), data(si).value.hist, colorPropExtractor(data(si).value.seg.group.color.observedColor), desc)
+      })
       s.histograms = items.toArray[SummaryItem]
 
       s.coefficients = Array(new CoefficientsItem("unarysegment", propName, regressor.getCentroids, regressor.getFeatureNames, regressor.getCoefficients))
@@ -299,7 +304,7 @@ trait UnarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVa
     protected def createRegressor(property:ModelTraining#UnarySegmentProperty) : HistogramRegressor =
     {
         println("Training " + name + "...")
-        property.regression(MathUtils.euclideanDistance, property.bandScale, WekaMultiClassHistogramRegressor)
+        property.regression(/*MathUtils.euclideanDistance*/property.metric, property.bandScale, WekaMultiClassHistogramRegressor)
     }
 
     protected def computeStatistics(color:Color, datum:Datum) : Tensor1  =
@@ -384,32 +389,48 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
     protected def colorPropExtractor:ColorPropertyExtractor
     protected val data = new Data
 
+
     def conditionOnAll(meshes:Seq[SegmentMesh])
     {
       data.clear()
-      for (mesh<-meshes; seg1 <- mesh.segments; adj <- seg1.adjacencies.values if seg1.index < adj.neighbor.index)
+      //we want to count significant adjacencies per group even if their segments are not globally large enough to have unary factors
+      for (mesh<-meshes; seg1 <- mesh.segments; adj <- seg1.adjacencies.values if  (seg1.index < adj.neighbor.index || !mesh.segments.contains(adj.neighbor)))
       {
         val seg2 = adj.neighbor
         val f = Segment.getBinaryRegressionFeatures(seg1, adj)._1
-        data.put((seg1.index, seg2.index), new DatumVariable(Datum(seg1, seg2, regressor.predictHistogram(f))))
+
+        if (seg1.index < seg2.index)
+          data.put((seg1.index, seg2.index), new DatumVariable(Datum(seg1, seg2, regressor.predictHistogram(f))))
+        else
+          data.put((seg2.index, seg1.index), new DatumVariable(Datum(seg2, seg1, regressor.predictHistogram(f))))
       }
     }
 
     def conditionOn(mesh:SegmentMesh)
     {
         data.clear()
-        for (seg1 <- mesh.segments; adj <- seg1.adjacencies.values if seg1.index < adj.neighbor.index)
+
+        //we want to count significant adjacencies per group even if their segments are not globally large enough to have unary factors
+        for (seg1 <- mesh.segments; adj <- seg1.adjacencies.values if (seg1.index < adj.neighbor.index || !mesh.segments.contains(adj.neighbor)))
         {
             val seg2 = adj.neighbor
             val f = Segment.getBinaryRegressionFeatures(seg1, adj)._1
-            data.put((seg1.index, seg2.index), new DatumVariable(Datum(seg1, seg2, regressor.predictHistogram(f))))
+            if (seg1.index < seg2.index)
+              data.put((seg1.index, seg2.index), new DatumVariable(Datum(seg1, seg2, regressor.predictHistogram(f))))
+            else
+              data.put((seg2.index, seg1.index), new DatumVariable(Datum(seg2, seg1, regressor.predictHistogram(f))))
         }
     }
 
   def summary:Summary =
   {
     val s = new Summary
-    val items = data.keys.map(k => new SummaryItem("binarysegment", propName, Array("s"+k._1, "s"+k._2), data(k).value.hist, colorPropExtractor(data(k).value.seg1.group.color.observedColor,data(k).value.seg2.group.color.observedColor)))
+    val items = data.keys.map(k =>
+    {
+      val features = Segment.getBinaryRegressionFeatures(data(k).value.seg1, data(k).value.seg1.adjacencies(data(k).value.seg2))
+      val desc = features._2.zip(features._1.toArray).mkString("-")
+      new SummaryItem("binarysegment", propName, Array("s"+k._1, "s"+k._2), data(k).value.hist, colorPropExtractor(data(k).value.seg1.group.color.observedColor,data(k).value.seg2.group.color.observedColor), desc)
+    } )
     s.histograms = items.toArray[SummaryItem]
 
     s.coefficients = Array(new CoefficientsItem("binarysegment", propName, regressor.getCentroids, regressor.getFeatureNames, regressor.getCoefficients))
@@ -421,7 +442,7 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
   protected def createRegressor(property:ModelTraining#BinarySegmentProperty) : HistogramRegressor =
     {
         println("Training " + name + "...")
-        property.regression(MathUtils.euclideanDistance, property.bandScale, WekaMultiClassHistogramRegressor)
+        property.regression(/*MathUtils.euclideanDistance*/property.metric, property.bandScale, WekaMultiClassHistogramRegressor)
     }
 
     protected def computeStatistics(color1:Color, color2:Color, datum:Datum) : Tensor1  =
@@ -455,7 +476,8 @@ trait BinarySegmentTemplate[ColorVar<:ColorVariable] extends DotTemplate3[ColorV
     {
         // Symmetric w.r.t to unroll1
         for (seg2 <- v2.group.members; seg1 <- seg2.adjacencies.keys if seg1.index < seg2.index)
-            yield Factor(seg1.group.color.asInstanceOf[ColorVar], v2, data((seg1.index,seg2.index)))
+          yield Factor(seg1.group.color.asInstanceOf[ColorVar], v2, data((seg1.index,seg2.index)))
+
     }
 
     // This will never be called, since the DataVariable never changes
@@ -545,7 +567,13 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
     def summary:Summary =
     {
       val s = new Summary
-      val items = data.keys.map(gi => new SummaryItem("unarygroup", propName, Array("g"+gi), data(gi).value.hist, colorPropExtractor(data(gi).value.group.color.observedColor)))
+      val items = data.keys.map(
+        gi =>
+        {
+          val features = SegmentGroup.getRegressionFeatures(data(gi).value.group)
+          val desc = features._2.zip(features._1.toArray).mkString("-")
+          new SummaryItem("unarygroup", propName, Array("g"+gi), data(gi).value.hist, colorPropExtractor(data(gi).value.group.color.observedColor),desc)
+      })
       s.histograms = items.toArray[SummaryItem]
 
       s.coefficients = Array(new CoefficientsItem("unarygroup", propName, regressor.getCentroids, regressor.getFeatureNames, regressor.getCoefficients))
@@ -555,7 +583,7 @@ trait ColorGroupTemplate[ColorVar<:ColorVariable] extends DotTemplate2[ColorVar,
     protected def createRegressor(property:ModelTraining#ColorGroupProperty) : HistogramRegressor =
     {
         println("Training " + name + "...")
-        property.regression(MathUtils.euclideanDistance, property.bandScale, WekaMultiClassHistogramRegressor)
+        property.regression(/*MathUtils.euclideanDistance*/property.metric, property.bandScale, WekaMultiClassHistogramRegressor)
     }
 
     protected def computeStatistics(color:Color, datum:Datum) : Tensor1  =
