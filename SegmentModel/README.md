@@ -11,3 +11,6 @@
  * Create an IntelliJ path variable called `WEKA_HOME` that points to the root of your Weka installation.
 * matlabcontrol 4.0.0 (https://code.google.com/p/matlabcontrol/)
  * Create an IntelliJ path variable called `MATLABCONTROL_HOME` that points to the directory containing the matlabcontrol jar.
+* Breese Snapshot 0.2.1 (https://github.com/scalanlp/breeze/tree/c1ee8d913c574801c8f438eb3cd9ab3d13d52099)
+ * Create an IntelliJ path variable called 'BREEZE_HOME' that points to the directory containing the breeze math and core jars
+ * When compiling breeze, use Scala 2.9.2 (and/or the same Scala the project is compiled in)

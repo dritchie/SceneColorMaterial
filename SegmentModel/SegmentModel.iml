@@ -20,6 +20,7 @@
     <orderEntry type="library" name="factorie-1.0.0-M2" level="project" />
     <orderEntry type="library" name="weka" level="project" />
     <orderEntry type="library" name="matlabcontrol-4.0.0" level="project" />
+    <orderEntry type="library" name="breeze-core-assembly-0.2.1" level="project" />
   </component>
 </module>
 
